@@ -1,0 +1,30 @@
+{
+    "name": "itx/typo3-graphql",
+    "type": "typo3-cms-extension",
+    "description": "",
+    "authors": [
+        {
+            "name": "Benjamin Jasper",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "typo3/cms-core": "^11.5",
+		"webonyx/graphql-php": "14.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Itx\\Typo3GraphQL\\": "Classes"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Itx\\Typo3GraphQL\\Tests\\": "Tests"
+        }
+    },
+    "extra": {
+        "typo3/cms": {
+            "extension-key": "typo3_graphql"
+        }
+    }
+}
