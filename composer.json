@@ -10,7 +10,8 @@
     ],
     "require": {
         "typo3/cms-core": "^11.5",
-		"webonyx/graphql-php": "14.*"
+		"webonyx/graphql-php": "14.*",
+		"simpod/graphql-utils": "^0.5"
     },
     "autoload": {
         "psr-4": {
