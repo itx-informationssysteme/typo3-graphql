@@ -44,7 +44,12 @@ class SchemaGenerator
         Posting::class
     ];
 
-    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver)
+    public function __construct(PersistenceManager $persistenceManager,
+                                TableNameResolver  $tableNameResolver,
+                                LoggerInterface    $logger,
+                                LanguageService    $languageService,
+                                TCATypeMapper      $typeMapper,
+                                QueryResolver      $queryResolver)
     {
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
@@ -69,7 +74,8 @@ class SchemaGenerator
             $tableName = $this->tableNameResolver->resolve($modelClassPath);
 
             // Type configuration
-            $object = ObjectBuilder::create($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']))->setDescription('TODO');
+            $object = ObjectBuilder::create($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']))
+                                   ->setDescription('TODO');
 
             $fields = [
                 FieldBuilder::create('uid', Type::nonNull(Type::int()))->setDescription('Unique identifier in table')->build(),
@@ -79,11 +85,20 @@ class SchemaGenerator
             // Add fields for all columns to type config
             foreach ($GLOBALS['TCA'][$tableName]['columns'] as $fieldName => $columnConfiguration) {
                 try {
-                    $field = FieldBuilder::create($fieldName, $this->typeMapper->map($columnConfiguration, $typeRegistry))->setDescription($this->languageService->sL($columnConfiguration['label']));
+                    $field = FieldBuilder::create($fieldName, $this->typeMapper->map($columnConfiguration, $typeRegistry))
+                                         ->setDescription($this->languageService->sL($columnConfiguration['label']));
 
                     if (!empty($columnConfiguration['config']['foreign_table'])) {
-                        $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($tableName, $typeRegistry) {
-                            return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $typeRegistry, $tableName);
+                        $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                            $tableName,
+                            $typeRegistry
+                        ) {
+                            return $this->queryResolver->fetchForeignRecord($root,
+                                                                            $args,
+                                                                            $context,
+                                                                            $resolveInfo,
+                                                                            $typeRegistry,
+                                                                            $tableName);
                         });
                     }
 
@@ -100,16 +115,37 @@ class SchemaGenerator
             $typeRegistry->addObjectType($objectType, $tableName, $modelClassPath);
 
             // Add a query to fetch multiple records
-            $queries[] = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true), Type::listOf($objectType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
-                return $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath);
-            })->build();
+            $queries[] =
+                FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true), Type::listOf($objectType))
+                            ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
+                                return $this->queryResolver->fetchMultipleRecords($root,
+                                                                                  $args,
+                                                                                  $context,
+                                                                                  $resolveInfo,
+                                                                                  $modelClassPath);
+                            })
+                            ->addArgument('language', Type::nonNull(Type::int()), 'Language field', 0)
+                            ->build();
 
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record
-            $queries[] = FieldBuilder::create($singleQueryName, $objectType)->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
-                return $this->queryResolver->fetchSingleRecord($root, $args, $context, $resolveInfo, $modelClassPath);
-            })->addArgument('uid', Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")->build();
+            $queries[] = FieldBuilder::create($singleQueryName, $objectType)
+                                     ->setResolver(function($root,
+                                                            $args,
+                                         $context,
+                                                            ResolveInfo $resolveInfo) use (
+                                         $modelClassPath
+                                     ) {
+                                         return $this->queryResolver->fetchSingleRecord($root,
+                                                                                        $args,
+                                                                                        $context,
+                                                                                        $resolveInfo,
+                                                                                        $modelClassPath);
+                                     })
+                                     ->addArgument('uid', Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")
+                                     ->addArgument('language', Type::nonNull(Type::int()), 'Language field', 0)
+                                     ->build();
         }
 
         $schemaConfig = SchemaConfig::create();
