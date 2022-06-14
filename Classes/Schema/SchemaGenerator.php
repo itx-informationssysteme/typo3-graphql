@@ -88,7 +88,7 @@ class SchemaGenerator
                     $field = FieldBuilder::create($fieldName, $this->typeMapper->map($columnConfiguration, $typeRegistry))
                                          ->setDescription($this->languageService->sL($columnConfiguration['label']));
 
-                    if (!empty($columnConfiguration['config']['foreign_table'])) {
+                    if (!empty($columnConfiguration['config']['foreign_table']) && empty($columnConfiguration['config']['MM'])) {
                         $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                             $tableName,
                             $typeRegistry
@@ -99,6 +99,20 @@ class SchemaGenerator
                                                                             $resolveInfo,
                                                                             $typeRegistry,
                                                                             $tableName);
+                        });
+                    } elseif (!empty($columnConfiguration['config']['MM'])) {
+                        $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                            $modelClassPath,
+                            $tableName,
+                            $typeRegistry
+                        ) {
+                            return $this->queryResolver->fetchForeignRecordWithMM($root,
+                                                                                  $args,
+                                                                                  $context,
+                                                                                  $resolveInfo,
+                                                                                  $typeRegistry,
+                                                                                  $tableName,
+                                                                                  $modelClassPath);
                         });
                     }
 
@@ -125,6 +139,7 @@ class SchemaGenerator
                                                                                   $modelClassPath);
                             })
                             ->addArgument('language', Type::nonNull(Type::int()), 'Language field', 0)
+                            ->addArgument('storages', Type::listOf(Type::int()), 'List of storage page ids')
                             ->build();
 
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
@@ -132,7 +147,7 @@ class SchemaGenerator
             // Add a query to fetch a single record
             $queries[] = FieldBuilder::create($singleQueryName, $objectType)
                                      ->setResolver(function($root,
-                                                            $args,
+                                         $args,
                                          $context,
                                                             ResolveInfo $resolveInfo) use (
                                          $modelClassPath

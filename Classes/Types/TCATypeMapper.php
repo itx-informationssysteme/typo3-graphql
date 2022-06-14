@@ -11,6 +11,7 @@ use Itx\Typo3GraphQL\Utility\NamingUtility;
 use JetBrains\PhpStorm\ArrayShape;
 use phpDocumentor\Reflection\Types\Array_;
 use SimPod\GraphQLUtils\Builder\EnumBuilder;
+use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\MathUtility;
 
@@ -33,6 +34,7 @@ class TCATypeMapper
      * @throws UnsupportedTypeException
      * @throws \Itx\Typo3GraphQL\Exception\NameNotFoundException
      * @throws \SimPod\GraphQLUtils\Exception\InvalidArgument
+     * @throws NotFoundException
      */
     public function map(#[ArrayShape([
         'label' => 'string',
@@ -44,7 +46,8 @@ class TCATypeMapper
             'foreign_table' => 'string',
             'MM' => 'string'
         ]
-    ])] array $columnConfiguration, TypeRegistry $typeRegistry): Type
+    ])] array                        $columnConfiguration,
+                        TypeRegistry $typeRegistry): Type
     {
         /** @var Type|null $returnType */
         $returnType = null;
@@ -80,12 +83,14 @@ class TCATypeMapper
             case 'select':
                 if (!empty($columnConfiguration['config']['items'])) {
                     // If all values are integers or floats, we don't need an enum
-                    if (count(array_filter($columnConfiguration['config']['items'], fn($x) => !MathUtility::canBeInterpretedAsInteger($x[1]))) === 0) {
+                    if (count(array_filter($columnConfiguration['config']['items'],
+                            static fn($x) => !MathUtility::canBeInterpretedAsInteger($x[1]))) === 0) {
                         $returnType = Type::int();
                         break;
                     }
 
-                    if (count(array_filter($columnConfiguration['config']['items'], fn($x) => !MathUtility::canBeInterpretedAsFloat($x[1]))) === 0) {
+                    if (count(array_filter($columnConfiguration['config']['items'],
+                            static fn($x) => !MathUtility::canBeInterpretedAsFloat($x[1]))) === 0) {
                         $returnType = Type::float();
                         break;
                     }
@@ -104,9 +109,13 @@ class TCATypeMapper
                             break 2;
                         }
 
-                        $valueName = NamingUtility::generateName($this->languageService->sL($label), false);
-
-                        $builder->addValue($item, $valueName);
+                        try {
+                            $builder->addValue($item, null, $this->languageService->sL($label));
+                        }
+                        catch (InvalidArgument $e) {
+                            $returnType = Type::string();
+                            break 2;
+                        }
                     }
 
                     $enumType = new EnumType($builder->build());
@@ -118,17 +127,15 @@ class TCATypeMapper
                 }
 
                 if (!empty($columnConfiguration['config']['foreign_table'])) {
-                    if (!empty($columnConfiguration['config']['MM'])) {
-                        // TODO
-                        break;
-                    }
-
                     try {
                         $returnType = $typeRegistry->getTypeByTableName($columnConfiguration['config']['foreign_table']);
                     }
                     catch (NotFoundException $e) {
-                        debug($columnConfiguration['config']['foreign_table']);
-                        asdf();
+                        throw new NotFoundException("Could not find type for foreign table '{$columnConfiguration['config']['foreign_table']}'");
+                    }
+
+                    if (!empty($columnConfiguration['config']['MM'])) {
+                        $returnType = Type::listOf($returnType);
                         break;
                     }
                 }
