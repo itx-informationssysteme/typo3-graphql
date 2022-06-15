@@ -53,9 +53,13 @@ class TCATypeMapper
         $returnType = null;
 
         switch ($columnConfiguration['config']['type']) {
+            case 'check':
+                $returnType = Type::boolean();
+                break;
             case 'inline':
                 // TODO
                 break;
+            case 'text':
             case 'input':
                 if (str_contains($columnConfiguration['config']['eval'] ?? '', 'int')) {
                     $returnType = Type::int();

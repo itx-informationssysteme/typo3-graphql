@@ -24,7 +24,7 @@ class QueryResolver
     public function fetchSingleRecord($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
     {
         $uid = (int)$args['uid'];
-        $language = (int)$args['language'];
+        $language = (int)($root['sys_language_uid'] ?? 0);
 
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
         $query->getQuerySettings()->setRespectStoragePage(false)->setLanguageUid($language)->setLanguageOverlayMode(true);
@@ -41,8 +41,8 @@ class QueryResolver
 
     public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
     {
-        $language = (int)$args['language'];
-        $storagePids = (array)$args['storages'];
+        $language = (int)($root['sys_language_uid'] ?? 0);
+        $storagePids = (array)($args['storages'] ?? []);
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
@@ -70,7 +70,7 @@ class QueryResolver
     {
         $foreignUid = $root[$resolveInfo->fieldName];
         // TODO: maybe improve on this
-        $language = (int)$root['sys_language_uid'];
+        $language = (int)($root['sys_language_uid'] ?? 0);
 
         $modelClassPath =
             $typeRegistry->getModelClassPathByTableName($GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table']);
@@ -101,8 +101,6 @@ class QueryResolver
                                              string $modelClassPath): array
     {
         $foreignUid = $root[$resolveInfo->fieldName];
-        // TODO: maybe improve on this
-        $language = (int)$root['sys_language_uid'];
 
         $table = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table'];
         $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
