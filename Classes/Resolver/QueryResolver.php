@@ -61,19 +61,13 @@ class QueryResolver
     /**
      * @throws NotFoundException
      */
-    public function fetchForeignRecord($root,
-                                       array $args,
-        $context,
-                                       ResolveInfo $resolveInfo,
-                                       TypeRegistry $typeRegistry,
-                                       string $tableName): array
+    public function fetchForeignRecord($root, array $args, $context, ResolveInfo $resolveInfo, TypeRegistry $typeRegistry, string $tableName): array
     {
         $foreignUid = $root[$resolveInfo->fieldName];
         // TODO: maybe improve on this
         $language = (int)($root['sys_language_uid'] ?? 0);
 
-        $modelClassPath =
-            $typeRegistry->getModelClassPathByTableName($GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table']);
+        $modelClassPath = $typeRegistry->getModelClassPathByTableName($GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table']);
 
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
         $query->getQuerySettings()->setRespectStoragePage(false)->setLanguageUid($language)->setLanguageOverlayMode(true);
@@ -92,13 +86,7 @@ class QueryResolver
      * @throws \Doctrine\DBAL\Driver\Exception
      * @throws \Doctrine\DBAL\DBALException
      */
-    public function fetchForeignRecordWithMM($root,
-                                             array $args,
-        $context,
-                                             ResolveInfo $resolveInfo,
-                                             TypeRegistry $typeRegistry,
-                                             string $tableName,
-                                             string $modelClassPath): array
+    public function fetchForeignRecordWithMM($root, array $args, $context, ResolveInfo $resolveInfo, TypeRegistry $typeRegistry, string $tableName, string $modelClassPath): array
     {
         $foreignUid = $root[$resolveInfo->fieldName];
 
@@ -115,8 +103,9 @@ class QueryResolver
         }
 
         $qb->from($table, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_local'))->andWhere($qb->expr()
-                                                                                                              ->eq('m.uid_foreign',
-                                                                                                                   $foreignUid));
+                                                                                                              ->eq('m.uid_foreign', $foreignUid));
+
+        $qb->andWhere();
 
         return $qb->execute()->fetchAllAssociative();
     }

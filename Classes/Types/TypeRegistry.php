@@ -9,16 +9,50 @@ use Itx\Typo3GraphQL\Exception\NotFoundException;
 
 class TypeRegistry
 {
+    protected static array $customTypes = [];
+
     protected array $typeStore = [];
     protected array $tableToObjectNameMap = [];
     protected array $tableToModelClasspathMap = [];
+
+    /**
+     * @throws NameNotFoundException
+     */
+    public function __construct() {
+        $this->addType(self::link());
+        $this->addType(self::file());
+    }
+
+    /**
+     * Gets an instance of LinkType
+     */
+    public static function link(): LinkType
+    {
+        if (!isset(self::$customTypes['Link'])) {
+            self::$customTypes['Link'] = new LinkType();
+        }
+
+        return self::$customTypes['Link'];
+    }
+
+    /**
+     * Gets an instance of FileType
+     */
+    public static function file(): FileType
+    {
+        if (!isset(self::$customTypes['File'])) {
+            self::$customTypes['File'] = new FileType();
+        }
+
+        return self::$customTypes['File'];
+    }
 
 
     /**
      * @throws NameNotFoundException
      */
     public function addObjectType(Type $type, string $tableName, string $modelClassPath): void {
-        $name = $type->config['name'];
+        $name = $type->toString();
 
         if ($name === '') {
             throw new NameNotFoundException("Object type $type is missing a name");
@@ -33,7 +67,7 @@ class TypeRegistry
      * @throws NameNotFoundException
      */
     public function addType(Type $type): void {
-        $name = $type->config['name'];
+        $name = $type->toString();
 
         if ($name === '') {
             throw new NameNotFoundException("Type $type is missing a name");

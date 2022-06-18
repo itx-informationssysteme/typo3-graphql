@@ -52,7 +52,9 @@ class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
         // TODO only when not in cache
         $schema->assertValid();
 
-        $server = new \GraphQL\Server\StandardServer(['schema' => $schema]);
+        $server = new \GraphQL\Server\StandardServer([
+                                                         'schema' => $schema,
+                                                     ]);
 
         $response = new JsonResponse();
 

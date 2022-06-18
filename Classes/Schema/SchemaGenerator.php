@@ -11,6 +11,7 @@ use ITX\Jobapplications\Domain\Model\Contact;
 use ITX\Jobapplications\Domain\Model\Location;
 use ITX\Jobapplications\Domain\Model\Posting;
 use Itx\Typo3GraphQL\Domain\Model\Page;
+use Itx\Typo3GraphQL\Domain\Model\TtContent;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
@@ -39,17 +40,13 @@ class SchemaGenerator
     protected array $modelClassPaths = [
         Category::class,
         Page::class,
+        TtContent::class,
         Location::class,
         Contact::class,
         Posting::class
     ];
 
-    public function __construct(PersistenceManager $persistenceManager,
-                                TableNameResolver  $tableNameResolver,
-                                LoggerInterface    $logger,
-                                LanguageService    $languageService,
-                                TCATypeMapper      $typeMapper,
-                                QueryResolver      $queryResolver)
+    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver)
     {
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
@@ -60,7 +57,7 @@ class SchemaGenerator
     }
 
     /**
-     * @throws NameNotFoundException|InvalidArgument
+     * @throws NameNotFoundException|NotFoundException
      */
     public function generate(): Schema
     {
@@ -73,90 +70,54 @@ class SchemaGenerator
             // Get the table name
             $tableName = $this->tableNameResolver->resolve($modelClassPath);
 
+            $objectName = NamingUtility::generateName($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']), false);
+
             // Type configuration
-            $object = ObjectBuilder::create($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']))
-                                   ->setDescription('TODO');
-
-            $fields = [
-                FieldBuilder::create('uid', Type::nonNull(Type::int()))->setDescription('Unique identifier in table')->build(),
-                FieldBuilder::create('pid', Type::nonNull(Type::int()))->setDescription('Page id')->build(),
-            ];
-
-            // Add fields for all columns to type config
-            foreach ($GLOBALS['TCA'][$tableName]['columns'] as $fieldName => $columnConfiguration) {
-                try {
-                    $field = FieldBuilder::create($fieldName, $this->typeMapper->map($columnConfiguration, $typeRegistry))
-                                         ->setDescription($this->languageService->sL($columnConfiguration['label']));
-
-                    if (!empty($columnConfiguration['config']['foreign_table']) && empty($columnConfiguration['config']['MM'])) {
-                        $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                            $tableName,
-                            $typeRegistry
-                        ) {
-                            return $this->queryResolver->fetchForeignRecord($root,
-                                                                            $args,
-                                                                            $context,
-                                                                            $resolveInfo,
-                                                                            $typeRegistry,
-                                                                            $tableName);
-                        });
-                    } elseif (!empty($columnConfiguration['config']['MM'])) {
-                        $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                            $modelClassPath,
-                            $tableName,
-                            $typeRegistry
-                        ) {
-                            return $this->queryResolver->fetchForeignRecordWithMM($root,
-                                                                                  $args,
-                                                                                  $context,
-                                                                                  $resolveInfo,
-                                                                                  $typeRegistry,
-                                                                                  $tableName,
-                                                                                  $modelClassPath);
-                        });
-                    }
-
-                    $fields[] = $field->build();
-                }
-                catch (UnsupportedTypeException $e) {
-                    $this->logger->debug($e->getMessage());
-                }
-            }
+            $object = ObjectBuilder::create($objectName)->setDescription('TODO');
 
             // Build a ObjectType from the type configuration
-            $objectType = new ObjectType($object->setFields($fields)->build());
+            $objectType = new ObjectType($object->setFields(function() use ($typeRegistry, $modelClassPath, $tableName) {
+                $fields = [
+                    FieldBuilder::create('uid', Type::nonNull(Type::int()))->setDescription('Unique identifier in table')->build(),
+                    FieldBuilder::create('pid', Type::nonNull(Type::int()))->setDescription('Page id')->build(),
+                ];
+
+                // Add fields for all columns to type config
+                foreach ($GLOBALS['TCA'][$tableName]['columns'] as $fieldName => $columnConfiguration) {
+                    try {
+                        $field = $this->typeMapper->buildField($fieldName, $columnConfiguration, $modelClassPath, $tableName, $typeRegistry)
+                                                  ->setDescription($this->languageService->sL($columnConfiguration['label']));
+
+                        $fields[] = $field->build();
+                    }
+                    catch (UnsupportedTypeException $e) {
+                        $this->logger->debug($e->getMessage());
+                    }
+
+                }
+
+                return $fields;
+            })->build());
 
             $typeRegistry->addObjectType($objectType, $tableName, $modelClassPath);
 
             // Add a query to fetch multiple records
-            $queries[] =
-                FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true), Type::listOf($objectType))
-                            ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
-                                return $this->queryResolver->fetchMultipleRecords($root,
-                                                                                  $args,
-                                                                                  $context,
-                                                                                  $resolveInfo,
-                                                                                  $modelClassPath);
-                            })
-                            ->addArgument('language', Type::nonNull(Type::int()), 'Language field', 0)
-                            ->addArgument('storages', Type::listOf(Type::int()), 'List of storage page ids')
-                            ->build();
+            $queries[] = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true), Type::listOf($objectType))
+                                     ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
+                                         return $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath);
+                                     })
+                                     ->addArgument('language', Type::nonNull(Type::int()), 'Language field', 0)
+                                     ->addArgument('storages', Type::listOf(Type::int()), 'List of storage page ids')
+                                     ->build();
 
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record
             $queries[] = FieldBuilder::create($singleQueryName, $objectType)
-                                     ->setResolver(function($root,
-                                         $args,
-                                         $context,
-                                                            ResolveInfo $resolveInfo) use (
+                                     ->setResolver(function($root, $args, $context, ResolveInfo $resolveInfo) use (
                                          $modelClassPath
                                      ) {
-                                         return $this->queryResolver->fetchSingleRecord($root,
-                                                                                        $args,
-                                                                                        $context,
-                                                                                        $resolveInfo,
-                                                                                        $modelClassPath);
+                                         return $this->queryResolver->fetchSingleRecord($root, $args, $context, $resolveInfo, $modelClassPath);
                                      })
                                      ->addArgument('uid', Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")
                                      ->addArgument('language', Type::nonNull(Type::int()), 'Language field', 0)
