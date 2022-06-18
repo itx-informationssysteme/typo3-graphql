@@ -137,15 +137,11 @@ class TCATypeMapper
 
                 if (!empty($columnConfiguration['config']['foreign_table'])) {
                     try {
-                        $fieldType = $context->getTypeRegistry()->getTypeByTableName($columnConfiguration['config']['foreign_table']);
+                        $fieldType = $context->getTypeRegistry()
+                                             ->getTypeByTableName($columnConfiguration['config']['foreign_table']);
                     }
                     catch (NotFoundException $e) {
                         throw new NotFoundException("Could not find type for foreign table '{$columnConfiguration['config']['foreign_table']}'");
-                    }
-
-                    if (!empty($columnConfiguration['config']['MM'])) {
-                        $fieldType = Type::listOf($fieldType);
-                        break;
                     }
                 }
         }
@@ -156,6 +152,10 @@ class TCATypeMapper
 
         if ($fieldType === null) {
             throw new UnsupportedTypeException('Unsupported type: ' . $columnConfiguration['config']['type'], 1654960583);
+        }
+
+        if ((($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
+            $fieldType = Type::listOf($fieldType);
         }
 
         if (!empty($columnConfiguration['config']['eval']) && str_contains($columnConfiguration['config']['eval'], 'required')) {
@@ -173,7 +173,22 @@ class TCATypeMapper
 
     protected function addSpecificFieldResolver(FieldBuilder $field, Context $schemaContext): void
     {
-        if ($columnConfiguration['config']['foreign_table'] ?? '' === 'sys_file_reference') {
+        $columnConfiguration = $schemaContext->getColumnConfiguration();
+
+        if (($columnConfiguration['config']['foreign_table'] ?? '') === 'sys_file_reference') {
+            if (($columnConfiguration['config']['maxitems'] ?? 2) > 1) {
+                $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                    $schemaContext
+                ) {
+                    return $this->queryResolver->fetchFiles($root, $args, $context, $resolveInfo, $schemaContext);
+                });
+            } else {
+                $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                    $schemaContext
+                ) {
+                    return $this->queryResolver->fetchFile($root, $args, $context, $resolveInfo, $schemaContext);
+                });
+            }
 
             return;
         }

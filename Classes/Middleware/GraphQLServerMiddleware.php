@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Middleware;
 
+use GraphQL\Error\DebugFlag;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Schema\SchemaGenerator;
 use JsonException;
@@ -46,7 +47,8 @@ class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
 
         $server = new \GraphQL\Server\StandardServer([
                                                          'schema' => $schema,
-                                                         'errorsHandler' => fn(array $errors) => array_map(static fn($a) => throw new \Exception($a), $errors),
+                                                         // Todo make configurable, maybe based on TYPO3 debug configuration
+                                                         'debugFlag' => DebugFlag::RETHROW_INTERNAL_EXCEPTIONS,
                                                      ]);
 
         $response = new JsonResponse();

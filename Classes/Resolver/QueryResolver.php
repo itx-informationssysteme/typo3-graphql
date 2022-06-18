@@ -8,16 +8,20 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Resource\FileInterface;
+use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class QueryResolver
 {
     protected PersistenceManager $persistenceManager;
+    protected FileRepository $fileRepository;
 
-    public function __construct(PersistenceManager $persistenceManager)
+    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository)
     {
         $this->persistenceManager = $persistenceManager;
+        $this->fileRepository = $fileRepository;
     }
 
     /**
@@ -113,5 +117,15 @@ class QueryResolver
         $qb->andWhere();
 
         return $qb->execute()->fetchAllAssociative();
+    }
+
+    public function fetchFile($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): ?FileInterface
+    {
+        return $this->fileRepository->findByRelation($schemaContext->getTableName(), $resolveInfo->fieldName, $root['uid'])[0] ?? null;
+    }
+
+    public function fetchFiles($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): array
+    {
+        return $this->fileRepository->findByRelation($schemaContext->getTableName(), $resolveInfo->fieldName, $root['uid']);
     }
 }
