@@ -13,7 +13,6 @@ use ITX\Jobapplications\Domain\Model\Posting;
 use Itx\Typo3GraphQL\Domain\Model\Page;
 use Itx\Typo3GraphQL\Domain\Model\TtContent;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
-use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
 use Itx\Typo3GraphQL\Types\TCATypeMapper;
@@ -22,10 +21,8 @@ use Itx\Typo3GraphQL\Utility\NamingUtility;
 use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
-use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Extbase\Domain\Model\Category;
-use TYPO3\CMS\Extbase\Persistence\ClassesConfiguration;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class SchemaGenerator
@@ -57,7 +54,7 @@ class SchemaGenerator
     }
 
     /**
-     * @throws NameNotFoundException|NotFoundException
+     * @throws NameNotFoundException
      */
     public function generate(): Schema
     {
@@ -85,7 +82,8 @@ class SchemaGenerator
                 // Add fields for all columns to type config
                 foreach ($GLOBALS['TCA'][$tableName]['columns'] as $fieldName => $columnConfiguration) {
                     try {
-                        $field = $this->typeMapper->buildField($fieldName, $columnConfiguration, $modelClassPath, $tableName, $typeRegistry)
+                        $context = new Context($modelClassPath, $tableName, $fieldName, $columnConfiguration, $typeRegistry);
+                        $field = $this->typeMapper->buildField($context)
                                                   ->setDescription($this->languageService->sL($columnConfiguration['label']));
 
                         $fields[] = $field->build();

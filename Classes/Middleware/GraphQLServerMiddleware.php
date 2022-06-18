@@ -2,20 +2,11 @@
 
 namespace Itx\Typo3GraphQL\Middleware;
 
-use GeorgRinger\News\Domain\Model\News;
-use GraphQL\Type\Definition\ObjectType;
-use GraphQL\Type\Definition\ResolveInfo;
-use GraphQL\Type\Definition\Type;
-use GraphQL\Type\Schema;
-use GraphQL\Type\SchemaConfig;
+use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Schema\SchemaGenerator;
 use JsonException;
 use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Http\JsonResponse;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Domain\Model\Category;
-use TYPO3\CMS\Extbase\Persistence\ClassesConfiguration;
-use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
 {
@@ -30,6 +21,7 @@ class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
 
     /**
      * @throws JsonException
+     * @throws NameNotFoundException
      */
     public function process(\Psr\Http\Message\ServerRequestInterface $request, \Psr\Http\Server\RequestHandlerInterface $handler): \Psr\Http\Message\ResponseInterface
     {
@@ -54,6 +46,7 @@ class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
 
         $server = new \GraphQL\Server\StandardServer([
                                                          'schema' => $schema,
+                                                         'errorsHandler' => fn(array $errors) => array_map(static fn($a) => throw new \Exception($a), $errors),
                                                      ]);
 
         $response = new JsonResponse();

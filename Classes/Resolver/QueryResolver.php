@@ -2,9 +2,11 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
+use Doctrine\DBAL\DBALException;
+use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
-use Itx\Typo3GraphQL\Types\TypeRegistry;
+use Itx\Typo3GraphQL\Schema\Context;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
@@ -61,13 +63,15 @@ class QueryResolver
     /**
      * @throws NotFoundException
      */
-    public function fetchForeignRecord($root, array $args, $context, ResolveInfo $resolveInfo, TypeRegistry $typeRegistry, string $tableName): array
+    public function fetchForeignRecord($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): array
     {
+        $tableName = $schemaContext->getTableName();
         $foreignUid = $root[$resolveInfo->fieldName];
         // TODO: maybe improve on this
         $language = (int)($root['sys_language_uid'] ?? 0);
 
-        $modelClassPath = $typeRegistry->getModelClassPathByTableName($GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table']);
+        $modelClassPath = $schemaContext->getTypeRegistry()
+                                        ->getModelClassPathByTableName($GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table']);
 
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
         $query->getQuerySettings()->setRespectStoragePage(false)->setLanguageUid($language)->setLanguageOverlayMode(true);
@@ -83,11 +87,12 @@ class QueryResolver
     }
 
     /**
-     * @throws \Doctrine\DBAL\Driver\Exception
-     * @throws \Doctrine\DBAL\DBALException
+     * @throws Exception
+     * @throws DBALException
      */
-    public function fetchForeignRecordWithMM($root, array $args, $context, ResolveInfo $resolveInfo, TypeRegistry $typeRegistry, string $tableName, string $modelClassPath): array
+    public function fetchForeignRecordWithMM($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): array
     {
+        $tableName = $schemaContext->getTableName();
         $foreignUid = $root[$resolveInfo->fieldName];
 
         $table = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table'];
