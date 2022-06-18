@@ -11,7 +11,7 @@ use ITX\Jobapplications\Domain\Model\Contact;
 use ITX\Jobapplications\Domain\Model\Location;
 use ITX\Jobapplications\Domain\Model\Posting;
 use Itx\Typo3GraphQL\Domain\Model\Page;
-use Itx\Typo3GraphQL\Domain\Model\TtContent;
+use Itx\Typo3GraphQL\Domain\Model\PageContent;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
@@ -37,7 +37,7 @@ class SchemaGenerator
     protected array $modelClassPaths = [
         Category::class,
         Page::class,
-        TtContent::class,
+        PageContent::class,
         Location::class,
         Contact::class,
         Posting::class
