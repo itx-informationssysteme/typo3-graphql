@@ -23,6 +23,7 @@ class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
     /**
      * @throws JsonException
      * @throws NameNotFoundException
+     * @throws \TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException
      */
     public function process(\Psr\Http\Message\ServerRequestInterface $request, \Psr\Http\Server\RequestHandlerInterface $handler): \Psr\Http\Message\ResponseInterface
     {

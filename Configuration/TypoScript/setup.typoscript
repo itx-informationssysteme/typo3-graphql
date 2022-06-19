@@ -1,1 +1,27 @@
+plugin.tx_typo3_graphql {
+    models {
+        Itx\Typo3GraphQL\Domain\Model\Page {
+            enabled = 1
+            disabledFields = fe_group
 
+            # 0 = disabled, 1 = enabled or hideNonTranslated
+            languageOverlayMode = 1
+        }
+
+        TYPO3\CMS\Extbase\Domain\Model\Category {
+            enabled = 1
+        }
+
+        Itx\Typo3GraphQL\Domain\Model\PageContent {
+            enabled = 1
+            disabledFields = fe_group
+        }
+    }
+
+    settings {
+        ignoreMissingTables = 1
+        globalDisabledFields = fe_group,t3ver_label
+    }
+}
+
+module.tx_typo3_graphql < plugin.tx_typo3_graphql

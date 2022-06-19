@@ -32,7 +32,7 @@ class FileType extends \GraphQL\Type\Definition\ObjectType
                                 ->setResolver(fn(FileInterface $root) => $root->getExtension())
                                 ->setDescription('File extension')
                                 ->build();
-        $fields[] = FieldBuilder::create('link', Type::string())
+        $fields[] = FieldBuilder::create('url', Type::string())
                                 ->setResolver(fn(FileInterface $root) => $imageService->getImageUri($root, true))
                                 ->setDescription('Absolute URL to file')
                                 ->build();

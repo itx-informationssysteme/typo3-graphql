@@ -11,29 +11,36 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
+use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class QueryResolver
 {
     protected PersistenceManager $persistenceManager;
     protected FileRepository $fileRepository;
+    protected ConfigurationManager $configurationManager;
 
-    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository)
+    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository, ConfigurationManager $configurationManager)
     {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
+        $this->configurationManager = $configurationManager;
     }
 
     /**
-     * @throws NotFoundException
+     * @throws NotFoundException|InvalidConfigurationTypeException
      */
     public function fetchSingleRecord($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
     {
         $uid = (int)$args['uid'];
-        $language = (int)($root['sys_language_uid'] ?? 0);
+        $language = (int)($args['language'] ?? 0);
 
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
-        $query->getQuerySettings()->setRespectStoragePage(false)->setLanguageUid($language)->setLanguageOverlayMode(true);
+
+        $languageOverlayMode = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql')['models'][$modelClassPath]['languageOverlayMode'] ?? true;
+        $query->getQuerySettings()->setRespectStoragePage(false)->setRespectSysLanguage(true)->setLanguageUid($language)->setLanguageOverlayMode($languageOverlayMode);
 
         $query->matching($query->equals('uid', $uid));
 
@@ -45,9 +52,12 @@ class QueryResolver
         return $result;
     }
 
+    /**
+     * @throws InvalidConfigurationTypeException
+     */
     public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
     {
-        $language = (int)($root['sys_language_uid'] ?? 0);
+        $language = (int)($args['language'] ?? 0);
         $storagePids = (array)($args['storages'] ?? []);
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
@@ -59,7 +69,11 @@ class QueryResolver
             $query->getQuerySettings()->setRespectStoragePage(true)->setStoragePageIds($storagePids);
         }
 
-        $query->getQuerySettings()->setLanguageUid($language)->setLanguageOverlayMode(true);
+        $languageOverlayMode = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql')['models'][$modelClassPath]['languageOverlayMode'] ?? true;
+        $query->getQuerySettings()->setRespectSysLanguage(true)->setLanguageUid($language)->setLanguageOverlayMode($languageOverlayMode);
+
+        // TODO pagination
+        $query->setLimit(10);
 
         return $query->execute(true);
     }
@@ -67,10 +81,16 @@ class QueryResolver
     /**
      * @throws NotFoundException
      */
-    public function fetchForeignRecord($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): array
+    public function fetchForeignRecord($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): ?array
     {
         $tableName = $schemaContext->getTableName();
         $foreignUid = $root[$resolveInfo->fieldName];
+
+        // We don't need records with uid 0
+        if ($foreignUid === 0) {
+            return null;
+        }
+
         // TODO: maybe improve on this
         $language = (int)($root['sys_language_uid'] ?? 0);
 
