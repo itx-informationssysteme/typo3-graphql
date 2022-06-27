@@ -2,7 +2,6 @@
 
 namespace Itx\Typo3GraphQL\Types;
 
-use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
@@ -87,6 +86,10 @@ class TypeRegistry
         }
 
         return $this->typeStore[$name];
+    }
+
+    public function typeWithNameExists(string $name): bool {
+        return isset($this->typeStore[$name]);
     }
 
     /**

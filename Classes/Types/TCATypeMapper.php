@@ -5,6 +5,7 @@ namespace Itx\Typo3GraphQL\Types;
 use GraphQL\Type\Definition\EnumType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
+use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
@@ -13,7 +14,6 @@ use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Schema\TableNameResolver;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
 use SimPod\GraphQLUtils\Builder\EnumBuilder;
-use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -46,165 +46,197 @@ class TCATypeMapper
      */
     public function buildField(Context $context): FieldBuilder
     {
-        /** @var Type|null $fieldType */
-        $fieldType = null;
+        $fieldBuilder = FieldBuilder::create($context->getFieldName());
+
         $columnConfiguration = $context->getColumnConfiguration();
 
         switch ($columnConfiguration['config']['type']) {
             case 'check':
-                $fieldType = Type::boolean();
+                $fieldBuilder->setType(Type::boolean());
                 break;
             case 'inline':
-                if ($columnConfiguration['config']['foreign_table'] ?? '' === 'sys_file_reference') {
-                    $fieldType = TypeRegistry::file();
-                    break;
-                }
-
+                $this->handleInlineType($context, $fieldBuilder);
                 break;
             case 'text':
             case 'input':
-                if (str_contains($columnConfiguration['config']['eval'] ?? '', 'int')) {
-                    $fieldType = Type::int();
-                    break;
-                }
-
-                if (str_contains($columnConfiguration['config']['eval'] ?? '', 'double2')) {
-                    $fieldType = Type::float();
-                    break;
-                }
-
-                if ($columnConfiguration['config']['renderType'] ?? '' === 'inputLink') {
-                    $fieldType = TypeRegistry::link();
-                    break;
-                }
-
-                $fieldType = Type::string();
+                $this->handleInputType($context, $fieldBuilder);
                 break;
             case 'number':
-                if ($columnConfiguration['config']['format'] ?? '' === 'decimal') {
-                    $fieldType = Type::float();
-                    break;
-                }
-
-                $fieldType = Type::int();
+                $this->handleNumberType($context, $fieldBuilder);
                 break;
             case 'language':
-                $fieldType = Type::int();
+                $fieldBuilder->setType(Type::int());
                 break;
             case 'select':
-                if (!empty($columnConfiguration['config']['items'])) {
-                    // If all values are integers or floats, we don't need an enum
-                    if (count(array_filter($columnConfiguration['config']['items'], static fn($x) => !MathUtility::canBeInterpretedAsInteger($x[1]))) === 0) {
-                        $fieldType = Type::int();
-                        break;
-                    }
-
-                    if (count(array_filter($columnConfiguration['config']['items'], static fn($x) => !MathUtility::canBeInterpretedAsFloat($x[1]))) === 0) {
-                        $fieldType = Type::float();
-                        break;
-                    }
-
-                    $name = NamingUtility::generateName($this->languageService->sL($columnConfiguration['label']), false);
-
-                    if ($name === '') {
-                        throw new UnsupportedTypeException("Could not find a name for enum");
-                    }
-
-                    $builder = EnumBuilder::create($name);
-
-                    foreach ($columnConfiguration['config']['items'] as [$label, $item]) {
-                        if ($item === '') {
-                            $fieldType = Type::string();
-                            break 2;
-                        }
-
-                        try {
-                            $builder->addValue($item, null, $this->languageService->sL($label));
-                        }
-                        catch (InvalidArgument $e) {
-                            $fieldType = Type::string();
-                            break 2;
-                        }
-                    }
-
-                    $enumType = new EnumType($builder->build());
-
-                    $context->getTypeRegistry()->addType($enumType);
-
-                    $fieldType = $enumType;
-                    break;
-                }
-
-                if (!empty($columnConfiguration['config']['foreign_table'])) {
-                    try {
-                        $fieldType = $context->getTypeRegistry()
-                                             ->getTypeByTableName($columnConfiguration['config']['foreign_table']);
-                    }
-                    catch (NotFoundException $e) {
-                        throw new NotFoundException("Could not find type for foreign table '{$columnConfiguration['config']['foreign_table']}'");
-                    }
-                }
+                $this->handleSelectType($context, $fieldBuilder);
+                break;
         }
 
+        // If the field is a translation parent field, we don't want the relation but only the element id
         if (in_array($context->getFieldName(), self::$translationFields, true)) {
-            $fieldType = Type::int();
+            $fieldBuilder->setType(Type::int());
         }
 
-        if ($fieldType === null) {
+        if (!$fieldBuilder->hasType()) {
             throw new UnsupportedTypeException('Unsupported type: ' . $columnConfiguration['config']['type'], 1654960583);
         }
 
+        // If the field has some kind of relation, the type is a list of the related type
         if ((($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
-            $fieldType = Type::listOf($fieldType);
+            $fieldBuilder->setType(Type::listOf($fieldBuilder->getType()));
         }
 
+        // If the field is required, the type is a non-null type
         if (!empty($columnConfiguration['config']['eval']) && str_contains($columnConfiguration['config']['eval'], 'required')) {
-            $fieldType = Type::nonNull($fieldType);
+            $type = $fieldBuilder->getType();
+            $fieldBuilder->setType(Type::nonNull($type));
         }
 
-        $fieldBuilder = FieldBuilder::create($context->getFieldName(), $fieldType);
-
+        // Resolve relations to referenced types
         if (!in_array($context->getFieldName(), self::$translationFields, true)) {
-            $this->addSpecificFieldResolver($fieldBuilder, $context);
+            $columnConfiguration = $context->getColumnConfiguration();
+            $schemaContext = $context;
+
+            if (!empty($columnConfiguration['config']['foreign_table']) && empty($columnConfiguration['config']['MM'])) {
+                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                    $schemaContext
+                ) {
+                    return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $schemaContext);
+                });
+            } elseif (!empty($columnConfiguration['config']['MM'])) {
+                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                    $schemaContext
+                ) {
+                    return $this->queryResolver->fetchForeignRecordWithMM($root, $args, $context, $resolveInfo, $schemaContext);
+                });
+            }
         }
 
         return $fieldBuilder;
     }
 
-    protected function addSpecificFieldResolver(FieldBuilder $field, Context $schemaContext): void
+    protected function handleInputType(Context $context, FieldBuilder $fieldBuilder): void
     {
-        $columnConfiguration = $schemaContext->getColumnConfiguration();
-
-        if (($columnConfiguration['config']['foreign_table'] ?? '') === 'sys_file_reference') {
-            if (($columnConfiguration['config']['maxitems'] ?? 2) > 1) {
-                $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                    $schemaContext
-                ) {
-                    return $this->queryResolver->fetchFiles($root, $args, $context, $resolveInfo, $schemaContext);
-                });
-            } else {
-                $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                    $schemaContext
-                ) {
-                    return $this->queryResolver->fetchFile($root, $args, $context, $resolveInfo, $schemaContext);
-                });
-            }
-
+        if (str_contains($columnConfiguration['config']['eval'] ?? '', 'int')) {
+            $fieldBuilder->setType(Type::int());
             return;
         }
 
-        if (!empty($columnConfiguration['config']['foreign_table']) && empty($columnConfiguration['config']['MM'])) {
-            $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+        if (str_contains($columnConfiguration['config']['eval'] ?? '', 'double2')) {
+            $fieldBuilder->setType(Type::float());
+            return;
+        }
+
+        if ($columnConfiguration['config']['renderType'] ?? '' === 'inputLink') {
+            $fieldBuilder->setType(TypeRegistry::link());
+            return;
+        }
+
+        $fieldBuilder->setType(Type::string());
+    }
+
+    protected function handleNumberType(Context $context, FieldBuilder $fieldBuilder): void
+    {
+        if ($columnConfiguration['config']['format'] ?? '' === 'decimal') {
+            $fieldBuilder->setType(Type::float());
+            return;
+        }
+
+        $fieldBuilder->setType(Type::int());
+    }
+
+    protected function handleInlineType(Context $context, FieldBuilder $fieldBuilder): void
+    {
+        if ($columnConfiguration['config']['foreign_table'] ?? '' !== 'sys_file_reference') {
+            return;
+        }
+
+        $fieldBuilder->setType(TypeRegistry::file());
+
+        $schemaContext = $context;
+
+        // Select the correct query resolver for the file reference field item amount
+        if (($columnConfiguration['config']['maxitems'] ?? 2) > 1) {
+            $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                 $schemaContext
             ) {
-                return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $schemaContext);
+                return $this->queryResolver->fetchFiles($root, $args, $context, $resolveInfo, $schemaContext);
             });
-        } elseif (!empty($columnConfiguration['config']['MM'])) {
-            $field->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+        } else {
+            $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                 $schemaContext
             ) {
-                return $this->queryResolver->fetchForeignRecordWithMM($root, $args, $context, $resolveInfo, $schemaContext);
+                return $this->queryResolver->fetchFile($root, $args, $context, $resolveInfo, $schemaContext);
             });
+        }
+    }
+
+    /**
+     * @throws NotFoundException
+     * @throws NameNotFoundException
+     * @throws UnsupportedTypeException
+     */
+    protected function handleSelectType(Context $context, FieldBuilder $fieldBuilder): void
+    {
+        $columnConfiguration = $context->getColumnConfiguration();
+
+        if (!empty($columnConfiguration['config']['items'])) {
+            // If all values are integers or floats, we don't need an enum
+            if (count(array_filter($columnConfiguration['config']['items'], static fn($x) => !MathUtility::canBeInterpretedAsInteger($x[1]))) === 0) {
+                $fieldBuilder->setType(Type::int());
+                return;
+            }
+
+            if (count(array_filter($columnConfiguration['config']['items'], static fn($x) => !MathUtility::canBeInterpretedAsFloat($x[1]))) === 0) {
+                $fieldBuilder->setType(Type::float());
+                return;
+            }
+
+            $name = NamingUtility::generateName($this->languageService->sL($columnConfiguration['label']), false);
+
+            if ($name === '') {
+                throw new UnsupportedTypeException("Could not find a name for enum");
+            }
+
+            if ($context->getTypeRegistry()->typeWithNameExists($name)) {
+                $objectTypeName = NamingUtility::generateNameFromClassPath($context->getModelClassPath(), false);
+                $name = $objectTypeName . $name;
+            }
+
+            $builder = EnumBuilder::create($name);
+
+            foreach ($columnConfiguration['config']['items'] as [$label, $item]) {
+                if ($item === '') {
+                    $fieldBuilder->setType(Type::string());
+                    return;
+                }
+
+                try {
+                    $builder->addValue($item, null, $this->languageService->sL($label));
+                }
+                catch (InvalidArgument $e) {
+                    $fieldBuilder->setType(Type::string());
+                    return;
+                }
+            }
+
+            $enumType = new EnumType($builder->build());
+
+            $context->getTypeRegistry()->addType($enumType);
+
+            $fieldBuilder->setType($enumType);
+            return;
+        }
+
+        if (!empty($columnConfiguration['config']['foreign_table'])) {
+            try {
+                $type = $context->getTypeRegistry()
+                                     ->getTypeByTableName($columnConfiguration['config']['foreign_table']);
+                $fieldBuilder->setType($type);
+            }
+            catch (NotFoundException $e) {
+                throw new NotFoundException("Could not find type for foreign table '{$columnConfiguration['config']['foreign_table']}'");
+            }
         }
     }
 }

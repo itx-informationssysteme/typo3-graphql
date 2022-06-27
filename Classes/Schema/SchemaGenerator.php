@@ -7,6 +7,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
 use GraphQL\Type\SchemaConfig;
+use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
@@ -14,7 +15,6 @@ use Itx\Typo3GraphQL\Types\TCATypeMapper;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
 use Psr\Log\LoggerInterface;
-use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
@@ -46,6 +46,7 @@ class SchemaGenerator
     /**
      * @throws NameNotFoundException
      * @throws InvalidConfigurationTypeException
+     * @throws UnsupportedTypeException
      */
     public function generate(): Schema
     {
@@ -75,10 +76,11 @@ class SchemaGenerator
             // Build a ObjectType from the type configuration
             $objectType = new ObjectType($object->setFields(function() use ($globalDisabledFields, $typeRegistry, $modelClassPath, $tableName, $configuration) {
                 $fields = [
-                    FieldBuilder::create('uid', Type::nonNull(Type::int()))
+                    FieldBuilder::create('uid')
+                                ->setType(Type::nonNull(Type::int()))
                                 ->setDescription('Unique identifier in table')
                                 ->build(),
-                    FieldBuilder::create('pid', Type::nonNull(Type::int()))->setDescription('Page id')->build(),
+                    FieldBuilder::create('pid')->setType(Type::nonNull(Type::int()))->setDescription('Page id')->build(),
                 ];
 
                 $disabledFields = explode(',', trim($configuration['models'][$modelClassPath]['disabledFields'] ?? ''));
@@ -108,7 +110,8 @@ class SchemaGenerator
             $typeRegistry->addObjectType($objectType, $tableName, $modelClassPath);
 
             // Add a query to fetch multiple records
-            $queries[] = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true), Type::listOf($objectType))
+            $queries[] = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))
+                                     ->setType(Type::listOf($objectType))
                                      ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
                                          return $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath);
                                      })
@@ -119,7 +122,8 @@ class SchemaGenerator
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record
-            $queries[] = FieldBuilder::create($singleQueryName, $objectType)
+            $queries[] = FieldBuilder::create($singleQueryName)
+                                     ->setType($objectType)
                                      ->setResolver(function($root, $args, $context, ResolveInfo $resolveInfo) use (
                                          $modelClassPath
                                      ) {

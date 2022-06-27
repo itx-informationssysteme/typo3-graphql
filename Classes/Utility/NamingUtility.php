@@ -7,8 +7,8 @@ class NamingUtility
     public static function generateName(string $name, bool $isMultiple): string
     {
         $name = trim($name);
-        $name = preg_replace('/\.|\s/', '_', $name);
-        $name = preg_replace('/-|:|\(|\)|__/', '', $name);
+        $name = preg_replace('/\./', '_', $name);
+        $name = preg_replace('/-|:|\(|\)|__|\s/', '', $name);
 
         if ($isMultiple) {
             $name = self::appendMultiple($name);
