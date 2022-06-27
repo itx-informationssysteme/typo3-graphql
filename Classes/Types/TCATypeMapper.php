@@ -93,7 +93,7 @@ class TCATypeMapper
         }
 
         // Resolve relations to referenced types
-        if (!in_array($context->getFieldName(), self::$translationFields, true)) {
+        if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' && !in_array($context->getFieldName(), self::$translationFields, true)) {
             $columnConfiguration = $context->getColumnConfiguration();
             $schemaContext = $context;
 
@@ -119,16 +119,19 @@ class TCATypeMapper
     {
         if (str_contains($columnConfiguration['config']['eval'] ?? '', 'int')) {
             $fieldBuilder->setType(Type::int());
+
             return;
         }
 
         if (str_contains($columnConfiguration['config']['eval'] ?? '', 'double2')) {
             $fieldBuilder->setType(Type::float());
+
             return;
         }
 
         if ($columnConfiguration['config']['renderType'] ?? '' === 'inputLink') {
             $fieldBuilder->setType(TypeRegistry::link());
+
             return;
         }
 
@@ -139,6 +142,7 @@ class TCATypeMapper
     {
         if ($columnConfiguration['config']['format'] ?? '' === 'decimal') {
             $fieldBuilder->setType(Type::float());
+
             return;
         }
 
@@ -147,7 +151,9 @@ class TCATypeMapper
 
     protected function handleInlineType(Context $context, FieldBuilder $fieldBuilder): void
     {
-        if ($columnConfiguration['config']['foreign_table'] ?? '' !== 'sys_file_reference') {
+        $columnConfiguration = $context->getColumnConfiguration();
+
+        if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference') {
             return;
         }
 
@@ -184,11 +190,13 @@ class TCATypeMapper
             // If all values are integers or floats, we don't need an enum
             if (count(array_filter($columnConfiguration['config']['items'], static fn($x) => !MathUtility::canBeInterpretedAsInteger($x[1]))) === 0) {
                 $fieldBuilder->setType(Type::int());
+
                 return;
             }
 
             if (count(array_filter($columnConfiguration['config']['items'], static fn($x) => !MathUtility::canBeInterpretedAsFloat($x[1]))) === 0) {
                 $fieldBuilder->setType(Type::float());
+
                 return;
             }
 
@@ -208,6 +216,7 @@ class TCATypeMapper
             foreach ($columnConfiguration['config']['items'] as [$label, $item]) {
                 if ($item === '') {
                     $fieldBuilder->setType(Type::string());
+
                     return;
                 }
 
@@ -216,6 +225,7 @@ class TCATypeMapper
                 }
                 catch (InvalidArgument $e) {
                     $fieldBuilder->setType(Type::string());
+
                     return;
                 }
             }
@@ -225,13 +235,13 @@ class TCATypeMapper
             $context->getTypeRegistry()->addType($enumType);
 
             $fieldBuilder->setType($enumType);
+
             return;
         }
 
         if (!empty($columnConfiguration['config']['foreign_table'])) {
             try {
-                $type = $context->getTypeRegistry()
-                                     ->getTypeByTableName($columnConfiguration['config']['foreign_table']);
+                $type = $context->getTypeRegistry()->getTypeByTableName($columnConfiguration['config']['foreign_table']);
                 $fieldBuilder->setType($type);
             }
             catch (NotFoundException $e) {
