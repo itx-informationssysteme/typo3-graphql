@@ -90,7 +90,7 @@ class TypeRegistry
         return $this->typeStore[$name];
     }
 
-    public function typeWithNameExists(string $name): bool {
+    public function hasType(string $name): bool {
         return isset($this->typeStore[$name]);
     }
 

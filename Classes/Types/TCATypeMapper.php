@@ -13,6 +13,7 @@ use Itx\Typo3GraphQL\Resolver\QueryResolver;
 use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Schema\TableNameResolver;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
+use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use SimPod\GraphQLUtils\Builder\EnumBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -83,7 +84,11 @@ class TCATypeMapper
 
         // If the field has some kind of relation, the type is a list of the related type
         if ((($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
-            $fieldBuilder->setType(Type::listOf($fieldBuilder->getType()));
+            $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(), $context->getTypeRegistry());
+
+            $fieldBuilder->setType($paginationConnection);
+
+            PaginationUtility::addPaginationArgumentsToFieldBuilder($fieldBuilder);
         }
 
         // If the field is required, the type is a non-null type
@@ -206,7 +211,7 @@ class TCATypeMapper
                 throw new UnsupportedTypeException("Could not find a name for enum");
             }
 
-            if ($context->getTypeRegistry()->typeWithNameExists($name)) {
+            if ($context->getTypeRegistry()->hasType($name)) {
                 $objectTypeName = NamingUtility::generateNameFromClassPath($context->getModelClassPath(), false);
                 $name = $objectTypeName . $name;
             }

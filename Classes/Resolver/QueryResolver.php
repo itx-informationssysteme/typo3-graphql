@@ -127,11 +127,14 @@ class QueryResolver
     /**
      * @throws Exception
      * @throws DBALException
+     * @throws BadInputException
      */
-    public function fetchForeignRecordWithMM($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): array
+    public function fetchForeignRecordWithMM($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): PaginatedQueryResult
     {
         $tableName = $schemaContext->getTableName();
         $foreignUid = $root[$resolveInfo->fieldName];
+        $limit = (int)($args['first'] ?? 10);
+        $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
 
         $table = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table'];
         $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
@@ -141,16 +144,17 @@ class QueryResolver
 
         $qb = $connectionPool->getQueryBuilderForTable($tableName);
 
-        foreach ($resolveInfo->getFieldSelection() as $field => $_) {
-            $qb->addSelect($field);
-        }
-
         $qb->from($table, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_local'))->andWhere($qb->expr()
                                                                                                               ->eq('m.uid_foreign', $foreignUid));
 
-        $qb->andWhere();
+        $count = $qb->count('o.uid')->execute()->fetchOne();
 
-        return $qb->execute()->fetchAllAssociative();
+        $qb->addSelect("o.*");
+
+        $qb->setMaxResults($limit);
+        $qb->setFirstResult($offset);
+
+        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(), $count, $offset, $limit);
     }
 
     public function fetchFile($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): ?FileInterface

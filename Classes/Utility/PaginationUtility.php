@@ -47,8 +47,15 @@ class PaginationUtility
         $edgeType = new EdgeType($objectType);
         $connectionType = new ConnectionType($objectType, $edgeType, $typeRegistry->getType(PageInfoType::$typeName));
 
-        $typeRegistry->addType($edgeType);
-        $typeRegistry->addType($connectionType);
+        if (!$typeRegistry->hasType($edgeType->toString())) {
+            $typeRegistry->addType($edgeType);
+        }
+
+        if (!$typeRegistry->hasType($connectionType->toString())) {
+            $typeRegistry->addType($connectionType);
+        } else {
+            $connectionType = $typeRegistry->getType($connectionType->toString());
+        }
 
         return $connectionType;
     }
