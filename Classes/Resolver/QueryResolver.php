@@ -5,8 +5,10 @@ namespace Itx\Typo3GraphQL\Resolver;
 use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
+use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
+use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileRepository;
@@ -40,7 +42,11 @@ class QueryResolver
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
 
         $languageOverlayMode = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql')['models'][$modelClassPath]['languageOverlayMode'] ?? true;
-        $query->getQuerySettings()->setRespectStoragePage(false)->setRespectSysLanguage(true)->setLanguageUid($language)->setLanguageOverlayMode($languageOverlayMode);
+        $query->getQuerySettings()
+              ->setRespectStoragePage(false)
+              ->setRespectSysLanguage(true)
+              ->setLanguageUid($language)
+              ->setLanguageOverlayMode($languageOverlayMode);
 
         $query->matching($query->equals('uid', $uid));
 
@@ -54,11 +60,14 @@ class QueryResolver
 
     /**
      * @throws InvalidConfigurationTypeException
+     * @throws BadInputException
      */
-    public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
+    public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): PaginatedQueryResult
     {
         $language = (int)($args['language'] ?? 0);
         $storagePids = (array)($args['pageIds'] ?? []);
+        $limit = (int)($args['first'] ?? 10);
+        $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
@@ -70,12 +79,17 @@ class QueryResolver
         }
 
         $languageOverlayMode = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql')['models'][$modelClassPath]['languageOverlayMode'] ?? true;
-        $query->getQuerySettings()->setRespectSysLanguage(true)->setLanguageUid($language)->setLanguageOverlayMode($languageOverlayMode);
+        $query->getQuerySettings()
+              ->setRespectSysLanguage(true)
+              ->setLanguageUid($language)
+              ->setLanguageOverlayMode($languageOverlayMode);
 
-        // TODO pagination
-        $query->setLimit(10);
+        $count = $query->count();
 
-        return $query->execute(true);
+        $query->setOffset($offset);
+        $query->setLimit($limit);
+
+        return new PaginatedQueryResult($query->execute(true), $count, $offset, $limit);
     }
 
     /**

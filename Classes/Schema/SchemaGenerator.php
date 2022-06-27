@@ -11,9 +11,11 @@ use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
+use Itx\Typo3GraphQL\Types\Model\PageInfoType;
 use Itx\Typo3GraphQL\Types\TCATypeMapper;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
+use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -47,6 +49,7 @@ class SchemaGenerator
      * @throws NameNotFoundException
      * @throws InvalidConfigurationTypeException
      * @throws UnsupportedTypeException
+     * @throws \Itx\Typo3GraphQL\Exception\NotFoundException
      */
     public function generate(): Schema
     {
@@ -58,6 +61,9 @@ class SchemaGenerator
         $models = array_keys($configuration['models'] ?? []);
 
         $globalDisabledFields = explode(',', trim($configuration['settings']['globalDisabledFields'] ?? ''));
+
+        $pageInfoObject = new PageInfoType();
+        $typeRegistry->addType($pageInfoObject);
 
         // Iterate over all tables/models
         foreach ($models as $modelClassPath) {
@@ -109,16 +115,20 @@ class SchemaGenerator
 
             $typeRegistry->addObjectType($objectType, $tableName, $modelClassPath);
 
+            $connectionType = PaginationUtility::generateConnectionTypes($objectType, $typeRegistry);
+
             // Add a query to fetch multiple records
-            $queries[] = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))
-                                     ->setType(Type::listOf($objectType))
+            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))
+                                     ->setType($connectionType)
                                      ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
                                          return $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath);
                                      })
                                      ->addArgument('language', Type::nonNull(Type::int()), 'Language field', 0)
-                                     ->addArgument('pageIds', Type::listOf(Type::int()), 'List of storage page ids', [])
-                                     ->build();
+                                     ->addArgument('pageIds', Type::listOf(Type::int()), 'List of storage page ids', []);
+            
+            $queries[] = PaginationUtility::addPaginationArgumentsToFieldBuilder($multipleQuery)->build();
 
+            // Generate a name for the single query
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record

@@ -1,15 +1,8 @@
 <?php
 
-namespace Itx\Typo3GraphQL\Types;
+namespace Itx\Typo3GraphQL\Types\Model;
 
-use Exception;
-use GraphQL\Error\Error;
-use GraphQL\Language\AST\BooleanValueNode;
-use GraphQL\Language\AST\FloatValueNode;
-use GraphQL\Language\AST\IntValueNode;
 use GraphQL\Language\AST\Node;
-use GraphQL\Language\AST\NullValueNode;
-use GraphQL\Language\AST\StringValueNode;
 use Itx\Typo3GraphQL\Exception\NotImplementedException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Itx\Typo3GraphQL\Types;
+namespace Itx\Typo3GraphQL\Types\Model;
 
 use GraphQL\Type\Definition\Type;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;

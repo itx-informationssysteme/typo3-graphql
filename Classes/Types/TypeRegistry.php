@@ -5,6 +5,8 @@ namespace Itx\Typo3GraphQL\Types;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
+use Itx\Typo3GraphQL\Types\Model\FileType;
+use Itx\Typo3GraphQL\Types\Model\LinkType;
 
 class TypeRegistry
 {
