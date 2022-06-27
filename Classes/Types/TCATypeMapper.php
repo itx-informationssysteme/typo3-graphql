@@ -83,7 +83,7 @@ class TCATypeMapper
         }
 
         // If the field has some kind of relation, the type is a list of the related type
-        if ((($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
+        if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' && (($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
             $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(), $context->getTypeRegistry());
 
             $fieldBuilder->setType($paginationConnection);
@@ -168,6 +168,7 @@ class TCATypeMapper
 
         // Select the correct query resolver for the file reference field item amount
         if (($columnConfiguration['config']['maxitems'] ?? 2) > 1) {
+            $fieldBuilder->setType(Type::listOf($fieldBuilder->getType()));
             $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                 $schemaContext
             ) {

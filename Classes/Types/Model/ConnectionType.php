@@ -13,7 +13,8 @@ class ConnectionType extends \GraphQL\Type\Definition\ObjectType
 
     public function __construct(Type $node, EdgeType $edge, Type $pageInfoType)
     {
-        $this->name = NamingUtility::generateName($node->name, true).'Connection';
+        $multipleName = NamingUtility::generateName($node->name, true);
+        $this->name = $multipleName . 'Connection';
         $objectBuilder = ObjectBuilder::create($this->name);
 
         $fields = [];
