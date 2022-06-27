@@ -58,7 +58,7 @@ class QueryResolver
     public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
     {
         $language = (int)($args['language'] ?? 0);
-        $storagePids = (array)($args['storages'] ?? []);
+        $storagePids = (array)($args['pageIds'] ?? []);
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);

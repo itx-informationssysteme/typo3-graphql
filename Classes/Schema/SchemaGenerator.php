@@ -113,7 +113,7 @@ class SchemaGenerator
                                          return $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath);
                                      })
                                      ->addArgument('language', Type::nonNull(Type::int()), 'Language field', 0)
-                                     ->addArgument('storages', Type::listOf(Type::int()), 'List of storage page ids', [])
+                                     ->addArgument('pageIds', Type::listOf(Type::int()), 'List of storage page ids', [])
                                      ->build();
 
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
