@@ -7,6 +7,8 @@ use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Types\Model\FileType;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
+use Itx\Typo3GraphQL\Types\Model\PageInfoType;
+use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 
 class TypeRegistry
 {
@@ -22,6 +24,8 @@ class TypeRegistry
     public function __construct() {
         $this->addType(self::link());
         $this->addType(self::file());
+        $this->addType(self::pageInfo());
+        $this->addType(self::sortingOrder());
     }
 
     /**
@@ -48,11 +52,34 @@ class TypeRegistry
         return self::$customTypes['File'];
     }
 
+    /**
+     * Gets an instance of PageInfoType
+     */
+    public static function pageInfo(): PageInfoType
+    {
+        if (!isset(self::$customTypes['PageInfo'])) {
+            self::$customTypes['PageInfo'] = new PageInfoType();
+        }
+
+        return self::$customTypes['PageInfo'];
+    }
+
+    /**
+     * Gets an instance of SortingOrderType
+     */
+    public static function sortingOrder(): SortingOrderType
+    {
+        if (!isset(self::$customTypes['SortingOrder'])) {
+            self::$customTypes['SortingOrder'] = new SortingOrderType();
+        }
+
+        return self::$customTypes['SortingOrder'];
+    }
 
     /**
      * @throws NameNotFoundException
      */
-    public function addObjectType(Type $type, string $tableName, string $modelClassPath): void {
+    public function addModelObjectType(Type $type, string $tableName, string $modelClassPath): void {
         $name = $type->toString();
 
         if ($name === '') {

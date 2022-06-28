@@ -9,7 +9,6 @@ use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Types\Model\ConnectionType;
 use Itx\Typo3GraphQL\Types\Model\EdgeType;
-use Itx\Typo3GraphQL\Types\Model\PageInfoType;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use TYPO3\CMS\Core\Utility\MathUtility;
 
@@ -45,7 +44,7 @@ class PaginationUtility
     public static function generateConnectionTypes(Type $objectType, TypeRegistry $typeRegistry): ConnectionType
     {
         $edgeType = new EdgeType($objectType);
-        $connectionType = new ConnectionType($objectType, $edgeType, $typeRegistry->getType(PageInfoType::$typeName));
+        $connectionType = new ConnectionType($objectType, $edgeType, TypeRegistry::pageInfo());
 
         if (!$typeRegistry->hasType($edgeType->toString())) {
             $typeRegistry->addType($edgeType);
@@ -62,8 +61,10 @@ class PaginationUtility
 
     public static function addPaginationArgumentsToFieldBuilder(FieldBuilder $fieldBuilder): FieldBuilder
     {
-        $fieldBuilder->addArgument('first', Type::int(), 'Limit object count', 10)
-                     ->addArgument('after', Type::string(), 'Cursor for pagination');
+        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count', 10)
+                     ->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')
+                     ->addArgument(QueryArgumentsUtility::$sortByField, Type::string(), 'Sort by field')
+                     ->addArgument(QueryArgumentsUtility::$sortingOrder, TypeRegistry::sortingOrder(), 'Sorting order', 'ASC');
 
         return $fieldBuilder;
     }

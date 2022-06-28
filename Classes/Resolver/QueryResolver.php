@@ -9,6 +9,7 @@ use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
+use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileRepository;
@@ -36,8 +37,8 @@ class QueryResolver
      */
     public function fetchSingleRecord($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
     {
-        $uid = (int)$args['uid'];
-        $language = (int)($args['language'] ?? 0);
+        $uid = (int)$args[QueryArgumentsUtility::$uid];
+        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
 
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
 
@@ -64,10 +65,13 @@ class QueryResolver
      */
     public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): PaginatedQueryResult
     {
-        $language = (int)($args['language'] ?? 0);
-        $storagePids = (array)($args['pageIds'] ?? []);
-        $limit = (int)($args['first'] ?? 10);
+        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+        $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
+        $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
+
+        $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
+        $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
@@ -88,6 +92,10 @@ class QueryResolver
 
         $query->setOffset($offset);
         $query->setLimit($limit);
+
+        if ($sortBy !== null) {
+            $query->setOrderings([$sortBy => $sortDirection]);
+        }
 
         return new PaginatedQueryResult($query->execute(true), $count, $offset, $limit);
     }
@@ -133,8 +141,11 @@ class QueryResolver
     {
         $tableName = $schemaContext->getTableName();
         $foreignUid = $root[$resolveInfo->fieldName];
-        $limit = (int)($args['first'] ?? 10);
+        $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
+
+        $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
+        $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
 
         $table = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table'];
         $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
@@ -153,6 +164,10 @@ class QueryResolver
 
         $qb->setMaxResults($limit);
         $qb->setFirstResult($offset);
+
+        if ($sortBy !== null) {
+            $qb->orderBy('o.' . $qb->createNamedParameter($sortBy), $sortDirection);
+        }
 
         return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(), $count, $offset, $limit);
     }

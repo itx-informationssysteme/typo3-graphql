@@ -8,12 +8,11 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class PageInfoType extends \GraphQL\Type\Definition\ObjectType
 {
-    public static $typeName = 'PageInfoType';
     public $description = 'Information to navigate the pagination';
 
     public function __construct()
     {
-        $this->name = self::$typeName;
+        $this->name = 'PageInfoType';
         $objectBuilder = ObjectBuilder::create($this->name);
 
         $fields = [];
