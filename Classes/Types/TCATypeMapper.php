@@ -71,6 +71,9 @@ class TCATypeMapper
             case 'select':
                 $this->handleSelectType($context, $fieldBuilder);
                 break;
+            case 'category':
+                $this->handleCategoryType($context, $fieldBuilder);
+                break;
         }
 
         // If the field is a translation parent field, we don't want the relation but only the element id
@@ -95,26 +98,6 @@ class TCATypeMapper
         if (!empty($columnConfiguration['config']['eval']) && str_contains($columnConfiguration['config']['eval'], 'required')) {
             $type = $fieldBuilder->getType();
             $fieldBuilder->setType(Type::nonNull($type));
-        }
-
-        // Resolve relations to referenced types
-        if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' && !in_array($context->getFieldName(), self::$translationFields, true)) {
-            $columnConfiguration = $context->getColumnConfiguration();
-            $schemaContext = $context;
-
-            if (!empty($columnConfiguration['config']['foreign_table']) && empty($columnConfiguration['config']['MM'])) {
-                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                    $schemaContext
-                ) {
-                    return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $schemaContext);
-                });
-            } elseif (!empty($columnConfiguration['config']['MM'])) {
-                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                    $schemaContext
-                ) {
-                    return $this->queryResolver->fetchForeignRecordWithMM($root, $args, $context, $resolveInfo, $schemaContext);
-                });
-            }
         }
 
         return $fieldBuilder;
@@ -245,14 +228,63 @@ class TCATypeMapper
             return;
         }
 
-        if (!empty($columnConfiguration['config']['foreign_table'])) {
+        $foreignTable = $columnConfiguration['config']['foreign_table'] ?? '';
+
+        if ($foreignTable !== '') {
             try {
-                $type = $context->getTypeRegistry()->getTypeByTableName($columnConfiguration['config']['foreign_table']);
+                $type = $context->getTypeRegistry()->getTypeByTableName($foreignTable);
                 $fieldBuilder->setType($type);
             }
             catch (NotFoundException $e) {
-                throw new NotFoundException("Could not find type for foreign table '{$columnConfiguration['config']['foreign_table']}'");
+                // TODO make configurable
+                //throw new NotFoundException("Could not find type for foreign table '{$foreignTable}'");
             }
         }
+
+        // Resolve relations to referenced types
+        if ($foreignTable !== 'sys_file_reference' && !in_array($context->getFieldName(), self::$translationFields, true)) {
+            $columnConfiguration = $context->getColumnConfiguration();
+            $schemaContext = $context;
+
+            if ($foreignTable !== '' && empty($columnConfiguration['config']['MM'])) {
+                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                    $foreignTable, $schemaContext
+                ) {
+                    return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
+                });
+            } elseif (!empty($columnConfiguration['config']['MM'])) {
+                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                    $foreignTable, $schemaContext
+                ) {
+                    return $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
+                });
+            }
+        }
+    }
+
+    /**
+     * @throws NotFoundException
+     */
+    public function handleCategoryType(Context $context, FieldBuilder $fieldBuilder): void
+    {
+        $columnConfiguration = $context->getColumnConfiguration();
+
+        if ($columnConfiguration['config']['relationship'] !== 'oneToOne') {
+            return;
+        }
+
+        try {
+            $type = $context->getTypeRegistry()->getTypeByTableName('sys_category');
+            $fieldBuilder->setType($type);
+        }
+        catch (NotFoundException $e) {
+            throw new NotFoundException("Could not find type for foreign table 'sys_category'");
+        }
+
+        $schemaContext = $context;
+
+        $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($schemaContext) {
+            return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $schemaContext, 'sys_category');
+        });
     }
 }

@@ -97,15 +97,14 @@ class QueryResolver
             $query->setOrderings([$sortBy => $sortDirection]);
         }
 
-        return new PaginatedQueryResult($query->execute(true), $count, $offset, $limit);
+        return new PaginatedQueryResult($query->execute(true), $count, $offset, $limit, $resolveInfo);
     }
 
     /**
      * @throws NotFoundException
      */
-    public function fetchForeignRecord($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): ?array
+    public function fetchForeignRecord($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext, string $foreignTable): ?array
     {
-        $tableName = $schemaContext->getTableName();
         $foreignUid = $root[$resolveInfo->fieldName];
 
         // We don't need records with uid 0
@@ -117,7 +116,7 @@ class QueryResolver
         $language = (int)($root['sys_language_uid'] ?? 0);
 
         $modelClassPath = $schemaContext->getTypeRegistry()
-                                        ->getModelClassPathByTableName($GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table']);
+                                        ->getModelClassPathByTableName($foreignTable);
 
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
         $query->getQuerySettings()->setRespectStoragePage(false)->setLanguageUid($language)->setLanguageOverlayMode(true);
@@ -137,17 +136,16 @@ class QueryResolver
      * @throws DBALException
      * @throws BadInputException
      */
-    public function fetchForeignRecordWithMM($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): PaginatedQueryResult
+    public function fetchForeignRecordsWithMM($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext, string $foreignTable): PaginatedQueryResult
     {
         $tableName = $schemaContext->getTableName();
-        $foreignUid = $root[$resolveInfo->fieldName];
+        $foreignUid = $root['uid'];
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
 
         $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
         $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
 
-        $table = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['foreign_table'];
         $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
 
         /** @var ConnectionPool $connectionPool */
@@ -155,12 +153,12 @@ class QueryResolver
 
         $qb = $connectionPool->getQueryBuilderForTable($tableName);
 
-        $qb->from($table, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_local'))->andWhere($qb->expr()
+        $qb->from($foreignTable, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_local'))->andWhere($qb->expr()
                                                                                                               ->eq('m.uid_foreign', $foreignUid));
 
         $count = $qb->count('o.uid')->execute()->fetchOne();
 
-        $qb->addSelect("o.*");
+        $qb->select("o.*");
 
         $qb->setMaxResults($limit);
         $qb->setFirstResult($offset);
@@ -169,7 +167,7 @@ class QueryResolver
             $qb->orderBy('o.' . $qb->createNamedParameter($sortBy), $sortDirection);
         }
 
-        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(), $count, $offset, $limit);
+        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(), $count, $offset, $limit, $resolveInfo);
     }
 
     public function fetchFile($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): ?FileInterface
