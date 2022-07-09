@@ -89,7 +89,7 @@ class TCATypeMapper
         if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' && (($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
             $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(), $context->getTypeRegistry());
 
-            $fieldBuilder->setType($paginationConnection);
+            $fieldBuilder->setType(Type::nonNull($paginationConnection));
 
             PaginationUtility::addPaginationArgumentsToFieldBuilder($fieldBuilder);
         }

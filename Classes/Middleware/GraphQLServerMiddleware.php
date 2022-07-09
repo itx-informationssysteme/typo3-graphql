@@ -30,7 +30,7 @@ class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
         $requestMethod = $request->getMethod();
 
         // Only process requests with the POST and GET method
-        if (!in_array($requestMethod, ['POST', 'GET']) || $request->getUri()->getPath() !== '/graphql') {
+        if (!in_array($requestMethod, ['POST', 'GET', 'OPTIONS']) || $request->getUri()->getPath() !== '/graphql') {
             return $handler->handle($request);
         }
 

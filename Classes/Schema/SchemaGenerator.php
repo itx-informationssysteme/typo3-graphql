@@ -116,7 +116,7 @@ class SchemaGenerator
 
             // Add a query to fetch multiple records
             $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))
-                                     ->setType($connectionType)
+                                     ->setType(Type::nonNull($connectionType))
                                      ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
                                          return $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath);
                                      })

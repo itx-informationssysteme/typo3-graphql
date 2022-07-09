@@ -21,7 +21,7 @@ class EdgeType extends ObjectType
 
         $fields = [];
 
-        $fields[] = FieldBuilder::create('node', $node)
+        $fields[] = FieldBuilder::create('node', Type::nonNull($node))
                                 ->setDescription('Contains the concrete object')
                                 ->build();
         $fields[] = FieldBuilder::create('cursor', Type::string())
