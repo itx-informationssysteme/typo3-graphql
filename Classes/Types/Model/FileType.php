@@ -24,19 +24,19 @@ class FileType extends \GraphQL\Type\Definition\ObjectType
         $objectBuilder = ObjectBuilder::create($this->name);
 
         $fields = [];
-        $fields[] = FieldBuilder::create('fileName', Type::string())
+        $fields[] = FieldBuilder::create('fileName', Type::nonNull(Type::string()))
                                 ->setResolver(fn(FileInterface $root) => $root->getName())
                                 ->setDescription('Filename with extension')
                                 ->build();
-        $fields[] = FieldBuilder::create('extension', Type::string())
+        $fields[] = FieldBuilder::create('extension', Type::nonNull(Type::string()))
                                 ->setResolver(fn(FileInterface $root) => $root->getExtension())
                                 ->setDescription('File extension')
                                 ->build();
-        $fields[] = FieldBuilder::create('url', Type::string())
+        $fields[] = FieldBuilder::create('url', Type::nonNull(Type::string()))
                                 ->setResolver(fn(FileInterface $root) => $imageService->getImageUri($root, true))
                                 ->setDescription('Absolute URL to file')
                                 ->build();
-        $fields[] = FieldBuilder::create('fileSize', Type::string())
+        $fields[] = FieldBuilder::create('fileSize', Type::nonNull(Type::int()))
                                 ->setResolver(fn(FileInterface $root) => $root->getSize())
                                 ->setDescription('Filesize in Bytes')
                                 ->build();

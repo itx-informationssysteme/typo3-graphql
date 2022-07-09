@@ -26,11 +26,11 @@ class ConnectionType extends \GraphQL\Type\Definition\ObjectType
                                 ->setDescription('Information to navigate the pagination.')
                                 ->build();
 
-        $fields[] = FieldBuilder::create('edges', Type::nonNull(Type::listOf($edge)))
+        $fields[] = FieldBuilder::create('edges', Type::nonNull(Type::listOf(Type::nonNull($edge))))
                                 ->setDescription('A list of the edges.')
                                 ->build();
 
-        $fields[] = FieldBuilder::create('items', Type::nonNull(Type::listOf($node)))
+        $fields[] = FieldBuilder::create('items', Type::nonNull(Type::listOf(Type::nonNull($node))))
                                 ->setDescription('A list of all of the objects returned in the connection. This is a convenience field provided for quickly exploring the API; rather than querying for "{ edges { node } }" when no edge data is needed, this field can be be used instead. Note that when clients like Relay need to fetch the "cursor" field on the edge to enable efficient pagination, this shortcut cannot be used, and the full "{ edges { node } }" version should be used instead.')
                                 ->build();
 
