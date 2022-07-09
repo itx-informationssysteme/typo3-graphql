@@ -4,12 +4,19 @@ namespace Itx\Typo3GraphQL\Middleware;
 
 use GraphQL\Error\DebugFlag;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
+use Itx\Typo3GraphQL\Exception\NotFoundException;
+use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Schema\SchemaGenerator;
 use JsonException;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Http\JsonResponse;
+use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
 
-class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
+class GraphQLServerMiddleware implements MiddlewareInterface
 {
     protected SchemaGenerator $schemaGenerator;
     protected LoggerInterface $logger;
@@ -21,16 +28,22 @@ class GraphQLServerMiddleware implements \Psr\Http\Server\MiddlewareInterface
     }
 
     /**
+     * @param ServerRequestInterface $request
+     * @param RequestHandlerInterface $handler
+     *
+     * @return ResponseInterface
      * @throws JsonException
      * @throws NameNotFoundException
-     * @throws \TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException
+     * @throws NotFoundException
+     * @throws UnsupportedTypeException
+     * @throws InvalidConfigurationTypeException
      */
-    public function process(\Psr\Http\Message\ServerRequestInterface $request, \Psr\Http\Server\RequestHandlerInterface $handler): \Psr\Http\Message\ResponseInterface
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $requestMethod = $request->getMethod();
 
         // Only process requests with the POST and GET method
-        if (!in_array($requestMethod, ['POST', 'GET', 'OPTIONS']) || $request->getUri()->getPath() !== '/graphql') {
+        if (!in_array($requestMethod, ['POST', 'GET']) || $request->getUri()->getPath() !== '/graphql') {
             return $handler->handle($request);
         }
 
