@@ -1,4 +1,4 @@
-plugin.tx_typo3_graphql {
+module.tx_typo3_graphql {
     models {
         Itx\Typo3GraphQL\Domain\Model\Page {
             enabled = 1
@@ -21,10 +21,8 @@ plugin.tx_typo3_graphql {
     settings {
         ignoreMissingTables = 1
         globalDisabledFields = fe_group,t3ver_label
-        
+
         // Comma separated list of origins, e.g. http://typo3.org,http://localhost:3000
         allowedCORSOrigins =
     }
 }
-
-module.tx_typo3_graphql < plugin.tx_typo3_graphql
