@@ -3,6 +3,8 @@
 namespace Itx\Typo3GraphQL\Middleware;
 
 use GraphQL\Error\DebugFlag;
+use GraphQL\Validator\Rules\DisableIntrospection;
+use GraphQL\Validator\Rules\QueryComplexity;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
@@ -14,21 +16,24 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Http\JsonResponse;
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
 
 class GraphQLServerMiddleware implements MiddlewareInterface
 {
     protected SchemaGenerator $schemaGenerator;
     protected LoggerInterface $logger;
+    protected ConfigurationManagerInterface $configurationManager;
 
-    public function __construct(SchemaGenerator $schemaGenerator, LoggerInterface $logger)
+    public function __construct(SchemaGenerator $schemaGenerator, LoggerInterface $logger, ConfigurationManagerInterface $configurationManager)
     {
         $this->schemaGenerator = $schemaGenerator;
         $this->logger = $logger;
+        $this->configurationManager = $configurationManager;
     }
 
     /**
-     * @param ServerRequestInterface $request
+     * @param ServerRequestInterface  $request
      * @param RequestHandlerInterface $handler
      *
      * @return ResponseInterface
@@ -59,10 +64,25 @@ class GraphQLServerMiddleware implements MiddlewareInterface
         // TODO only when not in cache
         $schema->assertValid();
 
+        $configuration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql');
+        $settings = $configuration['settings'] ?? [];
+
+        $maxQueryComplexity = $settings['maxQueryComplexity'] ?? 100;
+        $isIntrospectionEnabled = $settings['isIntrospectionEnabled'] ?? '1';
+
+        $rules = [
+            new QueryComplexity($maxQueryComplexity),
+        ];
+
+        if ($isIntrospectionEnabled === '0') {
+            $rules[] = new DisableIntrospection();
+        }
+
         $server = new \GraphQL\Server\StandardServer([
                                                          'schema' => $schema,
                                                          // Todo make configurable, maybe based on TYPO3 debug configuration
-                                                         'debugFlag' => DebugFlag::RETHROW_INTERNAL_EXCEPTIONS,
+                                                         //'debugFlag' => DebugFlag::RETHROW_INTERNAL_EXCEPTIONS,
+                                                         'validationRules' => $rules
                                                      ]);
 
         $response = new JsonResponse();

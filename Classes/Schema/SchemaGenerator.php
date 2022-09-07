@@ -9,6 +9,7 @@ use GraphQL\Type\Schema;
 use GraphQL\Type\SchemaConfig;
 use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
+use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
 use Itx\Typo3GraphQL\Types\TCATypeMapper;
@@ -49,7 +50,7 @@ class SchemaGenerator
      * @throws NameNotFoundException
      * @throws InvalidConfigurationTypeException
      * @throws UnsupportedTypeException
-     * @throws \Itx\Typo3GraphQL\Exception\NotFoundException
+     * @throws NotFoundException
      */
     public function generate(): Schema
     {

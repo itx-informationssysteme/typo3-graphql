@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Types;
 
+use GraphQL\Deferred;
 use GraphQL\Type\Definition\EnumType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
@@ -10,10 +11,12 @@ use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
+use Itx\Typo3GraphQL\Resolver\ResolverBuffer;
 use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Schema\TableNameResolver;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
+use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use SimPod\GraphQLUtils\Builder\EnumBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -24,17 +27,19 @@ class TCATypeMapper
     protected LanguageService $languageService;
     protected TableNameResolver $tableNameResolver;
     protected QueryResolver $queryResolver;
+    protected ResolverBuffer $resolverBuffer;
 
     protected static array $translationFields = [
         'l10n_parent',
         'l18n_parent'
     ];
 
-    public function __construct(LanguageService $languageService, TableNameResolver $tableNameResolver, QueryResolver $queryResolver)
+    public function __construct(LanguageService $languageService, TableNameResolver $tableNameResolver, QueryResolver $queryResolver, ResolverBuffer $resolverBuffer)
     {
         $this->languageService = $languageService;
         $this->tableNameResolver = $tableNameResolver;
         $this->queryResolver = $queryResolver;
+        $this->resolverBuffer = $resolverBuffer;
     }
 
     /**
@@ -167,7 +172,6 @@ class TCATypeMapper
     }
 
     /**
-     * @throws NotFoundException
      * @throws NameNotFoundException
      * @throws UnsupportedTypeException
      */
@@ -249,8 +253,18 @@ class TCATypeMapper
             if ($foreignTable !== '' && empty($columnConfiguration['config']['MM'])) {
                 $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                     $foreignTable, $schemaContext
-                ) {
-                    return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
+                ): Deferred {
+                    $foreignUid = $root[$resolveInfo->fieldName];
+                    $modelClassPath = $schemaContext->getTypeRegistry()
+                                                    ->getModelClassPathByTableName($foreignTable);
+                    $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+                    $this->resolverBuffer->add($modelClassPath, $foreignUid, $language);
+
+                    return new Deferred(function() use ($modelClassPath, $foreignUid, $language) {
+                        $this->resolverBuffer->loadBuffered($modelClassPath, $language);
+
+                        return $this->resolverBuffer->get($modelClassPath, $foreignUid, $language);
+                    });
                 });
             } elseif (!empty($columnConfiguration['config']['MM'])) {
                 $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
