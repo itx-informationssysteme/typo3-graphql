@@ -8,6 +8,8 @@ use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
 use GraphQL\Type\SchemaConfig;
 use Itx\Typo3GraphQL\Builder\FieldBuilder;
+use Itx\Typo3GraphQL\Events\CustomModelFieldEvent;
+use Itx\Typo3GraphQL\Events\CustomQueryFieldEvent;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
@@ -17,6 +19,7 @@ use Itx\Typo3GraphQL\Types\TypeRegistry;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -34,8 +37,13 @@ class SchemaGenerator
     protected TCATypeMapper $typeMapper;
     protected QueryResolver $queryResolver;
     protected ConfigurationManager $configurationManager;
+    protected EventDispatcherInterface $eventDispatcher;
 
-    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver, ConfigurationManager $configurationManager)
+    public function __construct(PersistenceManager $persistenceManager,
+                                TableNameResolver $tableNameResolver,
+                                LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper,
+                                QueryResolver $queryResolver, ConfigurationManager $configurationManager,
+                                EventDispatcherInterface $eventDispatcher)
     {
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
@@ -44,6 +52,7 @@ class SchemaGenerator
         $this->typeMapper = $typeMapper;
         $this->queryResolver = $queryResolver;
         $this->configurationManager = $configurationManager;
+        $this->eventDispatcher = $eventDispatcher;
     }
 
     /**
@@ -108,6 +117,14 @@ class SchemaGenerator
                     }
                 }
 
+                // Add custom fields to model
+                /** @var CustomModelFieldEvent $customEvent */
+                $customEvent = $this->eventDispatcher->dispatch(new CustomModelFieldEvent($modelClassPath, $tableName, $typeRegistry));
+
+                foreach ($customEvent->getFieldBuilders() as $field) {
+                    $fields[] = $field->build();
+                }
+
                 return $fields;
             })->build());
 
@@ -140,6 +157,16 @@ class SchemaGenerator
                                      ->addArgument(QueryArgumentsUtility::$uid, Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")
                                      ->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)
                                      ->build();
+
+            // Allow for custom new query fields
+            /** @var CustomQueryFieldEvent $customEvent */
+            $customEvent = $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($modelClassPath, $tableName, $typeRegistry));
+
+            foreach ($customEvent->getFieldBuilders() as $field) {
+                $queries[] = $field->build();
+            }
+
+            // TODO Register in Service yaml
         }
 
         $schemaConfig = SchemaConfig::create();
