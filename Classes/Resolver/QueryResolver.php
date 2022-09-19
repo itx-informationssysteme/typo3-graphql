@@ -63,7 +63,7 @@ class QueryResolver
      * @throws InvalidConfigurationTypeException
      * @throws BadInputException
      */
-    public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): PaginatedQueryResult
+    public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath, string $tableName): PaginatedQueryResult
     {
         $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);

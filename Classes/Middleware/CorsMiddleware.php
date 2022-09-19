@@ -22,9 +22,8 @@ class CorsMiddleware implements MiddlewareInterface
     protected array $allowedOrigins = [];
 
     /**
-     * @throws \TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException
      */
-    public function __construct(ConfigurationManager $configurationManager) {
+    public function __construct(ConfigurationManagerInterface $configurationManager) {
         $this->configurationManager = $configurationManager;
 
         $configuration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql');

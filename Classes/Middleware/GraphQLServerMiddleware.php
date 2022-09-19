@@ -18,6 +18,7 @@ use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
+use TYPO3\CMS\Extbase\Configuration\FrontendConfigurationManager;
 
 class GraphQLServerMiddleware implements MiddlewareInterface
 {
@@ -41,7 +42,6 @@ class GraphQLServerMiddleware implements MiddlewareInterface
      * @throws NameNotFoundException
      * @throws NotFoundException
      * @throws UnsupportedTypeException
-     * @throws InvalidConfigurationTypeException
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
@@ -81,7 +81,7 @@ class GraphQLServerMiddleware implements MiddlewareInterface
         $server = new \GraphQL\Server\StandardServer([
                                                          'schema' => $schema,
                                                          // Todo make configurable, maybe based on TYPO3 debug configuration
-                                                         //'debugFlag' => DebugFlag::RETHROW_INTERNAL_EXCEPTIONS,
+                                                         'debugFlag' => DebugFlag::RETHROW_INTERNAL_EXCEPTIONS,
                                                          'validationRules' => $rules
                                                      ]);
 

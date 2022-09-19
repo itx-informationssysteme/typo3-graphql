@@ -7,6 +7,7 @@ use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
+use Itx\Typo3GraphQL\Resolver\FilterResolver;
 use Itx\Typo3GraphQL\Types\Model\ConnectionType;
 use Itx\Typo3GraphQL\Types\Model\EdgeType;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
@@ -41,10 +42,10 @@ class PaginationUtility
      * @throws NameNotFoundException
      * @throws NotFoundException
      */
-    public static function generateConnectionTypes(Type $objectType, TypeRegistry $typeRegistry): ConnectionType
+    public static function generateConnectionTypes(Type $objectType, TypeRegistry $typeRegistry, FilterResolver $filterResolver, string $tableName): ConnectionType
     {
         $edgeType = new EdgeType($objectType);
-        $connectionType = new ConnectionType($objectType, $edgeType, TypeRegistry::pageInfo());
+        $connectionType = new ConnectionType($objectType, $edgeType, TypeRegistry::pageInfo(), $filterResolver, $tableName);
 
         if (!$typeRegistry->hasType($edgeType->toString())) {
             $typeRegistry->addType($edgeType);

@@ -6,6 +6,7 @@ use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Types\Model\FileType;
+use Itx\Typo3GraphQL\Types\Model\FilterOption;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
 use Itx\Typo3GraphQL\Types\Model\PageInfoType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
@@ -26,6 +27,7 @@ class TypeRegistry
         $this->addType(self::file());
         $this->addType(self::pageInfo());
         $this->addType(self::sortingOrder());
+        $this->addType(self::filterOption());
     }
 
     /**
@@ -74,6 +76,18 @@ class TypeRegistry
         }
 
         return self::$customTypes['SortingOrder'];
+    }
+
+    /**
+     * Gets an instance of FilterOption
+     */
+    public static function filterOption(): FilterOption
+    {
+        if (!isset(self::$customTypes['FilterOption'])) {
+            self::$customTypes['FilterOption'] = new FilterOption();
+        }
+
+        return self::$customTypes['FilterOption'];
     }
 
     /**
