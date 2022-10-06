@@ -2,6 +2,8 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
+use Doctrine\DBAL\DBALException;
+use Doctrine\DBAL\Driver\Exception;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -16,6 +18,11 @@ class FilterResolver
         $this->persistenceManager = $persistenceManager;
     }
 
+    /**
+     * @throws Exception
+     * @throws DBALException
+     * @throws BadInputException
+     */
     public function fetchFilterOptions(string $filterPath, string $tableName): array
     {
         $filterPathElements = explode('.', $filterPath);
@@ -42,17 +49,24 @@ class FilterResolver
                     throw new BadInputException("TCA for $currentTable.$filterPathElement has no foreign_table");
                 }
 
-                // Join with mm table and foreign table
-                $queryBuilder->join($currentTable, $tca['MM'], $tca['MM'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_local', $queryBuilder->quoteIdentifier($currentTable . '.uid')));
+                if (($tca['MM'] ?? null) !== null) {
+                    // Join with mm table and foreign table
+                    $queryBuilder->join($currentTable, $tca['MM'], $tca['MM'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_local', $queryBuilder->quoteIdentifier($currentTable . '.uid')));
 
-                $queryBuilder->join($tca['MM'], $tca['foreign_table'], $tca['foreign_table'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_foreign', $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
+                    $queryBuilder->join($tca['MM'], $tca['foreign_table'], $tca['foreign_table'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_foreign', $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
 
-                $currentTable = $tca['foreign_table'];
+                    $currentTable = $tca['foreign_table'];
+                } else if ($tca['foreign_table']) {
+                    // Join with foreign table
+                    $queryBuilder->join($currentTable, $tca['foreign_table'], $tca['foreign_table'], $queryBuilder->expr()->eq($currentTable . '.' . $filterPathElement, $queryBuilder->quoteIdentifier($tca['foreign_table'] . ".uid")));
+
+                    $currentTable = $tca['foreign_table'];
+                }
             }
         }
 
         // Group and count
-        $queryBuilder->addSelectLiteral("$currentTable.$lastElement AS value")->from($tableName)->groupBy("$currentTable.$lastElement")->addSelectLiteral("COUNT($currentTable.$lastElement) AS resultCount")->groupBy("$currentTable.$lastElement")->orderBy("$currentTable.$lastElement", 'ASC');
+        $queryBuilder->addSelectLiteral("$currentTable.$lastElement AS value")->from($tableName)->groupBy("$currentTable.$lastElement")->addSelectLiteral("COUNT($tableName.uid) AS resultCount")->groupBy("$currentTable.$lastElement")->orderBy("$currentTable.$lastElement", 'ASC');
 
         $result = $queryBuilder->execute()->fetchAllAssociative();
 

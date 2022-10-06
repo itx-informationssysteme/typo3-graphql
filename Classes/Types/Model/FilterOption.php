@@ -5,9 +5,6 @@ namespace Itx\Typo3GraphQL\Types\Model;
 use GraphQL\Type\Definition\Type;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
-use TYPO3\CMS\Core\Resource\FileInterface;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Service\ImageService;
 
 class FilterOption extends \GraphQL\Type\Definition\ObjectType
 {
@@ -24,7 +21,7 @@ class FilterOption extends \GraphQL\Type\Definition\ObjectType
         $fields[] = FieldBuilder::create('value', Type::nonNull(Type::string()))
                                 ->setDescription('The filter value')
                                 ->build();
-        $fields[] = FieldBuilder::create('resultCount', Type::nonNull(Type::string()))
+        $fields[] = FieldBuilder::create('resultCount', Type::nonNull(Type::int()))
                                 ->setDescription('The result count for this filter option')
                                 ->build();
 
