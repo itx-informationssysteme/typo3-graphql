@@ -8,32 +8,30 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
+use Itx\Typo3GraphQL\Services\ConfigurationService;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
-use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class QueryResolver
 {
     protected PersistenceManager $persistenceManager;
     protected FileRepository $fileRepository;
-    protected ConfigurationManager $configurationManager;
+    protected ConfigurationService $configurationService;
 
-    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository, ConfigurationManager $configurationManager)
+    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository, ConfigurationService $configurationService)
     {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
-        $this->configurationManager = $configurationManager;
+        $this->configurationService = $configurationService;
     }
 
     /**
-     * @throws NotFoundException|InvalidConfigurationTypeException
+     * @throws NotFoundException
      */
     public function fetchSingleRecord($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
     {
@@ -42,7 +40,7 @@ class QueryResolver
 
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
 
-        $languageOverlayMode = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql')['models'][$modelClassPath]['languageOverlayMode'] ?? true;
+        $languageOverlayMode = $this->configurationService->getModels()[$modelClassPath]['languageOverlayMode'] ?? true;
         $query->getQuerySettings()
               ->setRespectStoragePage(false)
               ->setRespectSysLanguage(true)
@@ -60,7 +58,6 @@ class QueryResolver
     }
 
     /**
-     * @throws InvalidConfigurationTypeException
      * @throws BadInputException
      */
     public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath, string $tableName): PaginatedQueryResult
@@ -82,7 +79,7 @@ class QueryResolver
             $query->getQuerySettings()->setRespectStoragePage(true)->setStoragePageIds($storagePids);
         }
 
-        $languageOverlayMode = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql')['models'][$modelClassPath]['languageOverlayMode'] ?? true;
+        $languageOverlayMode = $this->configurationService->getModels()[$modelClassPath]['languageOverlayMode'] ?? true;
         $query->getQuerySettings()
               ->setRespectSysLanguage(true)
               ->setLanguageUid($language)

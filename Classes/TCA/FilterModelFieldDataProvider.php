@@ -2,9 +2,6 @@
 
 namespace Itx\Typo3GraphQL\TCA;
 
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
 
 class FilterModelFieldDataProvider
@@ -14,12 +11,11 @@ class FilterModelFieldDataProvider
      * @throws InvalidConfigurationTypeException
      */
     public function getItems(array $config): array {
-        $configurationManager = GeneralUtility::makeInstance(ConfigurationManager::class);
-        $configuration = $configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql');
+        throw new \Exception('This method is not implemented yet');
 
         $config['items'] = [];
         foreach ($configuration['models'] as $model => $modelConfiguration) {
-            if ($modelConfiguration['enabled'] === '0') {
+            if ($modelConfiguration['enabled'] === false) {
                 continue;
             }
 

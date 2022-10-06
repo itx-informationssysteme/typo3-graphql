@@ -1,0 +1,44 @@
+models:
+    Itx\Typo3GraphQL\Domain\Model\Page:
+        enabled: true
+        disabledFields:
+            - 'fe_group'
+        languageOverlayMode: true
+
+    TYPO3\CMS\Extbase\Domain\Model\Category:
+        enabled: true
+        disabledFields:
+            - 'fe_group'
+        languageOverlayMode: true
+
+    Itx\Typo3GraphQL\Domain\Model\PageContent:
+        enabled: true
+        disabledFields:
+            - 'fe_group'
+        languageOverlayMode: true
+
+settings:
+    # Whether when there is a relation to a data type that is not configured, it should be ignored or throw an exception
+    ignoreMissingTables: true
+
+    # Globally disabled fields
+    globalDisabledFields:
+        - 'fe_group'
+        - 't3ver_label'
+
+    # Maximum query complexity
+    maxQueryComplexity: 100
+
+    # Comma separated list of origins, e.g. https://typo3.org,http://localhost:3000
+    allowedCORSOrigins: ''
+
+    # Can be 1, 0
+    isIntrospectionEnabled: false
+
+developmentSettingsOverrides:
+    maxQueryComplexity: 9999
+
+    allowedCORSOrigins:
+        - 'http://localhost:3000'
+
+    isIntrospectionEnabled: true

@@ -15,6 +15,7 @@ use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\FilterResolver;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
+use Itx\Typo3GraphQL\Services\ConfigurationService;
 use Itx\Typo3GraphQL\Types\TCATypeMapper;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
@@ -24,9 +25,6 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
-use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class SchemaGenerator
@@ -37,11 +35,11 @@ class SchemaGenerator
     protected LanguageService $languageService;
     protected TCATypeMapper $typeMapper;
     protected QueryResolver $queryResolver;
-    protected ConfigurationManagerInterface $configurationManager;
     protected EventDispatcherInterface $eventDispatcher;
     protected FilterResolver $filterResolver;
+    protected ConfigurationService $configurationService;
 
-    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver, ConfigurationManagerInterface $configurationManager, EventDispatcherInterface $eventDispatcher, FilterResolver $filterResolver)
+    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver, ConfigurationService $configurationService, EventDispatcherInterface $eventDispatcher, FilterResolver $filterResolver)
     {
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
@@ -49,9 +47,9 @@ class SchemaGenerator
         $this->languageService = $languageService;
         $this->typeMapper = $typeMapper;
         $this->queryResolver = $queryResolver;
-        $this->configurationManager = $configurationManager;
         $this->eventDispatcher = $eventDispatcher;
         $this->filterResolver = $filterResolver;
+        $this->configurationService = $configurationService;
     }
 
     /**
@@ -65,14 +63,16 @@ class SchemaGenerator
 
         $typeRegistry = new TypeRegistry();
 
-        $configuration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql');
-        $models = array_keys($configuration['models'] ?? []);
+        $modelsConfiguration = $this->configurationService->getModels();
+        $settings = $this->configurationService->getSettings();
 
-        $globalDisabledFields = explode(',', trim($configuration['settings']['globalDisabledFields'] ?? ''));
+        $modelClassPaths = array_keys($modelsConfiguration);
+
+        $globalDisabledFields = $this->configurationService->getGlobalDisabledFields();
 
         // Iterate over all tables/models
-        foreach ($models as $modelClassPath) {
-            if (($configuration['models'][$modelClassPath]['enabled'] ?? '1') === '0') {
+        foreach ($modelClassPaths as $modelClassPath) {
+            if (($modelsConfiguration[$modelClassPath]['enabled'] ?? true) === false) {
                 continue;
             }
 
@@ -85,13 +85,13 @@ class SchemaGenerator
             $object = ObjectBuilder::create($objectName)->setDescription('TODO');
 
             // Build a ObjectType from the type configuration
-            $objectType = new ObjectType($object->setFields(function() use ($globalDisabledFields, $typeRegistry, $modelClassPath, $tableName, $configuration) {
+            $objectType = new ObjectType($object->setFields(function() use ($modelsConfiguration, $globalDisabledFields, $typeRegistry, $modelClassPath, $tableName) {
                 $fields = [
                     FieldBuilder::create('uid')->setType(Type::nonNull(Type::int()))->setDescription('Unique identifier in table')->build(),
                     FieldBuilder::create('pid')->setType(Type::nonNull(Type::int()))->setDescription('Page id')->build(),
                 ];
 
-                $disabledFields = explode(',', trim($configuration['models'][$modelClassPath]['disabledFields'] ?? ''));
+                $disabledFields = $modelsConfiguration[$modelClassPath]['disabledFields'] ?? [];
                 $disabledFields = array_merge($disabledFields, $globalDisabledFields);
 
                 // Add fields for all columns to type config
