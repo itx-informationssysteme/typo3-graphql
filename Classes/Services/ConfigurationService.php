@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Services;
 
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Configuration\Loader\YamlFileLoader;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
@@ -10,20 +11,35 @@ class ConfigurationService
 {
     protected YamlFileLoader $yamlFileLoader;
     protected array $configuration;
+    protected FrontendInterface $cache;
 
     protected const CONFIGURATION_FILE = 'Configuration/GraphQL.yaml';
 
-    public function __construct(YamlFileLoader $yamlFileLoader)
+    public function __construct(YamlFileLoader $yamlFileLoader, FrontendInterface $cache)
     {
         $this->yamlFileLoader = $yamlFileLoader;
-        $this->loadConfiguration();
+        $this->cache = $cache;
+
+        $cacheIdentifier = 'configuration';
+
+        $value = $this->cache->get($cacheIdentifier);
+
+        if ($value === false) {
+            $value = $this->loadConfiguration();
+            $tags = ['graphql'];
+            $lifetime = 0;
+
+            $this->cache->set($cacheIdentifier, $value, $tags, $lifetime);
+        }
+
+        $this->configuration = $value;
     }
 
-    protected function loadConfiguration(): void
+    protected function loadConfiguration(): array
     {
         $extensions = ExtensionManagementUtility::getLoadedExtensionListArray();
 
-        $this->configuration = $this->yamlFileLoader->load(ExtensionManagementUtility::extPath('typo3_graphql') . 'Configuration/GraphQL.yaml');
+        $configuration = $this->yamlFileLoader->load(ExtensionManagementUtility::extPath('typo3_graphql') . 'Configuration/GraphQL.yaml');
 
         // Load all other extensions
         foreach ($extensions as $extension) {
@@ -37,18 +53,21 @@ class ConfigurationService
                 continue;
             }
 
-            $configuration = $this->yamlFileLoader->load(ExtensionManagementUtility::extPath($extension) . self::CONFIGURATION_FILE);
+            $newConfiguration = $this->yamlFileLoader->load(ExtensionManagementUtility::extPath($extension) . self::CONFIGURATION_FILE);
 
-            $this->configuration = self::array_merge_recursive_overwrite($this->configuration, $configuration);
+            $configuration = self::array_merge_recursive_overwrite($configuration, $newConfiguration);
         }
 
         // Development settings override
         if (Environment::getContext()->isDevelopment()) {
-            $this->configuration['settings'] = self::array_merge_recursive_overwrite($this->configuration['settings'], $this->configuration['developmentSettingsOverrides'] ?? []);
+            $configuration['settings'] = self::array_merge_recursive_overwrite($configuration['settings'], $configuration['developmentSettingsOverrides'] ?? []);
         }
+
+        return $configuration;
     }
 
-    private static function array_merge_recursive_overwrite(array ...$arrays) : array {
+    private static function array_merge_recursive_overwrite(array ...$arrays): array
+    {
         $merged = [];
         foreach ($arrays as $current) {
             foreach ($current as $key => $value) {

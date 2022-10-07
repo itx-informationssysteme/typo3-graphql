@@ -16,6 +16,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\JsonResponse;
 
 class GraphQLServerMiddleware implements MiddlewareInterface
@@ -59,8 +60,10 @@ class GraphQLServerMiddleware implements MiddlewareInterface
 
         $schema = $this->schemaGenerator->generate();
 
-        // TODO only when not in cache
-        $schema->assertValid();
+        // Only check schema in development context
+        if (Environment::getContext()->isDevelopment()) {
+            $schema->assertValid();
+        }
 
         $settings = $this->configurationService->getSettings();
 
