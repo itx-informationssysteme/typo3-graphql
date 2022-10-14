@@ -2,7 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Middleware;
 
-use Itx\Typo3GraphQL\Services\ConfigurationService;
+use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;

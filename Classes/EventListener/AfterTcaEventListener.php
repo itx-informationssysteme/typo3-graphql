@@ -1,17 +1,17 @@
 <?php
 
-namespace Itx\Typo3GraphQL\TCA;
+namespace Itx\Typo3GraphQL\EventListener;
 
-use TYPO3\CMS\Backend\Form\FormDataProvider\AbstractItemProvider;
-use TYPO3\CMS\Extbase\Object\Exception;
-
-class FilterModelFieldDataProvider
+class AfterTcaEventListener
 {
-    // Get all configured models from typoscript
-    /**
-     * @throws Exception
-     */
-    public function getItems(array $config, AbstractItemProvider $abstractItemProvider): array {
+    public function __construct()
+    {
+
+    }
+
+    public function addGraphQLModelsToFilterRecord()
+    {
+        // TODO Implement
         // Initialize ObjectManager and get ConfigurationService
         $objectManager = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Extbase\Object\ObjectManager::class);
         $configurationService = $objectManager->get(\Itx\Typo3GraphQL\Service\ConfigurationService::class);
@@ -29,4 +29,5 @@ class FilterModelFieldDataProvider
 
         return $config;
     }
+
 }

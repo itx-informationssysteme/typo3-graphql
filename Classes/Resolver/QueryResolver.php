@@ -8,7 +8,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
-use Itx\Typo3GraphQL\Services\ConfigurationService;
+use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use TYPO3\CMS\Core\Database\ConnectionPool;

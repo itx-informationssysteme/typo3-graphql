@@ -13,6 +13,6 @@ services:
         factory: [ '@TYPO3\CMS\Core\Cache\CacheManager', 'getCache' ]
         arguments: [ 'typo3_graphql_cache' ]
 
-    Itx\Typo3GraphQL\Services\ConfigurationService:
+    Itx\Typo3GraphQL\Service\ConfigurationService:
         arguments:
             $cache: '@cache.typo3_graphql_cache'

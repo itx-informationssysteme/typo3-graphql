@@ -1,6 +1,6 @@
 <?php
 
-namespace Itx\Typo3GraphQL\Services;
+namespace Itx\Typo3GraphQL\Service;
 
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Configuration\Loader\YamlFileLoader;

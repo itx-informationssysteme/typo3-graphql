@@ -15,7 +15,7 @@ use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\FilterResolver;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
-use Itx\Typo3GraphQL\Services\ConfigurationService;
+use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Types\TCATypeMapper;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use Itx\Typo3GraphQL\Utility\NamingUtility;

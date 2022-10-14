@@ -9,7 +9,7 @@ use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Schema\SchemaGenerator;
-use Itx\Typo3GraphQL\Services\ConfigurationService;
+use Itx\Typo3GraphQL\Service\ConfigurationService;
 use JsonException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
