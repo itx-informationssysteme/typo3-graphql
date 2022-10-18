@@ -2,7 +2,7 @@
 
 return [
     'ctrl' => [
-        'title' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3_graphql_domain_model_filter',
+        'title' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3graphql_domain_model_filter',
         'label' => 'name',
         'tstamp' => 'tstamp',
         'crdate' => 'crdate',
@@ -21,7 +21,7 @@ return [
     ],
     'columns' => [
         'name' => [
-            'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3_graphql_domain_model_filter.name',
+            'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3graphql_domain_model_filter.name',
             'config' => [
                 'type' => 'input',
                 'size' => 20,
@@ -31,16 +31,15 @@ return [
             ],
         ],
         'model' => [
-            'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3_graphql_domain_model_filter.model',
+            'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3graphql_domain_model_filter.model',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
                 'required' => true,
-                'itemsProcFunc' => \Itx\Typo3GraphQL\TCA\FilterModelFieldDataProvider::class . '->getItems',
             ],
         ],
         'filter_path' => [
-            'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3_graphql_domain_model_filter.filterPath',
+            'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3graphql_domain_model_filter.filterPath',
             'config' => [
                 'type' => 'input',
                 'size' => 20,
@@ -73,10 +72,10 @@ return [
                         0,
                     ],
                 ],
-                'foreign_table' => 'tx_typo3_graphql_domain_model_filter',
+                'foreign_table' => 'tx_typo3graphql_domain_model_filter',
                 'foreign_table_where' =>
-                    'AND {#tx_typo3_graphql_domain_model_filter}.{#pid}=###CURRENT_PID###'
-                    . ' AND {#tx_typo3_graphql_domain_model_filter}.{#sys_language_uid} IN (-1,0)',
+                    'AND {#tx_typo3graphql_domain_model_filter}.{#pid}=###CURRENT_PID###'
+                    . ' AND {#tx_typo3graphql_domain_model_filter}.{#sys_language_uid} IN (-1,0)',
                 'default' => 0,
             ],
         ],

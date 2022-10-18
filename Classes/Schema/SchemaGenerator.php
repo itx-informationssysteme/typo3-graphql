@@ -127,9 +127,15 @@ class SchemaGenerator
             $connectionType = PaginationUtility::generateConnectionTypes($objectType, $typeRegistry, $this->filterResolver, $tableName);
 
             // Add a query to fetch multiple records
-            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))->setType(Type::nonNull($connectionType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath, $tableName) {
-                    return $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath, $tableName);
-                })->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->addArgument(QueryArgumentsUtility::$pageIds, Type::listOf(Type::int()), 'List of storage page ids', []);
+            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))->setType(Type::nonNull($connectionType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($typeRegistry, $modelClassPath, $tableName) {
+                $queryResult = $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath, $tableName);
+
+                if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
+                    $queryResult->setFacets($this->filterResolver->fetchFiltersIncludingFacets($root, $args, $context, $resolveInfo, $tableName, $modelClassPath));
+                }
+
+                return $queryResult;
+            })->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->addArgument(QueryArgumentsUtility::$pageIds, Type::listOf(Type::int()), 'List of storage page ids', [])->addArgument(QueryArgumentsUtility::$filters, TypeRegistry::filterCollectionInput(), 'Apply predefined filters to this query.', []);
 
             $queries[] = PaginationUtility::addPaginationArgumentsToFieldBuilder($multipleQuery)->build();
 
@@ -138,10 +144,10 @@ class SchemaGenerator
 
             // Add a query to fetch a single record
             $queries[] = FieldBuilder::create($singleQueryName)->setType($objectType)->setResolver(function($root, $args, $context, ResolveInfo $resolveInfo) use (
-                    $modelClassPath
-                ) {
-                    return $this->queryResolver->fetchSingleRecord($root, $args, $context, $resolveInfo, $modelClassPath);
-                })->addArgument(QueryArgumentsUtility::$uid, Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->build();
+                $modelClassPath
+            ) {
+                return $this->queryResolver->fetchSingleRecord($root, $args, $context, $resolveInfo, $modelClassPath);
+            })->addArgument(QueryArgumentsUtility::$uid, Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->build();
 
             // Allow for custom new query fields
             /** @var CustomQueryFieldEvent $customEvent */

@@ -6,16 +6,13 @@ use GraphQL\Type\Definition\Type;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
-class FilterOption extends \GraphQL\Type\Definition\ObjectType
+class FilterOptionType extends \GraphQL\Type\Definition\ObjectType implements TypeNameInterface
 {
-    public $name = 'FilterOption';
-
     public $description = 'A filter option object';
 
     public function __construct()
     {
-
-        $objectBuilder = ObjectBuilder::create($this->name);
+        $objectBuilder = ObjectBuilder::create(self::getTypeName());
 
         $fields = [];
         $fields[] = FieldBuilder::create('value', Type::nonNull(Type::string()))
@@ -28,5 +25,10 @@ class FilterOption extends \GraphQL\Type\Definition\ObjectType
         $objectBuilder->setFields($fields);
 
         parent::__construct($objectBuilder->build());
+    }
+
+    public static function getTypeName(): string
+    {
+        return 'FilterOption';
     }
 }

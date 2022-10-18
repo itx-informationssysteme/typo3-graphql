@@ -15,5 +15,6 @@ class QueryArgumentsUtility
     public static string $sortByField = 'sortBy';
     public static string $sortingOrder = 'sorting';
 
+    public static string $filters = 'filters';
     public static string $filterPath = 'filterPath';
 }

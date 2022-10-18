@@ -2,32 +2,35 @@
 
 namespace Itx\Typo3GraphQL\EventListener;
 
+use Itx\Typo3GraphQL\Service\ConfigurationService;
+use TYPO3\CMS\Core\Configuration\Event\AfterTcaCompilationEvent;
+
 class AfterTcaEventListener
 {
-    public function __construct()
-    {
+    protected ConfigurationService $configurationService;
 
+    public function __construct(ConfigurationService $configurationService)
+    {
+        $this->configurationService = $configurationService;
     }
 
-    public function addGraphQLModelsToFilterRecord()
+    public function __invoke(AfterTcaCompilationEvent $event): void
     {
-        // TODO Implement
-        // Initialize ObjectManager and get ConfigurationService
-        $objectManager = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Extbase\Object\ObjectManager::class);
-        $configurationService = $objectManager->get(\Itx\Typo3GraphQL\Service\ConfigurationService::class);
+        $tca = $event->getTca();
 
-        $config['items'] = [];
-        foreach ($configurationService->getModels() as $model => $modelConfiguration) {
+        $items = [];
+        foreach ($this->configurationService->getModels() as $model => $modelConfiguration) {
             if ($modelConfiguration['enabled'] === false) {
                 continue;
             }
 
             $splitModel = explode('\\', $model);
 
-            $config['items'][] = [$splitModel[array_key_last($splitModel)], $model];
+            $items[] = [$splitModel[array_key_last($splitModel)], $model];
         }
 
-        return $config;
-    }
+        $tca['tx_typo3graphql_domain_model_filter']['columns']['model']['config']['items'] = $items;
 
+        $event->setTca($tca);
+    }
 }

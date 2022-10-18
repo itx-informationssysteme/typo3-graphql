@@ -11,6 +11,7 @@ class PaginatedQueryResult
     public int $totalCount;
     public array $pageInfo;
     public array $items = [];
+    public array $facets = [];
 
     public function __construct(array $items, int $totalCount, int $offset, int $limit, ResolveInfo $resolveInfo)
     {
@@ -37,5 +38,15 @@ class PaginatedQueryResult
         if (!empty($resolveInfo->getFieldSelection()['items'])) {
             $this->items = $items;
         }
+    }
+
+    public function getFacets(): array
+    {
+        return $this->facets;
+    }
+
+    public function setFacets(array $facets): void
+    {
+        $this->facets = $facets;
     }
 }

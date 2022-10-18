@@ -9,10 +9,8 @@ use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Service\ImageService;
 
-class FileType extends \GraphQL\Type\Definition\ObjectType
+class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameInterface
 {
-    public $name = 'File';
-
     public $description = 'A file object with some additional information including a publicly accessible URL';
 
     public function __construct()
@@ -21,7 +19,7 @@ class FileType extends \GraphQL\Type\Definition\ObjectType
         $imageService =  GeneralUtility::makeInstance(ImageService::class);
         // TODO: API for image processing
 
-        $objectBuilder = ObjectBuilder::create($this->name);
+        $objectBuilder = ObjectBuilder::create(self::getTypeName());
 
         $fields = [];
         $fields[] = FieldBuilder::create('fileName', Type::nonNull(Type::string()))
@@ -44,5 +42,10 @@ class FileType extends \GraphQL\Type\Definition\ObjectType
         $objectBuilder->setFields($fields);
 
         parent::__construct($objectBuilder->build());
+    }
+
+    public static function getTypeName(): string
+    {
+        return 'File';
     }
 }

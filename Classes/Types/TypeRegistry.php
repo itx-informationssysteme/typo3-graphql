@@ -5,11 +5,15 @@ namespace Itx\Typo3GraphQL\Types;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
+use Itx\Typo3GraphQL\Types\Model\DiscreteFilterInputType;
+use Itx\Typo3GraphQL\Types\Model\FacetType;
 use Itx\Typo3GraphQL\Types\Model\FileType;
-use Itx\Typo3GraphQL\Types\Model\FilterOption;
+use Itx\Typo3GraphQL\Types\Model\FilterCollectionInputType;
+use Itx\Typo3GraphQL\Types\Model\FilterOptionType;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
 use Itx\Typo3GraphQL\Types\Model\PageInfoType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
+use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 
 class TypeRegistry
 {
@@ -27,67 +31,135 @@ class TypeRegistry
         $this->addType(self::file());
         $this->addType(self::pageInfo());
         $this->addType(self::sortingOrder());
+
         $this->addType(self::filterOption());
+        $this->addType(self::discreteFilterInput());
+        $this->addType(self::filterCollectionInput());
+        $this->addType(self::facet());
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    protected static function getOrCreateCustomType(string $type): Type
+    {
+        // Check if $type implements the TypeNameInterface
+        if (!in_array(TypeNameInterface::class, class_implements($type), true)) {
+            throw new NameNotFoundException(sprintf('Type %s does not implement the TypeNameInterface', $type));
+        }
+
+        /** @var TypeNameInterface $type */
+        $typeName = $type::getTypeName();
+
+        if (!isset(self::$customTypes[$typeName])) {
+            self::$customTypes[$typeName] = new $type();
+        }
+
+        return self::$customTypes[$typeName];
     }
 
     /**
      * Gets an instance of LinkType
+     *
+     * @throws NameNotFoundException
      */
     public static function link(): LinkType
     {
-        if (!isset(self::$customTypes['Link'])) {
-            self::$customTypes['Link'] = new LinkType();
-        }
+        /** @var LinkType $type */
+        $type = self::getOrCreateCustomType(LinkType::class);
 
-        return self::$customTypes['Link'];
+        return $type;
     }
 
     /**
      * Gets an instance of FileType
+     *
+     * @throws NameNotFoundException
      */
     public static function file(): FileType
     {
-        if (!isset(self::$customTypes['File'])) {
-            self::$customTypes['File'] = new FileType();
-        }
+        /** @var FileType $type */
+        $type = self::getOrCreateCustomType(FileType::class);
 
-        return self::$customTypes['File'];
+        return $type;
     }
 
     /**
      * Gets an instance of PageInfoType
+     *
+     * @throws NameNotFoundException
      */
     public static function pageInfo(): PageInfoType
     {
-        if (!isset(self::$customTypes['PageInfo'])) {
-            self::$customTypes['PageInfo'] = new PageInfoType();
-        }
+        /** @var PageInfoType $type */
+        $type = self::getOrCreateCustomType(PageInfoType::class);
 
-        return self::$customTypes['PageInfo'];
+        return $type;
     }
 
     /**
      * Gets an instance of SortingOrderType
+     *
+     * @throws NameNotFoundException
      */
     public static function sortingOrder(): SortingOrderType
     {
-        if (!isset(self::$customTypes['SortingOrder'])) {
-            self::$customTypes['SortingOrder'] = new SortingOrderType();
-        }
+        /** @var SortingOrderType $type */
+        $type = self::getOrCreateCustomType(SortingOrderType::class);
 
-        return self::$customTypes['SortingOrder'];
+        return $type;
     }
 
     /**
-     * Gets an instance of FilterOption
+     * Gets an instance of FilterOptionType
+     *
+     * @throws NameNotFoundException
      */
-    public static function filterOption(): FilterOption
+    public static function filterOption(): FilterOptionType
     {
-        if (!isset(self::$customTypes['FilterOption'])) {
-            self::$customTypes['FilterOption'] = new FilterOption();
-        }
+        /** @var FilterOptionType $type */
+        $type = self::getOrCreateCustomType(FilterOptionType::class);
 
-        return self::$customTypes['FilterOption'];
+        return $type;
+    }
+
+    /**
+     * Gets an instance of FilterCollectionInputType
+     *
+     * @throws NameNotFoundException
+     */
+    public static function filterCollectionInput(): FilterCollectionInputType
+    {
+        /** @var FilterCollectionInputType $type */
+        $type = self::getOrCreateCustomType(FilterCollectionInputType::class);
+
+        return $type;
+    }
+
+    /**
+     * Gets an instance of DiscreteFilterInputType
+     *
+     * @throws NameNotFoundException
+     */
+    public static function discreteFilterInput(): DiscreteFilterInputType
+    {
+        /** @var DiscreteFilterInputType $type */
+        $type = self::getOrCreateCustomType(DiscreteFilterInputType::class);
+
+        return $type;
+    }
+
+    /**
+     * Gets an instance of FacetType
+     *
+     * @throws NameNotFoundException
+     */
+    public static function facet(): FacetType
+    {
+        /** @var FacetType $type */
+        $type = self::getOrCreateCustomType(FacetType::class);
+
+        return $type;
     }
 
     /**

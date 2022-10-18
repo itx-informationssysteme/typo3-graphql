@@ -4,16 +4,16 @@
 		<header>
 		</header>
 		<body>
-			<trans-unit id="tx_typo3_graphql_domain_model_filter">
+			<trans-unit id="tx_typo3graphql_domain_model_filter">
 				<source>GraphQL Filter</source>
 			</trans-unit>
-			<trans-unit id="tx_typo3_graphql_domain_model_filter.name">
+			<trans-unit id="tx_typo3graphql_domain_model_filter.name">
 				<source>Name</source>
 			</trans-unit>
-			<trans-unit id="tx_typo3_graphql_domain_model_filter.filterPath">
+			<trans-unit id="tx_typo3graphql_domain_model_filter.filterPath">
 				<source>Filter path</source>
 			</trans-unit>
-			<trans-unit id="tx_typo3_graphql_domain_model_filter.model">
+			<trans-unit id="tx_typo3graphql_domain_model_filter.model">
 				<source>Configured model</source>
 			</trans-unit>
 		</body>

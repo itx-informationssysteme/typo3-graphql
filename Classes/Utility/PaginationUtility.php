@@ -45,7 +45,7 @@ class PaginationUtility
     public static function generateConnectionTypes(Type $objectType, TypeRegistry $typeRegistry, FilterResolver $filterResolver, string $tableName): ConnectionType
     {
         $edgeType = new EdgeType($objectType);
-        $connectionType = new ConnectionType($objectType, $edgeType, TypeRegistry::pageInfo(), $filterResolver, $tableName);
+        $connectionType = new ConnectionType($objectType, $edgeType);
 
         if (!$typeRegistry->hasType($edgeType->toString())) {
             $typeRegistry->addType($edgeType);
