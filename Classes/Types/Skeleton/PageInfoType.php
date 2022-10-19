@@ -1,8 +1,9 @@
 <?php
 
-namespace Itx\Typo3GraphQL\Types\Model;
+namespace Itx\Typo3GraphQL\Types\Skeleton;
 
 use GraphQL\Type\Definition\Type;
+use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 

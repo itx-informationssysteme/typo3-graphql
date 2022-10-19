@@ -11,9 +11,9 @@ use Itx\Typo3GraphQL\Types\Model\FileType;
 use Itx\Typo3GraphQL\Types\Model\FilterCollectionInputType;
 use Itx\Typo3GraphQL\Types\Model\FilterOptionType;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
-use Itx\Typo3GraphQL\Types\Model\PageInfoType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
+use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
 
 class TypeRegistry
 {

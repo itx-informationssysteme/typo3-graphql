@@ -16,13 +16,9 @@ class DiscreteFilterInputType extends InputObjectType implements TypeNameInterfa
         $objectBuilder = InputObjectBuilder::create(self::getTypeName());
 
         $fields = [];
-        $fields[] = InputFieldBuilder::create('path', Type::nonNull(Type::string()))
-                                ->setDescription('The filter path')
-                                ->build();
+        $fields[] = InputFieldBuilder::create('path', Type::nonNull(Type::string()))->setDescription('The filter path')->build();
 
-        $fields[] = InputFieldBuilder::create('options', Type::nonNull(Type::listOf(Type::nonNull(Type::string()))))
-                                ->setDescription('Selected filter options')
-                                ->build();
+        $fields[] = InputFieldBuilder::create('options', Type::listOf(Type::nonNull(Type::string())))->setDefaultValue([])->setDescription('Selected filter options')->build();
 
         $objectBuilder->setFields($fields);
 

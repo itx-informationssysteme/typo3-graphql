@@ -17,9 +17,7 @@ class FilterCollectionInputType extends InputObjectType implements TypeNameInter
         $objectBuilder = InputObjectBuilder::create(self::getTypeName());
 
         $fields = [];
-        $fields[] = InputFieldBuilder::create('discreteFilters', Type::nonNull(Type::listOf(Type::nonNull(TypeRegistry::discreteFilterInput()))))
-                                ->setDescription('Discrete filters')
-                                ->build();
+        $fields[] = InputFieldBuilder::create('discreteFilters', Type::listOf(Type::nonNull(TypeRegistry::discreteFilterInput())))->setDefaultValue([])->setDescription('Discrete filters')->build();
 
         $objectBuilder->setFields($fields);
 

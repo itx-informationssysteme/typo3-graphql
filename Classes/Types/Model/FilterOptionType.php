@@ -18,8 +18,13 @@ class FilterOptionType extends \GraphQL\Type\Definition\ObjectType implements Ty
         $fields[] = FieldBuilder::create('value', Type::nonNull(Type::string()))
                                 ->setDescription('The filter value')
                                 ->build();
+
         $fields[] = FieldBuilder::create('resultCount', Type::nonNull(Type::int()))
                                 ->setDescription('The result count for this filter option')
+                                ->build();
+
+        $fields[] = FieldBuilder::create('selected', Type::nonNull(Type::boolean()))
+                                ->setDescription('Whether this filter option was selected through a filter argument.')
                                 ->build();
 
         $objectBuilder->setFields($fields);

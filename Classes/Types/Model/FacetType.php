@@ -29,7 +29,7 @@ class FacetType extends ObjectType implements TypeNameInterface
                                 ->setDescription('The filter path')
                                 ->build();
 
-        $fields[] = FieldBuilder::create('options', Type::nonNull(Type::listOf(TypeRegistry::filterOption())))
+        $fields[] = FieldBuilder::create('options', Type::nonNull(Type::listOf(Type::nonNull(TypeRegistry::filterOption()))))
                                 ->setDescription('The result count for this filter option')
                                 ->build();
 
