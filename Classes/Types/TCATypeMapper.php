@@ -99,7 +99,7 @@ class TCATypeMapper
 
             $fieldBuilder->setType(Type::nonNull($paginationConnection));
 
-            PaginationUtility::addPaginationArgumentsToFieldBuilder($fieldBuilder);
+            PaginationUtility::addArgumentsToFieldBuilder($fieldBuilder);
         }
 
         // If the field is required, the type is a non-null type
@@ -272,7 +272,16 @@ class TCATypeMapper
                 $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                     $foreignTable, $schemaContext
                 ) {
-                    return $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
+                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
+
+                    if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
+                        $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
+                        $mmTable = $schemaContext->getColumnConfiguration()['config']['MM'];
+
+                        $queryResult->setFacets($this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root['uid']));
+                    }
+
+                    return $queryResult;
                 });
             }
         }

@@ -31,6 +31,22 @@ class FilterResolver
      */
     public function fetchFiltersIncludingFacets($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath): array
     {
+        return $this->computeFilterOptions($root, $args, $context, $resolveInfo, $tableName, $modelClassPath);
+    }
+
+    public function fetchFiltersWithRelationConstraintIncludingFacets($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath, string $mmTable, int $localUid): array
+    {
+        return $this->computeFilterOptions($root, $args, $context, $resolveInfo, $tableName, $modelClassPath, $mmTable, $localUid);
+    }
+
+    /**
+     * @throws BadInputException
+     * @throws Exception
+     * @throws DBALException
+     */
+    private function computeFilterOptions($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath, ?string $mmTable = null, ?int $localUid = null): array
+    {
+        // TODO fetch only filters that were requested
         $filters = $this->filterRepository->findByModel($modelClassPath);
 
         $discreteFilterArguments = $this->extractDiscreteFilterOptionsMap($args);
@@ -43,7 +59,7 @@ class FilterResolver
             $facet['label'] = $filter->getName();
             $facet['path'] = $filter->getFilterPath();
 
-            $options = $this->fetchFilterOptions($tableName, $filter->getFilterPath(), $args, $discreteFilterArguments, $resolveInfo);
+            $options = $this->fetchFilterOptions($tableName, $filter->getFilterPath(), $args, $discreteFilterArguments, $resolveInfo, $mmTable, $localUid);
 
             $facet['options'] = $options;
 
@@ -62,7 +78,7 @@ class FilterResolver
     {
         $filterArguments = $args[QueryArgumentsUtility::$filters] ?? [];
 
-        $discreteFilterArguments = $filterArguments['discreteFilters'] ?? [];
+        $discreteFilterArguments = $filterArguments[QueryArgumentsUtility::$discreteFilters] ?? [];
 
         // Set key path from discrete filter array as key
         foreach ($discreteFilterArguments as $key => $filter) {
@@ -79,13 +95,15 @@ class FilterResolver
      * @param array                             $args
      * @param array<string,DiscreteFilterInput> $filterArguments
      * @param ResolveInfo                       $resolveInfo
+     * @param string|null                       $mmTable
+     * @param int|null                          $localUid
      *
-     * @return DiscreteFilterOption[]
+     * @return array
      * @throws BadInputException
      * @throws DBALException
      * @throws Exception
      */
-    private function fetchFilterOptions(string $tableName, string $filterPath, array $args, array $filterArguments, ResolveInfo $resolveInfo): array
+    private function fetchFilterOptions(string $tableName, string $filterPath, array $args, array $filterArguments, ResolveInfo $resolveInfo, ?string $mmTable, ?int $localUid): array
     {
         $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
@@ -96,7 +114,13 @@ class FilterResolver
         // Query Builder
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
 
-        $lastElementTable = $this->buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
+        $lastElementTable = self::buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
+
+        // If we have a relation constraint, we need to add the constraint to the query
+        if ($mmTable !== null && $localUid !== null) {
+            $queryBuilder->leftJoin($tableName, $mmTable, 'mm', $queryBuilder->expr()->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid')));
+            $queryBuilder->andWhere($queryBuilder->expr()->eq('mm.uid_local', $queryBuilder->createNamedParameter($localUid)));
+        }
 
         if (count($storagePids) > 0) {
             $queryBuilder->andWhere($queryBuilder->expr()->in($tableName . '.pid', array_map(static function($a) use ($queryBuilder) { return $queryBuilder->createNamedParameter($a, \PDO::PARAM_INT); }, $storagePids)));
@@ -113,7 +137,7 @@ class FilterResolver
             $whereFilterPathElements = explode('.', $whereFilter->path);
             $whereFilterLastElement = array_pop($whereFilterPathElements);
 
-            $whereFilterTable = $this->buildJoinsByWalkingPath($whereFilterPathElements, $tableName, $queryBuilder);
+            $whereFilterTable = self::buildJoinsByWalkingPath($whereFilterPathElements, $tableName, $queryBuilder);
 
             $queryBuilder->andWhere($queryBuilder->expr()->in($whereFilterTable . '.' . $whereFilterLastElement, array_map(static function($a) use ($queryBuilder) { return $queryBuilder->createNamedParameter($a); }, $whereFilter->options)));
         }
@@ -124,10 +148,12 @@ class FilterResolver
 
         $options = [];
 
+        $isSelectedNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['selected']) && $resolveInfo->getFieldSelection(3)['facets']['options']['selected'];
+
         // Set selected to true for all options that are selected
         foreach ($results as $key => $result) {
             $selected = false;
-            if (!empty($filterArguments[$filterPath]) && $resolveInfo->getFieldSelection(3)['facets']['options']['selected'] ?? false) {
+            if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
                 $selected = in_array($result['value'], $filterArguments[$filterPath]->options, true);
             }
 
@@ -140,7 +166,8 @@ class FilterResolver
     /**
      * @throws BadInputException
      */
-    private function buildJoinsByWalkingPath(array $filterPathElements, string $tableName, QueryBuilder $queryBuilder): string {
+    public static function buildJoinsByWalkingPath(array $filterPathElements, string $tableName, QueryBuilder $queryBuilder): string
+    {
         $lastElementTable = $tableName;
 
         // Go through the filter path and join the tables by using the TCA MM relations
@@ -149,7 +176,7 @@ class FilterResolver
          * @var string $fieldName
          * @var array  $tca
          */
-        foreach ($this->walkTcaRelations($filterPathElements, $tableName) as [$currentTable, $fieldName, $tca]) {
+        foreach (self::walkTcaRelations($filterPathElements, $tableName) as [$currentTable, $fieldName, $tca]) {
             $lastElementTable = $tca['foreign_table'];
 
             if ($tca['MM'] ?? false) {
@@ -171,7 +198,7 @@ class FilterResolver
      * @return Generator<array<string,string,array|null>> The table name, the field name and the current tca config
      * @throws BadInputException
      */
-    public function walkTcaRelations(array $filterPathElements, string $tableName): Generator
+    public static function walkTcaRelations(array $filterPathElements, string $tableName): Generator
     {
         $currentTable = $tableName;
 
@@ -199,38 +226,5 @@ class FilterResolver
                 $currentTable = $tca['foreign_table'];
             }
         }
-    }
-
-    /**
-     * @throws BadInputException
-     */
-    private function getTableFromPath(string $startingTable, string $path): array
-    {
-        $filterPathElements = explode('.', $path);
-        $lastElement = array_pop($filterPathElements);
-
-        $currentTable = $startingTable;
-
-        if (count($filterPathElements) > 0) {
-            foreach ($filterPathElements as $pathElement) {
-                $tca = $GLOBALS['TCA'][$currentTable]['columns'][$pathElement]['config'] ?? null;
-
-                if ($tca === null) {
-                    throw new BadInputException("No TCA field found for $startingTable.$pathElement");
-                }
-
-                if ($tca['type'] !== 'select') {
-                    throw new BadInputException("TCA for $startingTable.$pathElement is not of type select");
-                }
-
-                if ($tca['foreign_table'] === null) {
-                    throw new BadInputException("TCA for $startingTable.$pathElement has no foreign_table");
-                }
-
-                $currentTable = $tca['foreign_table'];
-            }
-        }
-
-        return [$currentTable, $lastElement];
     }
 }

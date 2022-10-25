@@ -129,7 +129,7 @@ class SchemaGenerator
             $connectionType = PaginationUtility::generateConnectionTypes($objectType, $typeRegistry, $this->filterResolver, $tableName);
 
             // Add a query to fetch multiple records
-            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))->setType(Type::nonNull($connectionType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($typeRegistry, $modelClassPath, $tableName) {
+            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))->setType(Type::nonNull($connectionType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath, $tableName) {
                 $queryResult = $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath, $tableName);
 
                 if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
@@ -137,9 +137,9 @@ class SchemaGenerator
                 }
 
                 return $queryResult;
-            })->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->addArgument(QueryArgumentsUtility::$pageIds, Type::listOf(Type::int()), 'List of storage page ids', [])->addArgument(QueryArgumentsUtility::$filters, TypeRegistry::filterCollectionInput(), 'Apply predefined filters to this query.', []);
+            })->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->addArgument(QueryArgumentsUtility::$pageIds, Type::listOf(Type::int()), 'List of storage page ids', []);
 
-            $queries[] = PaginationUtility::addPaginationArgumentsToFieldBuilder($multipleQuery)->build();
+            $queries[] = PaginationUtility::addArgumentsToFieldBuilder($multipleQuery)->build();
 
             // Generate a name for the single query
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);

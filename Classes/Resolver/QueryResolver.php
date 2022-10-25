@@ -15,6 +15,7 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class QueryResolver
@@ -58,7 +59,7 @@ class QueryResolver
     }
 
     /**
-     * @throws BadInputException
+     * @throws BadInputException|InvalidQueryException
      */
     public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath, string $tableName): PaginatedQueryResult
     {
@@ -69,6 +70,9 @@ class QueryResolver
 
         $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
         $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
+
+        $filters = $args[QueryArgumentsUtility::$filters] ?? [];
+        $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
@@ -84,6 +88,14 @@ class QueryResolver
               ->setRespectSysLanguage(true)
               ->setLanguageUid($language)
               ->setLanguageOverlayMode($languageOverlayMode);
+
+        foreach ($discreteFilters as $discreteFilter) {
+            if (count($discreteFilter['options'] ?? []) === 0) {
+                continue;
+            }
+
+            $query->matching($query->in($discreteFilter['path'], $discreteFilter['options']));
+        }
 
         $count = $query->count();
 
@@ -136,7 +148,7 @@ class QueryResolver
     public function fetchForeignRecordsWithMM($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext, string $foreignTable): PaginatedQueryResult
     {
         $tableName = $schemaContext->getTableName();
-        $foreignUid = $root['uid'];
+        $localUid = $root['uid'];
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
 
@@ -148,10 +160,10 @@ class QueryResolver
         /** @var ConnectionPool $connectionPool */
         $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
 
-        $qb = $connectionPool->getQueryBuilderForTable($tableName);
+        $qb = $connectionPool->getQueryBuilderForTable($foreignTable);
 
-        $qb->from($foreignTable, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_local'))->andWhere($qb->expr()
-                                                                                                              ->eq('m.uid_foreign', $foreignUid));
+        $qb->from($foreignTable, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_foreign'))->andWhere($qb->expr()
+                                                                                                              ->eq('m.uid_local', $localUid));
 
         $count = $qb->count('o.uid')->execute()->fetchOne();
 

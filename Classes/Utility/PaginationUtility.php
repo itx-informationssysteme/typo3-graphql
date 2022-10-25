@@ -60,12 +60,12 @@ class PaginationUtility
         return $connectionType;
     }
 
-    public static function addPaginationArgumentsToFieldBuilder(FieldBuilder $fieldBuilder): FieldBuilder
+    /**
+     * @throws NameNotFoundException
+     */
+    public static function addArgumentsToFieldBuilder(FieldBuilder $fieldBuilder): FieldBuilder
     {
-        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count', 10)
-                     ->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')
-                     ->addArgument(QueryArgumentsUtility::$sortByField, Type::string(), 'Sort by field')
-                     ->addArgument(QueryArgumentsUtility::$sortingOrder, TypeRegistry::sortingOrder(), 'Sorting order', 'ASC');
+        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count', 10)->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')->addArgument(QueryArgumentsUtility::$sortByField, Type::string(), 'Sort by field')->addArgument(QueryArgumentsUtility::$sortingOrder, TypeRegistry::sortingOrder(), 'Sorting order', 'ASC')->addArgument(QueryArgumentsUtility::$filters, TypeRegistry::filterCollectionInput(), 'Apply predefined filters to this query.', []);
 
         return $fieldBuilder;
     }

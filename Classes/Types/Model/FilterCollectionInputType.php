@@ -5,6 +5,7 @@ namespace Itx\Typo3GraphQL\Types\Model;
 use GraphQL\Type\Definition\InputObjectType;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
+use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
 use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
 
@@ -17,7 +18,7 @@ class FilterCollectionInputType extends InputObjectType implements TypeNameInter
         $objectBuilder = InputObjectBuilder::create(self::getTypeName());
 
         $fields = [];
-        $fields[] = InputFieldBuilder::create('discreteFilters', Type::listOf(Type::nonNull(TypeRegistry::discreteFilterInput())))->setDefaultValue([])->setDescription('Discrete filters')->build();
+        $fields[] = InputFieldBuilder::create(QueryArgumentsUtility::$discreteFilters, Type::listOf(Type::nonNull(TypeRegistry::discreteFilterInput())))->setDefaultValue([])->setDescription('Discrete filters')->build();
 
         $objectBuilder->setFields($fields);
 
