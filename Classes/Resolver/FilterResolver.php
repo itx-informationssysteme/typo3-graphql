@@ -14,6 +14,7 @@ use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class FilterResolver
@@ -43,13 +44,15 @@ class FilterResolver
      * @throws BadInputException
      * @throws Exception
      * @throws DBALException
+     * @throws InvalidQueryException
      */
     private function computeFilterOptions($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath, ?string $mmTable = null, ?int $localUid = null): array
     {
-        // TODO fetch only filters that were requested
-        $filters = $this->filterRepository->findByModel($modelClassPath);
-
         $discreteFilterArguments = $this->extractDiscreteFilterOptionsMap($args);
+        $discreteFilterPaths = map($discreteFilterArguments)->map(fn(DiscreteFilterInput $filter) => $filter->path)->toArray();
+
+        // TODO fetch only filters that were requested
+        $filters = $this->filterRepository->findByModelAndPaths($modelClassPath, $discreteFilterPaths);
 
         $facets = [];
         foreach ($filters as $filter) {
