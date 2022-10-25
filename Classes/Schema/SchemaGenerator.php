@@ -130,11 +130,14 @@ class SchemaGenerator
 
             // Add a query to fetch multiple records
             $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))->setType(Type::nonNull($connectionType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath, $tableName) {
-                $queryResult = $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath, $tableName);
+                $facets = [];
 
                 if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
-                    $queryResult->setFacets($this->filterResolver->fetchFiltersIncludingFacets($root, $args, $context, $resolveInfo, $tableName, $modelClassPath));
+                    $facets = $this->filterResolver->fetchFiltersIncludingFacets($root, $args, $context, $resolveInfo, $tableName, $modelClassPath);
                 }
+
+                $queryResult = $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath, $tableName);
+                $queryResult->setFacets($facets);
 
                 return $queryResult;
             })->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->addArgument(QueryArgumentsUtility::$pageIds, Type::listOf(Type::int()), 'List of storage page ids', []);

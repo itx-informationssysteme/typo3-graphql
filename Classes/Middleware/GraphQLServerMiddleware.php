@@ -79,13 +79,18 @@ class GraphQLServerMiddleware implements MiddlewareInterface
             $rules[] = new DisableIntrospection();
         }
 
-        $server = new \GraphQL\Server\StandardServer([
-                                                         'schema' => $schema,
-                                                         // Todo make configurable, maybe based on TYPO3 debug configuration
-                                                         'debugFlag' => DebugFlag::RETHROW_INTERNAL_EXCEPTIONS,
-                                                         'validationRules' => $rules,
-                                                         'fieldResolver' => [DefaultFieldResolver::class, 'defaultFieldResolver'],
-                                                     ]);
+        $serverConfig = [
+            'schema' => $schema,
+            'validationRules' => $rules,
+            'fieldResolver' => [DefaultFieldResolver::class, 'defaultFieldResolver'],
+        ];
+
+        // if fe debug is enabled, rethrow exceptions
+        if ($GLOBALS['TYPO3_CONF_VARS']['FE']['debug'] ?? false) {
+            $serverConfig['debugFlag'] = DebugFlag::RETHROW_INTERNAL_EXCEPTIONS;
+        }
+
+        $server = new \GraphQL\Server\StandardServer($serverConfig);
 
         $response = new JsonResponse();
 

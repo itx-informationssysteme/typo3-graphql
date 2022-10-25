@@ -42,6 +42,7 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
     {
         $query = $this->createQuery();
 
+        // TODO Language overlay?
         $query->getQuerySettings()->setRespectStoragePage(false);
         $query->matching($query->logicalAnd($query->equals('model', $model), $query->in('filter_path', $paths)));
 

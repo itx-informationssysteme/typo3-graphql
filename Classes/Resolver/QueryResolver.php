@@ -90,6 +90,7 @@ class QueryResolver
               ->setLanguageOverlayMode($languageOverlayMode);
 
         foreach ($discreteFilters as $discreteFilter) {
+            // TODO check filter buffer for valid filters
             if (count($discreteFilter['options'] ?? []) === 0) {
                 continue;
             }
@@ -121,7 +122,7 @@ class QueryResolver
             return null;
         }
 
-        // TODO: maybe improve on this
+        // TODO: maybe improve on this regarding language overlays
         $language = (int)($root['sys_language_uid'] ?? 0);
 
         $modelClassPath = $schemaContext->getTypeRegistry()

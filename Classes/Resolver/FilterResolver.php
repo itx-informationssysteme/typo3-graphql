@@ -8,6 +8,7 @@ use Generator;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
 use Itx\Typo3GraphQL\Exception\BadInputException;
+use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
@@ -102,9 +103,9 @@ class FilterResolver
      * @param int|null                          $localUid
      *
      * @return array
-     * @throws BadInputException
      * @throws DBALException
      * @throws Exception
+     * @throws FieldDoesNotExistException
      */
     private function fetchFilterOptions(string $tableName, string $filterPath, array $args, array $filterArguments, ResolveInfo $resolveInfo, ?string $mmTable, ?int $localUid): array
     {
@@ -167,7 +168,7 @@ class FilterResolver
     }
 
     /**
-     * @throws BadInputException
+     * @throws FieldDoesNotExistException
      */
     public static function buildJoinsByWalkingPath(array $filterPathElements, string $tableName, QueryBuilder $queryBuilder): string
     {
@@ -199,7 +200,7 @@ class FilterResolver
 
     /**
      * @return Generator<array<string,string,array|null>> The table name, the field name and the current tca config
-     * @throws BadInputException
+     * @throws FieldDoesNotExistException
      */
     public static function walkTcaRelations(array $filterPathElements, string $tableName): Generator
     {
@@ -208,15 +209,15 @@ class FilterResolver
         foreach ($filterPathElements as $index => $filterPathElement) {
             $tca = $GLOBALS['TCA'][$currentTable]['columns'][$filterPathElement]['config'] ?? null;
             if ($tca === null) {
-                throw new BadInputException("No TCA field found for $currentTable.$filterPathElement");
+                throw new FieldDoesNotExistException("No TCA field found for $currentTable.$filterPathElement");
             }
 
             if ($tca['type'] !== 'select') {
-                throw new BadInputException("TCA for $currentTable.$filterPathElement is not of type select");
+                throw new FieldDoesNotExistException("TCA for $currentTable.$filterPathElement is not of type select");
             }
 
             if ($tca['foreign_table'] === null) {
-                throw new BadInputException("TCA for $currentTable.$filterPathElement has no foreign_table");
+                throw new FieldDoesNotExistException("TCA for $currentTable.$filterPathElement has no foreign_table");
             }
 
             if (($tca['MM'] ?? null) !== null) {

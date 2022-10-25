@@ -272,14 +272,18 @@ class TCATypeMapper
                 $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                     $foreignTable, $schemaContext
                 ) {
-                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
+                    $facets = [];
 
                     if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
                         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
                         $mmTable = $schemaContext->getColumnConfiguration()['config']['MM'];
 
-                        $queryResult->setFacets($this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root['uid']));
+                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root['uid']);
                     }
+
+                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
+
+                    $queryResult->setFacets($facets);
 
                     return $queryResult;
                 });
