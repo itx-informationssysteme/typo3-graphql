@@ -8,6 +8,7 @@ use GraphQL\Validator\Rules\QueryComplexity;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
+use Itx\Typo3GraphQL\Resolver\DefaultFieldResolver;
 use Itx\Typo3GraphQL\Schema\SchemaGenerator;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
 use JsonException;
@@ -82,7 +83,8 @@ class GraphQLServerMiddleware implements MiddlewareInterface
                                                          'schema' => $schema,
                                                          // Todo make configurable, maybe based on TYPO3 debug configuration
                                                          'debugFlag' => DebugFlag::RETHROW_INTERNAL_EXCEPTIONS,
-                                                         'validationRules' => $rules
+                                                         'validationRules' => $rules,
+                                                         'fieldResolver' => [DefaultFieldResolver::class, 'defaultFieldResolver'],
                                                      ]);
 
         $response = new JsonResponse();

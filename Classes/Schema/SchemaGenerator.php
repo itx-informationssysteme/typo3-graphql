@@ -25,6 +25,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class SchemaGenerator
@@ -64,7 +65,6 @@ class SchemaGenerator
         $typeRegistry = new TypeRegistry();
 
         $modelsConfiguration = $this->configurationService->getModels();
-        $settings = $this->configurationService->getSettings();
 
         $modelClassPaths = array_keys($modelsConfiguration);
 
@@ -96,6 +96,8 @@ class SchemaGenerator
 
                 // Add fields for all columns to type config
                 foreach ($GLOBALS['TCA'][$tableName]['columns'] as $fieldName => $columnConfiguration) {
+                    $fieldName = GeneralUtility::underscoredToLowerCamelCase($fieldName);
+
                     if (in_array($fieldName, $disabledFields, true)) {
                         continue;
                     }
