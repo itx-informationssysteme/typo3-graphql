@@ -243,8 +243,7 @@ class TCATypeMapper
                 $fieldBuilder->setType($type);
             }
             catch (NotFoundException $e) {
-                // TODO make configurable
-                //throw new NotFoundException("Could not find type for foreign table '{$foreignTable}'");
+                // We do nothing here, because, the type should be configured in the YAML file
             }
         }
 

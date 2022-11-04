@@ -126,6 +126,11 @@ class SchemaGenerator
 
             $typeRegistry->addModelObjectType($objectType, $tableName, $modelClassPath);
 
+            // We only continue here if the type is marked as queryable: true
+            if (($modelsConfiguration[$modelClassPath]['queryable'] ?? false) === false) {
+                continue;
+            }
+
             $connectionType = PaginationUtility::generateConnectionTypes($objectType, $typeRegistry, $this->filterResolver, $tableName);
 
             // Add a query to fetch multiple records

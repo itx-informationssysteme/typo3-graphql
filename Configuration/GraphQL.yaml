@@ -1,18 +1,21 @@
 models:
     Itx\Typo3GraphQL\Domain\Model\Page:
         enabled: true
+        queryable: true
         disabledFields:
             - 'fe_group'
         languageOverlayMode: true
 
     TYPO3\CMS\Extbase\Domain\Model\Category:
         enabled: true
+        queryable: true
         disabledFields:
             - 'fe_group'
         languageOverlayMode: true
 
     Itx\Typo3GraphQL\Domain\Model\PageContent:
         enabled: true
+        queryable: true
         disabledFields:
             - 'fe_group'
         languageOverlayMode: true
