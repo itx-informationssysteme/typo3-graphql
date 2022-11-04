@@ -13,6 +13,9 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
         'name' => QueryInterface::ORDER_ASCENDING,
     ];
 
+    /** @var string[]  */
+    protected array $filterBuffer = [];
+
     public function findAll(): QueryResultInterface
     {
         $query = $this->createQuery();
@@ -34,18 +37,43 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
         return $query->execute();
     }
 
+    private function bufferKey($model, $filter): string
+    {
+        return $model . $filter;
+    }
+
     /**
      * @return Filter[]|QueryResultInterface
      * @throws InvalidQueryException
      */
     public function findByModelAndPaths($model, array $paths): QueryResultInterface|array
     {
+        $filters = [];
+
+        // Check if we have a cached result
+        foreach ($paths as $path) {
+            $key = $this->bufferKey($model, $path);
+            if (isset($this->filterBuffer[$key])) {
+                $filters[] = $this->filterBuffer[$key];
+            }
+        }
+
+        if (count($filters) === count($paths)) {
+            return $filters;
+        }
+
         $query = $this->createQuery();
 
         // TODO Language overlay?
         $query->getQuerySettings()->setRespectStoragePage(false);
         $query->matching($query->logicalAnd($query->equals('model', $model), $query->in('filter_path', $paths)));
 
-        return $query->execute();
+        $results = $query->execute();
+
+        foreach ($results as $result) {
+            $this->filterBuffer[$this->bufferKey($model, $result->getFilterPath())] = $result;
+        }
+
+        return $results;
     }
 }

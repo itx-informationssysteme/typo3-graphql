@@ -49,15 +49,14 @@ class FilterResolver
      */
     private function computeFilterOptions($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath, ?string $mmTable = null, ?int $localUid = null): array
     {
+        // TODO check if type === discrete
         $discreteFilterArguments = $this->extractDiscreteFilterOptionsMap($args);
         $discreteFilterPaths = map($discreteFilterArguments)->map(fn(DiscreteFilterInput $filter) => $filter->path)->toArray();
 
-        // TODO fetch only filters that were requested
         $filters = $this->filterRepository->findByModelAndPaths($modelClassPath, $discreteFilterPaths);
 
         $facets = [];
         foreach ($filters as $filter) {
-            // TODO check if type === discrete
 
             $facet = [];
             $facet['label'] = $filter->getName();

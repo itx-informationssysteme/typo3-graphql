@@ -5,6 +5,7 @@ namespace Itx\Typo3GraphQL\Resolver;
 use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
+use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
@@ -23,12 +24,14 @@ class QueryResolver
     protected PersistenceManager $persistenceManager;
     protected FileRepository $fileRepository;
     protected ConfigurationService $configurationService;
+    protected FilterRepository $filterRepository;
 
-    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository, ConfigurationService $configurationService)
+    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository, ConfigurationService $configurationService, FilterRepository $filterRepository)
     {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
         $this->configurationService = $configurationService;
+        $this->filterRepository = $filterRepository;
     }
 
     /**
@@ -42,11 +45,7 @@ class QueryResolver
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
 
         $languageOverlayMode = $this->configurationService->getModels()[$modelClassPath]['languageOverlayMode'] ?? true;
-        $query->getQuerySettings()
-              ->setRespectStoragePage(false)
-              ->setRespectSysLanguage(true)
-              ->setLanguageUid($language)
-              ->setLanguageOverlayMode($languageOverlayMode);
+        $query->getQuerySettings()->setRespectStoragePage(false)->setRespectSysLanguage(true)->setLanguageUid($language)->setLanguageOverlayMode($languageOverlayMode);
 
         $query->matching($query->equals('uid', $uid));
 
@@ -74,6 +73,11 @@ class QueryResolver
         $filters = $args[QueryArgumentsUtility::$filters] ?? [];
         $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
+        // Path as key for discrete filters
+        $discreteFilters = array_combine(array_map(static function ($filter) {
+            return $filter['path'];
+        }, $discreteFilters), $discreteFilters);
+
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
 
@@ -84,13 +88,13 @@ class QueryResolver
         }
 
         $languageOverlayMode = $this->configurationService->getModels()[$modelClassPath]['languageOverlayMode'] ?? true;
-        $query->getQuerySettings()
-              ->setRespectSysLanguage(true)
-              ->setLanguageUid($language)
-              ->setLanguageOverlayMode($languageOverlayMode);
+        $query->getQuerySettings()->setRespectSysLanguage(true)->setLanguageUid($language)->setLanguageOverlayMode($languageOverlayMode);
 
-        foreach ($discreteFilters as $discreteFilter) {
-            // TODO check filter buffer for valid filters
+        $filterConfigurations = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
+
+        foreach ($filterConfigurations as $filterConfiguration) {
+            $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
+
             if (count($discreteFilter['options'] ?? []) === 0) {
                 continue;
             }
@@ -125,8 +129,7 @@ class QueryResolver
         // TODO: maybe improve on this regarding language overlays
         $language = (int)($root['sys_language_uid'] ?? 0);
 
-        $modelClassPath = $schemaContext->getTypeRegistry()
-                                        ->getModelClassPathByTableName($foreignTable);
+        $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
 
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
         $query->getQuerySettings()->setRespectStoragePage(false)->setLanguageUid($language)->setLanguageOverlayMode(true);
@@ -163,8 +166,9 @@ class QueryResolver
 
         $qb = $connectionPool->getQueryBuilderForTable($foreignTable);
 
-        $qb->from($foreignTable, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_foreign'))->andWhere($qb->expr()
-                                                                                                              ->eq('m.uid_local', $localUid));
+        $qb->from($foreignTable, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_foreign'))->andWhere($qb->expr()->eq('m.uid_local', $localUid));
+
+        // TODO we want to support filtering in relations as well, which should happen here
 
         $count = $qb->count('o.uid')->execute()->fetchOne();
 

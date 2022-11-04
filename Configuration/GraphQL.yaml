@@ -20,6 +20,13 @@ models:
             - 'fe_group'
         languageOverlayMode: true
 
+    Itx\Typo3GraphQL\Domain\Model\Filter:
+        enabled: true
+        queryable: true
+        disabledFields:
+            - 'fe_group'
+        languageOverlayMode: true
+
 settings:
     # Whether when there is a relation to a data type that is not configured, it should be ignored or throw an exception
     ignoreMissingTables: true
