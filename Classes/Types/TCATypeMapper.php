@@ -2,7 +2,6 @@
 
 namespace Itx\Typo3GraphQL\Types;
 
-use GraphQL\Deferred;
 use GraphQL\Type\Definition\EnumType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
@@ -11,6 +10,7 @@ use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\FilterResolver;
+use Itx\Typo3GraphQL\Resolver\PaginatedQueryResult;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
 use Itx\Typo3GraphQL\Resolver\ResolverBuffer;
 use Itx\Typo3GraphQL\Schema\Context;
@@ -22,6 +22,8 @@ use SimPod\GraphQLUtils\Builder\EnumBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\MathUtility;
+use TYPO3\CMS\Extbase\Persistence\Generic\LazyObjectStorage;
+use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 
 class TCATypeMapper
 {
@@ -154,24 +156,6 @@ class TCATypeMapper
         }
 
         $fieldBuilder->setType(TypeRegistry::file());
-
-        $schemaContext = $context;
-
-        // Select the correct query resolver for the file reference field item amount
-        if (($columnConfiguration['config']['maxitems'] ?? 2) > 1) {
-            $fieldBuilder->setType(Type::listOf($fieldBuilder->getType()));
-            $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                $schemaContext
-            ) {
-                return $this->queryResolver->fetchFiles($root, $args, $context, $resolveInfo, $schemaContext);
-            });
-        } else {
-            $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                $schemaContext
-            ) {
-                return $this->queryResolver->fetchFile($root, $args, $context, $resolveInfo, $schemaContext);
-            });
-        }
     }
 
     /**
@@ -252,22 +236,7 @@ class TCATypeMapper
             $columnConfiguration = $context->getColumnConfiguration();
             $schemaContext = $context;
 
-            if ($foreignTable !== '' && empty($columnConfiguration['config']['MM'])) {
-                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                    $foreignTable, $schemaContext
-                ): Deferred {
-                    $foreignUid = $root[$resolveInfo->fieldName];
-                    $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
-                    $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
-                    $this->resolverBuffer->add($modelClassPath, $foreignUid, $language);
-
-                    return new Deferred(function() use ($modelClassPath, $foreignUid, $language) {
-                        $this->resolverBuffer->loadBuffered($modelClassPath, $language);
-
-                        return $this->resolverBuffer->get($modelClassPath, $foreignUid, $language);
-                    });
-                });
-            } elseif (!empty($columnConfiguration['config']['MM'])) {
+            if (!empty($columnConfiguration['config']['MM'])) {
                 $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                     $foreignTable, $schemaContext
                 ) {
@@ -280,8 +249,33 @@ class TCATypeMapper
                         $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root['uid']);
                     }
 
-                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
+                    $capitalizedFieldName = ucfirst($schemaContext->getFieldName());
 
+                    /** @var ObjectStorage $results */
+                    $results = $root->{'get' . $capitalizedFieldName}();
+
+                    $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
+                    $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
+
+                    if ($results instanceof LazyObjectStorage) {
+                        // TODO: think about fetching these by ourselves, because then we could paginate them
+                    }
+
+                    $count = $results->count();
+                    $results = $results->toArray();
+
+                    // Naive in-memory pagination
+                    $paginatedResults = [];
+
+                    for ($i = $offset; $i < $count; $i++) {
+                        if (count($paginatedResults) === $limit) {
+                            break;
+                        }
+
+                        $paginatedResults[] = $results[$i];
+                    }
+
+                    $queryResult = new PaginatedQueryResult($paginatedResults, $count, $offset, $limit, $resolveInfo);
                     $queryResult->setFacets($facets);
 
                     return $queryResult;

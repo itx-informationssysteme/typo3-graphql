@@ -13,7 +13,6 @@ use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
@@ -49,7 +48,7 @@ class QueryResolver
 
         $query->matching($query->equals('uid', $uid));
 
-        $result = $query->execute(true)[0] ?? null;
+        $result = $query->execute()[0] ?? null;
         if ($result === null) {
             throw new NotFoundException("No result for $modelClassPath with uid $uid found");
         }
@@ -111,7 +110,7 @@ class QueryResolver
             $query->setOrderings([$sortBy => $sortDirection]);
         }
 
-        return new PaginatedQueryResult($query->execute(true), $count, $offset, $limit, $resolveInfo);
+        return new PaginatedQueryResult($query->execute()->toArray(), $count, $offset, $limit, $resolveInfo);
     }
 
     /**
@@ -136,7 +135,7 @@ class QueryResolver
 
         $query->matching($query->equals('uid', $foreignUid));
 
-        $result = $query->execute(true)[0] ?? null;
+        $result = $query->execute()[0] ?? null;
         if ($result === null) {
             throw new NotFoundException("No result for $modelClassPath with uid $foreignUid found");
         }
@@ -182,15 +181,5 @@ class QueryResolver
         }
 
         return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(), $count, $offset, $limit, $resolveInfo);
-    }
-
-    public function fetchFile($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): ?FileInterface
-    {
-        return $this->fileRepository->findByRelation($schemaContext->getTableName(), $resolveInfo->fieldName, $root['uid'])[0] ?? null;
-    }
-
-    public function fetchFiles($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext): array
-    {
-        return $this->fileRepository->findByRelation($schemaContext->getTableName(), $resolveInfo->fieldName, $root['uid']);
     }
 }

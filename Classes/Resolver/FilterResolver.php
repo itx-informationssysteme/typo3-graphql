@@ -46,6 +46,7 @@ class FilterResolver
      * @throws Exception
      * @throws DBALException
      * @throws InvalidQueryException
+     * @throws FieldDoesNotExistException
      */
     private function computeFilterOptions($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath, ?string $mmTable = null, ?int $localUid = null): array
     {

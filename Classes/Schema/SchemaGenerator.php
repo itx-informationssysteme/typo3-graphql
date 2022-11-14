@@ -2,11 +2,14 @@
 
 namespace Itx\Typo3GraphQL\Schema;
 
+use Doctrine\Common\Annotations\AnnotationReader;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
 use GraphQL\Type\SchemaConfig;
+use Itx\Typo3GraphQL\Annotation\Expose;
+use Itx\Typo3GraphQL\Annotation\ExposeAll;
 use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Events\CustomModelFieldEvent;
 use Itx\Typo3GraphQL\Events\CustomQueryFieldEvent;
@@ -27,6 +30,7 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
+use TYPO3\CMS\Extbase\Reflection\ReflectionService;
 
 class SchemaGenerator
 {
@@ -39,8 +43,9 @@ class SchemaGenerator
     protected EventDispatcherInterface $eventDispatcher;
     protected FilterResolver $filterResolver;
     protected ConfigurationService $configurationService;
+    protected ReflectionService $reflectionService;
 
-    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver, ConfigurationService $configurationService, EventDispatcherInterface $eventDispatcher, FilterResolver $filterResolver)
+    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver, ConfigurationService $configurationService, EventDispatcherInterface $eventDispatcher, FilterResolver $filterResolver, ReflectionService $reflectionService)
     {
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
@@ -51,6 +56,7 @@ class SchemaGenerator
         $this->eventDispatcher = $eventDispatcher;
         $this->filterResolver = $filterResolver;
         $this->configurationService = $configurationService;
+        $this->reflectionService = $reflectionService;
     }
 
     /**
@@ -68,8 +74,6 @@ class SchemaGenerator
 
         $modelClassPaths = array_keys($modelsConfiguration);
 
-        $globalDisabledFields = $this->configurationService->getGlobalDisabledFields();
-
         // Iterate over all tables/models
         foreach ($modelClassPaths as $modelClassPath) {
             if (($modelsConfiguration[$modelClassPath]['enabled'] ?? true) === false) {
@@ -85,21 +89,42 @@ class SchemaGenerator
             $object = ObjectBuilder::create($objectName)->setDescription('TODO');
 
             // Build a ObjectType from the type configuration
-            $objectType = new ObjectType($object->setFields(function() use ($modelsConfiguration, $globalDisabledFields, $typeRegistry, $modelClassPath, $tableName) {
+            $objectType = new ObjectType($object->setFields(function() use ($modelsConfiguration, $typeRegistry, $modelClassPath, $tableName) {
                 $fields = [
                     FieldBuilder::create('uid')->setType(Type::nonNull(Type::int()))->setDescription('Unique identifier in table')->build(),
                     FieldBuilder::create('pid')->setType(Type::nonNull(Type::int()))->setDescription('Page id')->build(),
                 ];
 
-                $disabledFields = $modelsConfiguration[$modelClassPath]['disabledFields'] ?? [];
-                $disabledFields = array_merge($disabledFields, $globalDisabledFields);
+                $schema = new \ReflectionClass($modelClassPath);
+                $annotationReader = new AnnotationReader();
+
+                $allowList = [];
+                $exposeAllProperties = false;
+
+                // First we check if the class has an @ExposeAll annotation
+                $classAnnotation = $annotationReader->getClassAnnotation($schema, ExposeAll::class);
+                if ($classAnnotation instanceof ExposeAll) {
+                    $exposeAllProperties = true;
+                }
+
+                // Then we collect all properties that either have an @Expose annotation or are covered by its class's @ExposeAll annotation
+                foreach ($schema->getProperties() as $property) {
+                    if ($property->getName() === 'uid' || $property->getName() === 'pid' || str_starts_with($property->getName(), '_')) {
+                        continue;
+                    }
+
+                    $annotation = $annotationReader->getPropertyAnnotation($property, Expose::class);
+
+                    if ($exposeAllProperties || $annotation instanceof Expose) {
+                        $allowList[] = $property->getName();
+                    }
+                }
 
                 // Add fields for all columns to type config
-                foreach ($GLOBALS['TCA'][$tableName]['columns'] as $fieldName => $columnConfiguration) {
-                    $fieldName = GeneralUtility::underscoredToLowerCamelCase($fieldName);
-
-                    if (in_array($fieldName, $disabledFields, true)) {
-                        continue;
+                foreach ($allowList as $fieldName) {
+                    $columnConfiguration = $GLOBALS['TCA'][$tableName]['columns'][GeneralUtility::camelCaseToLowerCaseUnderscored($fieldName)] ?? null;
+                    if ($columnConfiguration === null) {
+                        throw new NotFoundException(sprintf('Column %s not found in table %s', $fieldName, $tableName));
                     }
 
                     try {
