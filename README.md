@@ -1,19 +1,21 @@
 # GraphQL TYPO3 Extension
 
 This extension provides a GraphQL API for TYPO3. It does that by exposing the TYPO3 data model as a GraphQL schema.
-The schema is fully configurable. The GraphQL API can be accessed via the `/graphql` endpoint.
-
-The extension uses the TCA to automatically
-generate the schema. There are also a few convenience features like automatic resolving of relations, links, files and images
-implemented.
+The schema is fully configurable. The GraphQL API can be accessed via the `/graphql` endpoint. The extension uses the TCA to automatically
+generate the schema.
 
 > :warning: This extension is still in development. Expect breaking changes and things to be broken or not implemented yet.
+
+## ✨ Features
+* Automatic resolving of relations
+* Link generation
+* URL generation for images and files
 
 ## Installation
 
 `composer require itx/typo3-graphql`
 
-## Configuration
+## 🔧 Configuration
 
 The extension uses two mechanisms to configure the GraphQL schema.
 
@@ -32,17 +34,17 @@ The extension uses two mechanisms to configure the GraphQL schema.
       the [extensions own persistence configuration](Configuration/Extbase/Persistence/Classes.php) for an example on how to do
       that.
 
-## Usage
+## 💻 Usage
 
 The extension provides a `Query` type, which is the entry point for all queries. The `Query` type has a field for each model you
 configured to be queryable.
 Each configured model has a field to query multiple instances of the model, and a field to query a single instance of the model.
 
-### Introspection
+### 👀 Introspection
 
 GraphQL Introspection is enabled by default in development mode and disabled in production.
 
-### Filter API
+### ⚡ Filter API
 
 The extension also comes with an extensive filter and facet system. Right now, it supports discrete filters only.
 
@@ -103,7 +105,7 @@ prevent impossible filter option combinations.
 > Make sure to always have a filter record for the type of filter you want to use. Otherwise, the filter will not be available in
 > the GraphQL API.
 
-## Events
+## 🪩 Events
 
 ### Extend the schema with custom virtual fields
 
