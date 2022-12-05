@@ -37,6 +37,17 @@ class DefaultFieldResolver
                 }
             }
         } elseif (is_object($objectValue)) {
+            $capitalizedFieldName = ucfirst($fieldName);
+
+            // Check if it has a getter method
+            if (method_exists($objectValue, 'get' . $capitalizedFieldName)) {
+                $property = $objectValue->{'get' . $capitalizedFieldName}();
+            }
+
+            if (method_exists($objectValue, $fieldName)) {
+                $property = $objectValue->{$fieldName}();
+            }
+
             if (isset($objectValue->{$fieldName})) {
                 $property = $objectValue->{$fieldName};
             }

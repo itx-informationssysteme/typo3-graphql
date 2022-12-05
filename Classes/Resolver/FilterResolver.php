@@ -7,7 +7,6 @@ use Doctrine\DBAL\Driver\Exception;
 use Generator;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
-use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
@@ -30,22 +29,54 @@ class FilterResolver
     }
 
     /**
+     * This method fetches filter options for a given root record type.
+     *
+     * @param             $root
+     * @param array       $args
+     * @param             $context
+     * @param ResolveInfo $resolveInfo
+     * @param string      $tableName
+     * @param string      $modelClassPath
+     *
+     * @return array
+     * @throws DBALException
+     * @throws Exception
+     * @throws FieldDoesNotExistException
+     * @throws InvalidQueryException
      */
     public function fetchFiltersIncludingFacets($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath): array
     {
         return $this->computeFilterOptions($root, $args, $context, $resolveInfo, $tableName, $modelClassPath);
     }
 
+    /**
+     * This method fetches filter options that are contained in a relation. This probably only works one relation deep.
+     *
+     * @param             $root
+     * @param array       $args
+     * @param             $context
+     * @param ResolveInfo $resolveInfo
+     * @param string      $tableName
+     * @param string      $modelClassPath
+     * @param string      $mmTable
+     * @param int         $localUid
+     *
+     * @return array
+     * @throws DBALException
+     * @throws Exception
+     * @throws FieldDoesNotExistException
+     * @throws InvalidQueryException
+     */
     public function fetchFiltersWithRelationConstraintIncludingFacets($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath, string $mmTable, int $localUid): array
     {
         return $this->computeFilterOptions($root, $args, $context, $resolveInfo, $tableName, $modelClassPath, $mmTable, $localUid);
     }
 
     /**
-     * @throws BadInputException
      * @throws Exception
      * @throws DBALException
      * @throws InvalidQueryException
+     * @throws FieldDoesNotExistException
      */
     private function computeFilterOptions($root, array $args, $context, ResolveInfo $resolveInfo, string $tableName, string $modelClassPath, ?string $mmTable = null, ?int $localUid = null): array
     {

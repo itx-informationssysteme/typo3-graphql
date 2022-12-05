@@ -2,7 +2,6 @@
 
 namespace Itx\Typo3GraphQL\Types;
 
-use GraphQL\Deferred;
 use GraphQL\Type\Definition\EnumType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
@@ -17,11 +16,12 @@ use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Schema\TableNameResolver;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
-use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use SimPod\GraphQLUtils\Builder\EnumBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\MathUtility;
+use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
+use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 
 class TCATypeMapper
 {
@@ -95,11 +95,22 @@ class TCATypeMapper
 
         // If the field has some kind of relation, the type is a list of the related type
         if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' && (($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
-            $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(), $context->getTypeRegistry(), $this->filterResolver, $context->getTableName());
+            $isLazy = false;
+            foreach ($context->getFieldAnnotations() as $annotation) {
+                if ($annotation instanceof Lazy) {
+                    $isLazy = true;
+                }
+            }
 
-            $fieldBuilder->setType(Type::nonNull($paginationConnection));
+            if ($isLazy) {
+                $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(), $context->getTypeRegistry(), $this->filterResolver, $context->getTableName());
 
-            PaginationUtility::addArgumentsToFieldBuilder($fieldBuilder);
+                $fieldBuilder->setType(Type::nonNull($paginationConnection));
+
+                PaginationUtility::addArgumentsToFieldBuilder($fieldBuilder);
+            } else {
+                $fieldBuilder->setType(Type::nonNull(Type::listOf(Type::nonNull($fieldBuilder->getType()))));
+            }
         }
 
         // If the field is required, the type is a non-null type
@@ -111,8 +122,27 @@ class TCATypeMapper
         return $fieldBuilder;
     }
 
+    /**
+     * @throws NameNotFoundException
+     */
     protected function handleInputType(Context $context, FieldBuilder $fieldBuilder): void
     {
+        $columnConfiguration = $context->getColumnConfiguration();
+
+        // DateTime
+        if (($columnConfiguration['config']['renderType'] ?? '') === 'inputDateTime') {
+            $fieldBuilder->setType(TypeRegistry::dateTime());
+
+            return;
+        }
+
+        // Link
+        if (($columnConfiguration['config']['renderType'] ?? '') === 'inputLink') {
+            $fieldBuilder->setType(TypeRegistry::link());
+
+            return;
+        }
+
         if (str_contains($columnConfiguration['config']['eval'] ?? '', 'int')) {
             $fieldBuilder->setType(Type::int());
 
@@ -121,12 +151,6 @@ class TCATypeMapper
 
         if (str_contains($columnConfiguration['config']['eval'] ?? '', 'double2')) {
             $fieldBuilder->setType(Type::float());
-
-            return;
-        }
-
-        if ($columnConfiguration['config']['renderType'] ?? '' === 'inputLink') {
-            $fieldBuilder->setType(TypeRegistry::link());
 
             return;
         }
@@ -154,24 +178,6 @@ class TCATypeMapper
         }
 
         $fieldBuilder->setType(TypeRegistry::file());
-
-        $schemaContext = $context;
-
-        // Select the correct query resolver for the file reference field item amount
-        if (($columnConfiguration['config']['maxitems'] ?? 2) > 1) {
-            $fieldBuilder->setType(Type::listOf($fieldBuilder->getType()));
-            $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                $schemaContext
-            ) {
-                return $this->queryResolver->fetchFiles($root, $args, $context, $resolveInfo, $schemaContext);
-            });
-        } else {
-            $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                $schemaContext
-            ) {
-                return $this->queryResolver->fetchFile($root, $args, $context, $resolveInfo, $schemaContext);
-            });
-        }
     }
 
     /**
@@ -252,22 +258,21 @@ class TCATypeMapper
             $columnConfiguration = $context->getColumnConfiguration();
             $schemaContext = $context;
 
-            if ($foreignTable !== '' && empty($columnConfiguration['config']['MM'])) {
-                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                    $foreignTable, $schemaContext
-                ): Deferred {
-                    $foreignUid = $root[$resolveInfo->fieldName];
-                    $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
-                    $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
-                    $this->resolverBuffer->add($modelClassPath, $foreignUid, $language);
+            if (!empty($columnConfiguration['config']['MM'])) {
+                $isLazy = false;
 
-                    return new Deferred(function() use ($modelClassPath, $foreignUid, $language) {
-                        $this->resolverBuffer->loadBuffered($modelClassPath, $language);
+                foreach ($schemaContext->getFieldAnnotations() as $annotation) {
+                    if ($annotation instanceof Lazy) {
+                        $isLazy = true;
+                    }
+                }
 
-                        return $this->resolverBuffer->get($modelClassPath, $foreignUid, $language);
-                    });
-                });
-            } elseif (!empty($columnConfiguration['config']['MM'])) {
+                // We only need to set a custom resolver if the relation is lazy, and we want to paginate it
+                if (!$isLazy) {
+                    return;
+                }
+
+                /** @var ObjectStorage $root */
                 $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                     $foreignTable, $schemaContext
                 ) {
@@ -277,11 +282,10 @@ class TCATypeMapper
                         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
                         $mmTable = $schemaContext->getColumnConfiguration()['config']['MM'];
 
-                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root['uid']);
+                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root->getUid());
                     }
 
-                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $foreignTable);
-
+                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $schemaContext->getColumnConfiguration()['config']['foreign_table']);
                     $queryResult->setFacets($facets);
 
                     return $queryResult;
@@ -308,11 +312,5 @@ class TCATypeMapper
         catch (NotFoundException $e) {
             throw new NotFoundException("Could not find type for foreign table 'sys_category'");
         }
-
-        $schemaContext = $context;
-
-        $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($schemaContext) {
-            return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $schemaContext, 'sys_category');
-        });
     }
 }

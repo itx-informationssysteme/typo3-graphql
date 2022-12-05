@@ -3,7 +3,6 @@
 namespace Itx\Typo3GraphQL\Schema;
 
 use Itx\Typo3GraphQL\Types\TypeRegistry;
-use JetBrains\PhpStorm\ArrayShape;
 
 class Context
 {
@@ -17,13 +16,16 @@ class Context
 
     protected TypeRegistry $typeRegistry;
 
-    public function __construct(string $modelClassPath, string $tableName, string $fieldName, array $columnConfiguration, TypeRegistry $typeRegistry)
+    protected array $fieldAnnotations;
+
+    public function __construct(string $modelClassPath, string $tableName, string $fieldName, array $columnConfiguration, TypeRegistry $typeRegistry, array $fieldAnnotations)
     {
         $this->modelClassPath = $modelClassPath;
         $this->tableName = $tableName;
         $this->fieldName = $fieldName;
         $this->columnConfiguration = $columnConfiguration;
         $this->typeRegistry = $typeRegistry;
+        $this->fieldAnnotations = $fieldAnnotations;
     }
 
     /**
@@ -83,25 +85,6 @@ class Context
     }
 
     /**
-     * @param array $columnConfiguration
-     */
-    public function setColumnConfiguration(#[ArrayShape([
-        'label' => 'string',
-        'config' => [
-            'type' => 'string',
-            'eval' => 'string',
-            'format' => 'string',
-            'items' => ['string' => 'string'],
-            'foreign_table' => 'string',
-            'MM' => 'string',
-            'renderType' => 'string',
-        ]
-    ])] array $columnConfiguration): void
-    {
-        $this->columnConfiguration = $columnConfiguration;
-    }
-
-    /**
      * @return TypeRegistry
      */
     public function getTypeRegistry(): TypeRegistry
@@ -115,5 +98,21 @@ class Context
     public function setTypeRegistry(TypeRegistry $typeRegistry): void
     {
         $this->typeRegistry = $typeRegistry;
+    }
+
+    /**
+     * @return array
+     */
+    public function getFieldAnnotations(): array
+    {
+        return $this->fieldAnnotations;
+    }
+
+    /**
+     * @param array $fieldAnnotations
+     */
+    public function setFieldAnnotations(array $fieldAnnotations): void
+    {
+        $this->fieldAnnotations = $fieldAnnotations;
     }
 }

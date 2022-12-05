@@ -5,6 +5,7 @@ namespace Itx\Typo3GraphQL\Types;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
+use Itx\Typo3GraphQL\Types\Model\DateTimeType;
 use Itx\Typo3GraphQL\Types\Model\DiscreteFilterInputType;
 use Itx\Typo3GraphQL\Types\Model\FacetType;
 use Itx\Typo3GraphQL\Types\Model\FileType;
@@ -36,6 +37,7 @@ class TypeRegistry
         $this->addType(self::discreteFilterInput());
         $this->addType(self::filterCollectionInput());
         $this->addType(self::facet());
+        $this->addType(self::dateTime());
     }
 
     /**
@@ -158,6 +160,19 @@ class TypeRegistry
     {
         /** @var FacetType $type */
         $type = self::getOrCreateCustomType(FacetType::class);
+
+        return $type;
+    }
+
+    /**
+     * Gets an instance of DateTime
+     *
+     * @throws NameNotFoundException
+     */
+    public static function dateTime(): DateTimeType
+    {
+        /** @var DateTimeType $type */
+        $type = self::getOrCreateCustomType(DateTimeType::class);
 
         return $type;
     }

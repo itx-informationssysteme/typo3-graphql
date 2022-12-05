@@ -2,39 +2,26 @@ models:
     Itx\Typo3GraphQL\Domain\Model\Page:
         enabled: true
         queryable: true
-        disabledFields:
-            - 'fe_group'
         languageOverlayMode: true
 
     TYPO3\CMS\Extbase\Domain\Model\Category:
         enabled: true
         queryable: true
-        disabledFields:
-            - 'fe_group'
         languageOverlayMode: true
 
     Itx\Typo3GraphQL\Domain\Model\PageContent:
         enabled: true
         queryable: true
-        disabledFields:
-            - 'fe_group'
         languageOverlayMode: true
 
     Itx\Typo3GraphQL\Domain\Model\Filter:
         enabled: true
         queryable: true
-        disabledFields:
-            - 'fe_group'
         languageOverlayMode: true
 
 settings:
     # Whether when there is a relation to a data type that is not configured, it should be ignored or throw an exception
     ignoreMissingTables: true
-
-    # Globally disabled fields
-    globalDisabledFields:
-        - 'fe_group'
-        - 't3ver_label'
 
     # Maximum query complexity
     maxQueryComplexity: 100

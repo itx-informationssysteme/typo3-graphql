@@ -95,9 +95,4 @@ class ConfigurationService
     {
         return $this->configuration['settings'] ?? [];
     }
-
-    public function getGlobalDisabledFields(): array
-    {
-        return $this->configuration['globalDisabledFields'] ?? [];
-    }
 }
