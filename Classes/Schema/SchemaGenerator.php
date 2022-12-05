@@ -126,9 +126,11 @@ class SchemaGenerator
                     if ($columnConfiguration === null) {
                         throw new NotFoundException(sprintf('Column %s not found in table %s', $fieldName, $tableName));
                     }
+                    
+                    $fieldAnnotations = $annotationReader->getPropertyAnnotations($schema->getProperty($fieldName));
 
                     try {
-                        $context = new Context($modelClassPath, $tableName, $fieldName, $columnConfiguration, $typeRegistry);
+                        $context = new Context($modelClassPath, $tableName, $fieldName, $columnConfiguration, $typeRegistry, $fieldAnnotations);
                         $field = $this->typeMapper->buildField($context)->setDescription($this->languageService->sL($columnConfiguration['label']));
 
                         $fields[] = $field->build();

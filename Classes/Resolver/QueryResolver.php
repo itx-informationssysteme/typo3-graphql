@@ -7,6 +7,7 @@ use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
 use Itx\Typo3GraphQL\Exception\BadInputException;
+use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
@@ -15,7 +16,9 @@ use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\DomainObject\AbstractDomainObject;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
+use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
 class QueryResolver
@@ -24,13 +27,15 @@ class QueryResolver
     protected FileRepository $fileRepository;
     protected ConfigurationService $configurationService;
     protected FilterRepository $filterRepository;
+    protected DataMapper $dataMapper;
 
-    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository, ConfigurationService $configurationService, FilterRepository $filterRepository)
+    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository, ConfigurationService $configurationService, FilterRepository $filterRepository, DataMapper $dataMapper)
     {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
         $this->configurationService = $configurationService;
         $this->filterRepository = $filterRepository;
+        $this->dataMapper = $dataMapper;
     }
 
     /**
@@ -73,9 +78,9 @@ class QueryResolver
         $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
         // Path as key for discrete filters
-        $discreteFilters = array_combine(array_map(static function ($filter) {
+        $discreteFilters = array_combine(array_map(static function($filter) {
             return $filter['path'];
-        }, $discreteFilters), $discreteFilters);
+        }, $discreteFilters),            $discreteFilters);
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
@@ -110,7 +115,7 @@ class QueryResolver
             $query->setOrderings([$sortBy => $sortDirection]);
         }
 
-        return new PaginatedQueryResult($query->execute()->toArray(), $count, $offset, $limit, $resolveInfo);
+        return new PaginatedQueryResult($query->execute()->toArray(), $count, $offset, $limit, $resolveInfo, $modelClassPath, $this->dataMapper);
     }
 
     /**
@@ -147,11 +152,14 @@ class QueryResolver
      * @throws Exception
      * @throws DBALException
      * @throws BadInputException
+     * @throws InvalidQueryException
+     * @throws FieldDoesNotExistException
+     * @throws NotFoundException
      */
-    public function fetchForeignRecordsWithMM($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext, string $foreignTable): PaginatedQueryResult
+    public function fetchForeignRecordsWithMM(AbstractDomainObject $root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext, string $foreignTable): PaginatedQueryResult
     {
         $tableName = $schemaContext->getTableName();
-        $localUid = $root['uid'];
+        $localUid = $root->getUid();
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
 
@@ -159,27 +167,51 @@ class QueryResolver
         $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
 
         $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
+        $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
 
         /** @var ConnectionPool $connectionPool */
         $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
 
         $qb = $connectionPool->getQueryBuilderForTable($foreignTable);
 
-        $qb->from($foreignTable, 'o')->leftJoin('o', $mm, 'm', $qb->expr()->eq('o.uid', 'm.uid_foreign'))->andWhere($qb->expr()->eq('m.uid_local', $localUid));
+        $qb->from($foreignTable)->leftJoin($foreignTable, $mm, 'm', $qb->expr()->eq("$foreignTable.uid", 'm.uid_foreign'))->andWhere($qb->expr()->eq('m.uid_local', $localUid));
 
-        // TODO we want to support filtering in relations as well, which should happen here
+        $filters = $args[QueryArgumentsUtility::$filters] ?? [];
+        $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
-        $count = $qb->count('o.uid')->execute()->fetchOne();
+        // Path as key for discrete filters
+        $discreteFilters = array_combine(array_map(static function($filter) {
+            return $filter['path'];
+        }, $discreteFilters),            $discreteFilters);
 
-        $qb->select("o.*");
+        $filterConfigurations = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
+
+        foreach ($filterConfigurations as $filterConfiguration) {
+            $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
+
+            $filterPathElements = explode('.', $discreteFilter['path']);
+            $lastElement = array_pop($filterPathElements);
+
+            if (count($discreteFilter['options'] ?? []) === 0) {
+                continue;
+            }
+
+            $lastElementTable = FilterResolver::buildJoinsByWalkingPath($filterPathElements, $foreignTable, $qb);
+
+            $qb->andWhere($qb->expr()->in($lastElementTable . '.' . $lastElement, $qb->quoteArrayBasedValueListToStringList($discreteFilter['options'])));
+        }
+
+        $count = $qb->count("$foreignTable.uid")->execute()->fetchOne();
+
+        $qb->select("$foreignTable.*");
 
         $qb->setMaxResults($limit);
         $qb->setFirstResult($offset);
 
         if ($sortBy !== null) {
-            $qb->orderBy('o.' . $qb->createNamedParameter($sortBy), $sortDirection);
+            $qb->orderBy("$foreignTable." . $qb->createNamedParameter($sortBy), $sortDirection);
         }
 
-        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(), $count, $offset, $limit, $resolveInfo);
+        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(), $count, $offset, $limit, $resolveInfo, $modelClassPath, $this->dataMapper);
     }
 }

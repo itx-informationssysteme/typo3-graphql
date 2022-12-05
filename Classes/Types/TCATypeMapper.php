@@ -10,19 +10,17 @@ use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\FilterResolver;
-use Itx\Typo3GraphQL\Resolver\PaginatedQueryResult;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
 use Itx\Typo3GraphQL\Resolver\ResolverBuffer;
 use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Schema\TableNameResolver;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
-use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use SimPod\GraphQLUtils\Builder\EnumBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\MathUtility;
-use TYPO3\CMS\Extbase\Persistence\Generic\LazyObjectStorage;
+use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 
 class TCATypeMapper
@@ -97,11 +95,22 @@ class TCATypeMapper
 
         // If the field has some kind of relation, the type is a list of the related type
         if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' && (($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
-            $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(), $context->getTypeRegistry(), $this->filterResolver, $context->getTableName());
+            $isLazy = false;
+            foreach ($context->getFieldAnnotations() as $annotation) {
+                if ($annotation instanceof Lazy) {
+                    $isLazy = true;
+                }
+            }
 
-            $fieldBuilder->setType(Type::nonNull($paginationConnection));
+            if ($isLazy) {
+                $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(), $context->getTypeRegistry(), $this->filterResolver, $context->getTableName());
 
-            PaginationUtility::addArgumentsToFieldBuilder($fieldBuilder);
+                $fieldBuilder->setType(Type::nonNull($paginationConnection));
+
+                PaginationUtility::addArgumentsToFieldBuilder($fieldBuilder);
+            } else {
+                $fieldBuilder->setType(Type::nonNull(Type::listOf(Type::nonNull($fieldBuilder->getType()))));
+            }
         }
 
         // If the field is required, the type is a non-null type
@@ -113,8 +122,27 @@ class TCATypeMapper
         return $fieldBuilder;
     }
 
+    /**
+     * @throws NameNotFoundException
+     */
     protected function handleInputType(Context $context, FieldBuilder $fieldBuilder): void
     {
+        $columnConfiguration = $context->getColumnConfiguration();
+
+        // DateTime
+        if (($columnConfiguration['config']['renderType'] ?? '') === 'inputDateTime') {
+            $fieldBuilder->setType(TypeRegistry::dateTime());
+
+            return;
+        }
+
+        // Link
+        if (($columnConfiguration['config']['renderType'] ?? '') === 'inputLink') {
+            $fieldBuilder->setType(TypeRegistry::link());
+
+            return;
+        }
+
         if (str_contains($columnConfiguration['config']['eval'] ?? '', 'int')) {
             $fieldBuilder->setType(Type::int());
 
@@ -123,12 +151,6 @@ class TCATypeMapper
 
         if (str_contains($columnConfiguration['config']['eval'] ?? '', 'double2')) {
             $fieldBuilder->setType(Type::float());
-
-            return;
-        }
-
-        if ($columnConfiguration['config']['renderType'] ?? '' === 'inputLink') {
-            $fieldBuilder->setType(TypeRegistry::link());
 
             return;
         }
@@ -237,6 +259,20 @@ class TCATypeMapper
             $schemaContext = $context;
 
             if (!empty($columnConfiguration['config']['MM'])) {
+                $isLazy = false;
+
+                foreach ($schemaContext->getFieldAnnotations() as $annotation) {
+                    if ($annotation instanceof Lazy) {
+                        $isLazy = true;
+                    }
+                }
+
+                // We only need to set a custom resolver if the relation is lazy, and we want to paginate it
+                if (!$isLazy) {
+                    return;
+                }
+
+                /** @var ObjectStorage $root */
                 $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
                     $foreignTable, $schemaContext
                 ) {
@@ -246,36 +282,10 @@ class TCATypeMapper
                         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
                         $mmTable = $schemaContext->getColumnConfiguration()['config']['MM'];
 
-                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root['uid']);
+                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root->getUid());
                     }
 
-                    $capitalizedFieldName = ucfirst($schemaContext->getFieldName());
-
-                    /** @var ObjectStorage $results */
-                    $results = $root->{'get' . $capitalizedFieldName}();
-
-                    $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
-                    $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
-
-                    if ($results instanceof LazyObjectStorage) {
-                        // TODO: think about fetching these by ourselves, because then we could paginate them
-                    }
-
-                    $count = $results->count();
-                    $results = $results->toArray();
-
-                    // Naive in-memory pagination
-                    $paginatedResults = [];
-
-                    for ($i = $offset; $i < $count; $i++) {
-                        if (count($paginatedResults) === $limit) {
-                            break;
-                        }
-
-                        $paginatedResults[] = $results[$i];
-                    }
-
-                    $queryResult = new PaginatedQueryResult($paginatedResults, $count, $offset, $limit, $resolveInfo);
+                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $schemaContext->getColumnConfiguration()['config']['foreign_table']);
                     $queryResult->setFacets($facets);
 
                     return $queryResult;
@@ -302,11 +312,5 @@ class TCATypeMapper
         catch (NotFoundException $e) {
             throw new NotFoundException("Could not find type for foreign table 'sys_category'");
         }
-
-        $schemaContext = $context;
-
-        $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($schemaContext) {
-            return $this->queryResolver->fetchForeignRecord($root, $args, $context, $resolveInfo, $schemaContext, 'sys_category');
-        });
     }
 }
