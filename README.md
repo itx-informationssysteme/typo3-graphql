@@ -1,8 +1,9 @@
 # GraphQL TYPO3 Extension
 
-This extension provides a GraphQL API for TYPO3. It does that by exposing the TYPO3 data model as a GraphQL schema.
-The schema is fully configurable. The GraphQL API can be accessed via the `/graphql` endpoint. The extension uses the TCA to automatically
-generate the schema.
+This extension provides a GraphQL API for TYPO3. It does that by exposing the TYPO3 data models as a GraphQL schema.
+
+Any table can be configured to be available in the API. The schema is fully configurable. 
+The GraphQL API can be accessed via the `/graphql` endpoint.
 
 > :warning: This extension is still in development. Expect breaking changes and things to be broken or not implemented yet.
 
@@ -10,12 +11,15 @@ generate the schema.
 * Automatic resolving of relations
 * Link generation
 * URL generation for images and files
+* Filter and facets API
+* Pagination
+* Languages support
 
-## Installation
+## 🔨 Installation
 
 `composer require itx/typo3-graphql`
 
-## 🔧 Configuration
+## ⚙️ Configuration
 
 The extension uses two mechanisms to configure the GraphQL schema.
 
