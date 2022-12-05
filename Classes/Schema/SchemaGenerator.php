@@ -86,7 +86,7 @@ class SchemaGenerator
             $objectName = NamingUtility::generateName($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']), false);
 
             // Type configuration
-            $object = ObjectBuilder::create($objectName)->setDescription('TODO');
+            $object = ObjectBuilder::create($objectName)->setDescription("The $objectName type");
 
             // Build a ObjectType from the type configuration
             $objectType = new ObjectType($object->setFields(function() use ($modelsConfiguration, $typeRegistry, $modelClassPath, $tableName) {
@@ -126,7 +126,7 @@ class SchemaGenerator
                     if ($columnConfiguration === null) {
                         throw new NotFoundException(sprintf('Column %s not found in table %s', $fieldName, $tableName));
                     }
-                    
+
                     $fieldAnnotations = $annotationReader->getPropertyAnnotations($schema->getProperty($fieldName));
 
                     try {
