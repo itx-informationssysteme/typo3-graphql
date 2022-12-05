@@ -7,3 +7,18 @@ services:
     Itx\Typo3GraphQL\:
         resource: '../Classes/*'
         exclude: '../Classes/Domain/Model/*'
+
+    cache.typo3_graphql_cache:
+        class: TYPO3\CMS\Core\Cache\Frontend\FrontendInterface
+        factory: [ '@TYPO3\CMS\Core\Cache\CacheManager', 'getCache' ]
+        arguments: [ 'typo3_graphql_cache' ]
+
+    Itx\Typo3GraphQL\Service\ConfigurationService:
+        arguments:
+            $cache: '@cache.typo3_graphql_cache'
+
+    Itx\Typo3GraphQL\EventListener\AfterTcaEventListener:
+        tags:
+            -   name: event.listener
+                identifier: 'typo3_graphql.afterTca'
+                event: TYPO3\CMS\Core\Configuration\Event\AfterTcaCompilationEvent

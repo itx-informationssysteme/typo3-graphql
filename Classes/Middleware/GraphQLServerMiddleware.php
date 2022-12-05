@@ -8,28 +8,29 @@ use GraphQL\Validator\Rules\QueryComplexity;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
+use Itx\Typo3GraphQL\Resolver\DefaultFieldResolver;
 use Itx\Typo3GraphQL\Schema\SchemaGenerator;
+use Itx\Typo3GraphQL\Service\ConfigurationService;
 use JsonException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\JsonResponse;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
-use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
 
 class GraphQLServerMiddleware implements MiddlewareInterface
 {
     protected SchemaGenerator $schemaGenerator;
     protected LoggerInterface $logger;
-    protected ConfigurationManagerInterface $configurationManager;
+    protected ConfigurationService $configurationService;
 
-    public function __construct(SchemaGenerator $schemaGenerator, LoggerInterface $logger, ConfigurationManagerInterface $configurationManager)
+    public function __construct(SchemaGenerator $schemaGenerator, LoggerInterface $logger, ConfigurationService $configurationService)
     {
         $this->schemaGenerator = $schemaGenerator;
         $this->logger = $logger;
-        $this->configurationManager = $configurationManager;
+        $this->configurationService = $configurationService;
     }
 
     /**
@@ -41,7 +42,6 @@ class GraphQLServerMiddleware implements MiddlewareInterface
      * @throws NameNotFoundException
      * @throws NotFoundException
      * @throws UnsupportedTypeException
-     * @throws InvalidConfigurationTypeException
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
@@ -61,29 +61,36 @@ class GraphQLServerMiddleware implements MiddlewareInterface
 
         $schema = $this->schemaGenerator->generate();
 
-        // TODO only when not in cache
-        $schema->assertValid();
+        // Only check schema in development context
+        if (Environment::getContext()->isDevelopment()) {
+            $schema->assertValid();
+        }
 
-        $configuration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql');
-        $settings = $configuration['settings'] ?? [];
+        $settings = $this->configurationService->getSettings();
 
         $maxQueryComplexity = $settings['maxQueryComplexity'] ?? 100;
-        $isIntrospectionEnabled = $settings['isIntrospectionEnabled'] ?? '1';
+        $isIntrospectionEnabled = $settings['isIntrospectionEnabled'] ?? true;
 
         $rules = [
             new QueryComplexity($maxQueryComplexity),
         ];
 
-        if ($isIntrospectionEnabled === '0') {
+        if ($isIntrospectionEnabled === false) {
             $rules[] = new DisableIntrospection();
         }
 
-        $server = new \GraphQL\Server\StandardServer([
-                                                         'schema' => $schema,
-                                                         // Todo make configurable, maybe based on TYPO3 debug configuration
-                                                         //'debugFlag' => DebugFlag::RETHROW_INTERNAL_EXCEPTIONS,
-                                                         'validationRules' => $rules
-                                                     ]);
+        $serverConfig = [
+            'schema' => $schema,
+            'validationRules' => $rules,
+            'fieldResolver' => [DefaultFieldResolver::class, 'defaultFieldResolver'],
+        ];
+
+        // if fe debug is enabled, rethrow exceptions
+        if ($GLOBALS['TYPO3_CONF_VARS']['FE']['debug'] ?? false) {
+            $serverConfig['debugFlag'] = DebugFlag::RETHROW_INTERNAL_EXCEPTIONS;
+        }
+
+        $server = new \GraphQL\Server\StandardServer($serverConfig);
 
         $response = new JsonResponse();
 

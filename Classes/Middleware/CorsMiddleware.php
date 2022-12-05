@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Middleware;
 
+use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -10,27 +11,23 @@ use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 
 class CorsMiddleware implements MiddlewareInterface
 {
-    protected ConfigurationManagerInterface $configurationManager;
+    protected ConfigurationService $configurationService;
 
     protected array $headers = ['Access-Control-Allow-Methods' => 'POST, GET, OPTIONS', 'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With'];
 
     protected array $allowedOrigins = [];
 
     /**
-     * @throws \TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException
      */
-    public function __construct(ConfigurationManager $configurationManager) {
-        $this->configurationManager = $configurationManager;
+    public function __construct(ConfigurationService $configurationService) {
+        $this->configurationService = $configurationService;
 
-        $configuration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql');
+        $settings = $this->configurationService->getSettings();
 
-        $additionalCORSOriginsString = trim($configuration['settings']['allowedCORSOrigins'] ?? '');
-        $additionalCORSOrigins = GeneralUtility::trimExplode(',', $additionalCORSOriginsString, true);
+        $additionalCORSOrigins = $settings['allowedCORSOrigins'] ?? [];
 
         $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
         $sites = $siteFinder->getAllSites();

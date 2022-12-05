@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<xliff version="1.0">
+	<file source-language="en" datatype="plaintext" original="messages" date="2022-09-09T11:28:17Z">
+		<header>
+		</header>
+		<body>
+			<trans-unit id="tx_typo3graphql_domain_model_filter">
+				<source>GraphQL Filter</source>
+			</trans-unit>
+			<trans-unit id="tx_typo3graphql_domain_model_filter.name">
+				<source>Name</source>
+			</trans-unit>
+			<trans-unit id="tx_typo3graphql_domain_model_filter.filterPath">
+				<source>Filter path</source>
+			</trans-unit>
+			<trans-unit id="tx_typo3graphql_domain_model_filter.model">
+				<source>Configured model</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>

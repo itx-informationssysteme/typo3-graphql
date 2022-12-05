@@ -1,18 +1,19 @@
 <?php
 
-namespace Itx\Typo3GraphQL\Types\Model;
+namespace Itx\Typo3GraphQL\Types\Skeleton;
 
 use GraphQL\Type\Definition\Type;
+use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
-class PageInfoType extends \GraphQL\Type\Definition\ObjectType
+class PageInfoType extends \GraphQL\Type\Definition\ObjectType implements TypeNameInterface
 {
     public $description = 'Information to navigate the pagination';
 
     public function __construct()
     {
-        $this->name = 'PageInfoType';
+        $this->name = self::getTypeName();
         $objectBuilder = ObjectBuilder::create($this->name);
 
         $fields = [];
@@ -27,5 +28,10 @@ class PageInfoType extends \GraphQL\Type\Definition\ObjectType
         $objectBuilder->setFields($fields);
 
         parent::__construct($objectBuilder->build());
+    }
+
+    public static function getTypeName(): string
+    {
+        return 'PageInfo';
     }
 }

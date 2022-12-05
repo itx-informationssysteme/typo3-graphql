@@ -4,6 +4,7 @@ namespace Itx\Typo3GraphQL\Resolver;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
+use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 
 class PaginatedQueryResult
 {
@@ -11,8 +12,9 @@ class PaginatedQueryResult
     public int $totalCount;
     public array $pageInfo;
     public array $items = [];
+    public array $facets = [];
 
-    public function __construct(array $items, int $totalCount, int $offset, int $limit, ResolveInfo $resolveInfo)
+    public function __construct(array $items, int $totalCount, int $offset, int $limit, ResolveInfo $resolveInfo, string $modelClassPath, DataMapper $dataMapper)
     {
         $previousCursor = $offset;
 
@@ -20,8 +22,11 @@ class PaginatedQueryResult
             foreach ($items as $counter => $item) {
                 $cursor = $previousCursor + $counter + 1;
 
+                // Apply DataMapper to each item
+                $itemAsModel = $dataMapper->map($modelClassPath, $item);
+
                 $this->edges[] = [
-                    'node' => $item,
+                    'node' => $itemAsModel,
                     'cursor' => PaginationUtility::toCursor($cursor),
                 ];
             }
@@ -37,5 +42,15 @@ class PaginatedQueryResult
         if (!empty($resolveInfo->getFieldSelection()['items'])) {
             $this->items = $items;
         }
+    }
+
+    public function getFacets(): array
+    {
+        return $this->facets;
+    }
+
+    public function setFacets(array $facets): void
+    {
+        $this->facets = $facets;
     }
 }

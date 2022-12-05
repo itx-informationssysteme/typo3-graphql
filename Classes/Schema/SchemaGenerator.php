@@ -2,18 +2,23 @@
 
 namespace Itx\Typo3GraphQL\Schema;
 
+use Doctrine\Common\Annotations\AnnotationReader;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
 use GraphQL\Type\SchemaConfig;
+use Itx\Typo3GraphQL\Annotation\Expose;
+use Itx\Typo3GraphQL\Annotation\ExposeAll;
 use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Events\CustomModelFieldEvent;
 use Itx\Typo3GraphQL\Events\CustomQueryFieldEvent;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
+use Itx\Typo3GraphQL\Resolver\FilterResolver;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
+use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Types\TCATypeMapper;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
@@ -23,10 +28,9 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
-use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
+use TYPO3\CMS\Extbase\Reflection\ReflectionService;
 
 class SchemaGenerator
 {
@@ -36,14 +40,12 @@ class SchemaGenerator
     protected LanguageService $languageService;
     protected TCATypeMapper $typeMapper;
     protected QueryResolver $queryResolver;
-    protected ConfigurationManager $configurationManager;
     protected EventDispatcherInterface $eventDispatcher;
+    protected FilterResolver $filterResolver;
+    protected ConfigurationService $configurationService;
+    protected ReflectionService $reflectionService;
 
-    public function __construct(PersistenceManager $persistenceManager,
-                                TableNameResolver $tableNameResolver,
-                                LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper,
-                                QueryResolver $queryResolver, ConfigurationManager $configurationManager,
-                                EventDispatcherInterface $eventDispatcher)
+    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver, ConfigurationService $configurationService, EventDispatcherInterface $eventDispatcher, FilterResolver $filterResolver, ReflectionService $reflectionService)
     {
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
@@ -51,13 +53,14 @@ class SchemaGenerator
         $this->languageService = $languageService;
         $this->typeMapper = $typeMapper;
         $this->queryResolver = $queryResolver;
-        $this->configurationManager = $configurationManager;
         $this->eventDispatcher = $eventDispatcher;
+        $this->filterResolver = $filterResolver;
+        $this->configurationService = $configurationService;
+        $this->reflectionService = $reflectionService;
     }
 
     /**
      * @throws NameNotFoundException
-     * @throws InvalidConfigurationTypeException
      * @throws UnsupportedTypeException
      * @throws NotFoundException
      */
@@ -67,14 +70,13 @@ class SchemaGenerator
 
         $typeRegistry = new TypeRegistry();
 
-        $configuration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, 'typo3_graphql');
-        $models = array_keys($configuration['models'] ?? []);
+        $modelsConfiguration = $this->configurationService->getModels();
 
-        $globalDisabledFields = explode(',', trim($configuration['settings']['globalDisabledFields'] ?? ''));
+        $modelClassPaths = array_keys($modelsConfiguration);
 
         // Iterate over all tables/models
-        foreach ($models as $modelClassPath) {
-            if (($configuration['models'][$modelClassPath]['enabled'] ?? '1') === '0') {
+        foreach ($modelClassPaths as $modelClassPath) {
+            if (($modelsConfiguration[$modelClassPath]['enabled'] ?? true) === false) {
                 continue;
             }
 
@@ -87,28 +89,49 @@ class SchemaGenerator
             $object = ObjectBuilder::create($objectName)->setDescription('TODO');
 
             // Build a ObjectType from the type configuration
-            $objectType = new ObjectType($object->setFields(function() use ($globalDisabledFields, $typeRegistry, $modelClassPath, $tableName, $configuration) {
+            $objectType = new ObjectType($object->setFields(function() use ($modelsConfiguration, $typeRegistry, $modelClassPath, $tableName) {
                 $fields = [
-                    FieldBuilder::create('uid')
-                                ->setType(Type::nonNull(Type::int()))
-                                ->setDescription('Unique identifier in table')
-                                ->build(),
+                    FieldBuilder::create('uid')->setType(Type::nonNull(Type::int()))->setDescription('Unique identifier in table')->build(),
                     FieldBuilder::create('pid')->setType(Type::nonNull(Type::int()))->setDescription('Page id')->build(),
                 ];
 
-                $disabledFields = explode(',', trim($configuration['models'][$modelClassPath]['disabledFields'] ?? ''));
-                $disabledFields = array_merge($disabledFields, $globalDisabledFields);
+                $schema = new \ReflectionClass($modelClassPath);
+                $annotationReader = new AnnotationReader();
 
-                // Add fields for all columns to type config
-                foreach ($GLOBALS['TCA'][$tableName]['columns'] as $fieldName => $columnConfiguration) {
-                    if (in_array($fieldName, $disabledFields, true)) {
+                $allowList = [];
+                $exposeAllProperties = false;
+
+                // First we check if the class has an @ExposeAll annotation
+                $classAnnotation = $annotationReader->getClassAnnotation($schema, ExposeAll::class);
+                if ($classAnnotation instanceof ExposeAll) {
+                    $exposeAllProperties = true;
+                }
+
+                // Then we collect all properties that either have an @Expose annotation or are covered by its class's @ExposeAll annotation
+                foreach ($schema->getProperties() as $property) {
+                    if ($property->getName() === 'uid' || $property->getName() === 'pid' || str_starts_with($property->getName(), '_')) {
                         continue;
                     }
 
+                    $annotation = $annotationReader->getPropertyAnnotation($property, Expose::class);
+
+                    if ($exposeAllProperties || $annotation instanceof Expose) {
+                        $allowList[] = $property->getName();
+                    }
+                }
+
+                // Add fields for all columns to type config
+                foreach ($allowList as $fieldName) {
+                    $columnConfiguration = $GLOBALS['TCA'][$tableName]['columns'][GeneralUtility::camelCaseToLowerCaseUnderscored($fieldName)] ?? null;
+                    if ($columnConfiguration === null) {
+                        throw new NotFoundException(sprintf('Column %s not found in table %s', $fieldName, $tableName));
+                    }
+                    
+                    $fieldAnnotations = $annotationReader->getPropertyAnnotations($schema->getProperty($fieldName));
+
                     try {
-                        $context = new Context($modelClassPath, $tableName, $fieldName, $columnConfiguration, $typeRegistry);
-                        $field = $this->typeMapper->buildField($context)
-                                                  ->setDescription($this->languageService->sL($columnConfiguration['label']));
+                        $context = new Context($modelClassPath, $tableName, $fieldName, $columnConfiguration, $typeRegistry, $fieldAnnotations);
+                        $field = $this->typeMapper->buildField($context)->setDescription($this->languageService->sL($columnConfiguration['label']));
 
                         $fields[] = $field->build();
                     }
@@ -130,33 +153,38 @@ class SchemaGenerator
 
             $typeRegistry->addModelObjectType($objectType, $tableName, $modelClassPath);
 
-            $connectionType = PaginationUtility::generateConnectionTypes($objectType, $typeRegistry);
+            // We only continue here if the type is marked as queryable: true
+            if (($modelsConfiguration[$modelClassPath]['queryable'] ?? false) === false) {
+                continue;
+            }
+
+            $connectionType = PaginationUtility::generateConnectionTypes($objectType, $typeRegistry, $this->filterResolver, $tableName);
 
             // Add a query to fetch multiple records
-            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))
-                                     ->setType(Type::nonNull($connectionType))
-                                     ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath) {
-                                         return $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath);
-                                     })
-                                     ->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)
-                                     ->addArgument(QueryArgumentsUtility::$pageIds, Type::listOf(Type::int()), 'List of storage page ids', []);
+            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))->setType(Type::nonNull($connectionType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath, $tableName) {
+                $facets = [];
 
-            $queries[] = PaginationUtility::addPaginationArgumentsToFieldBuilder($multipleQuery)->build();
+                if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
+                    $facets = $this->filterResolver->fetchFiltersIncludingFacets($root, $args, $context, $resolveInfo, $tableName, $modelClassPath);
+                }
+
+                $queryResult = $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath, $tableName);
+                $queryResult->setFacets($facets);
+
+                return $queryResult;
+            })->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->addArgument(QueryArgumentsUtility::$pageIds, Type::listOf(Type::int()), 'List of storage page ids', []);
+
+            $queries[] = PaginationUtility::addArgumentsToFieldBuilder($multipleQuery)->build();
 
             // Generate a name for the single query
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record
-            $queries[] = FieldBuilder::create($singleQueryName)
-                                     ->setType($objectType)
-                                     ->setResolver(function($root, $args, $context, ResolveInfo $resolveInfo) use (
-                                         $modelClassPath
-                                     ) {
-                                         return $this->queryResolver->fetchSingleRecord($root, $args, $context, $resolveInfo, $modelClassPath);
-                                     })
-                                     ->addArgument(QueryArgumentsUtility::$uid, Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")
-                                     ->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)
-                                     ->build();
+            $queries[] = FieldBuilder::create($singleQueryName)->setType($objectType)->setResolver(function($root, $args, $context, ResolveInfo $resolveInfo) use (
+                $modelClassPath
+            ) {
+                return $this->queryResolver->fetchSingleRecord($root, $args, $context, $resolveInfo, $modelClassPath);
+            })->addArgument(QueryArgumentsUtility::$uid, Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->build();
 
             // Allow for custom new query fields
             /** @var CustomQueryFieldEvent $customEvent */
@@ -165,8 +193,6 @@ class SchemaGenerator
             foreach ($customEvent->getFieldBuilders() as $field) {
                 $queries[] = $field->build();
             }
-
-            // TODO Register in Service yaml
         }
 
         $schemaConfig = SchemaConfig::create();
