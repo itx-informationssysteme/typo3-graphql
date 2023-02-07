@@ -37,16 +37,12 @@ class ConfigurationService
 
     protected function loadConfiguration(): array
     {
+        $configuration = [];
+
         $extensions = ExtensionManagementUtility::getLoadedExtensionListArray();
 
-        $configuration = $this->yamlFileLoader->load(ExtensionManagementUtility::extPath('typo3_graphql') . 'Configuration/GraphQL.yaml');
-
-        // Load all other extensions
+        // Load all extensions configuration files
         foreach ($extensions as $extension) {
-            if ($extension === 'typo3_graphql') {
-                continue;
-            }
-
             // Check if the extension has a configuration file
             $configurationFile = ExtensionManagementUtility::extPath($extension) . self::CONFIGURATION_FILE;
             if (!file_exists($configurationFile)) {
@@ -60,7 +56,7 @@ class ConfigurationService
 
         // Development settings override
         if (Environment::getContext()->isDevelopment()) {
-            $configuration['settings'] = self::array_merge_recursive_overwrite($configuration['settings'], $configuration['developmentSettingsOverrides'] ?? []);
+            $configuration['settings'] = self::array_merge_recursive_overwrite($configuration['settings'] ?? [], $configuration['developmentSettingsOverrides'] ?? []);
         }
 
         return $configuration;
