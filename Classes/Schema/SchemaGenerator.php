@@ -164,10 +164,30 @@ class SchemaGenerator
             $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))->setType(Type::nonNull($connectionType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath, $tableName) {
                 $facets = [];
 
+                // See if requested page ids are allowed
+                $allowedMountPoints = $this->configurationService->getMountPointsForModel($modelClassPath);
+
+                if (count($allowedMountPoints) > 0) {
+                    // Check if mount points from arguments are contained in allowed mount points
+                    $requestedMountPoints = $args[QueryArgumentsUtility::$pageIds] ?? [];
+                    $invalidMountPoints = array_diff($requestedMountPoints, $allowedMountPoints);
+
+                    if (count($invalidMountPoints) > 0) {
+                        throw new \InvalidArgumentException(sprintf('Requested mount points "%s" are not allowed', implode(', ', $invalidMountPoints)));
+                    }
+
+                    // If no mount points are requested, we use the allowed mount points
+                    if (count($requestedMountPoints) === 0) {
+                        $args[QueryArgumentsUtility::$pageIds] = $allowedMountPoints;
+                    }
+                }
+
+                // Query facets if requested
                 if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
                     $facets = $this->filterResolver->fetchFiltersIncludingFacets($root, $args, $context, $resolveInfo, $tableName, $modelClassPath);
                 }
 
+                // Query actual records
                 $queryResult = $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath, $tableName);
                 $queryResult->setFacets($facets);
 

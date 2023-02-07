@@ -91,4 +91,9 @@ class ConfigurationService
     {
         return $this->configuration['settings'] ?? [];
     }
+
+    public function getMountPointsForModel(string $modelClassPath): array
+    {
+        return $this->configuration['models'][$modelClassPath]['mountPoints'] ?? [];
+    }
 }

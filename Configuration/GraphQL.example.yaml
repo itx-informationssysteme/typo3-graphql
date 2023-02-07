@@ -4,20 +4,30 @@ models:
         queryable: true
         languageOverlayMode: true
 
+        # Mount points are used to limit the allowed pageIds to a given set of page ids, when empty, all pages are allowed (use with caution!)
+        mountPoints:
+            - 1
+
     TYPO3\CMS\Extbase\Domain\Model\Category:
         enabled: true
         queryable: true
         languageOverlayMode: true
+        mountPoints:
+            - 1
 
     Itx\Typo3GraphQL\Domain\Model\PageContent:
         enabled: true
         queryable: true
         languageOverlayMode: true
+        mountPoints:
+            - 1
 
     Itx\Typo3GraphQL\Domain\Model\Filter:
         enabled: true
         queryable: true
         languageOverlayMode: true
+        mountPoints:
+            - 1
 
 settings:
     # Whether when there is a relation to a data type that is not configured, it should be ignored or throw an exception
@@ -29,9 +39,10 @@ settings:
     # Comma separated list of origins, e.g. https://typo3.org,http://localhost:3000
     allowedCORSOrigins: ''
 
-    # Can be 1, 0
+    # Can be true, false
     isIntrospectionEnabled: false
 
+# Settings only active in development context
 developmentSettingsOverrides:
     maxQueryComplexity: 9999
 
