@@ -22,8 +22,12 @@ class PaginatedQueryResult
             foreach ($items as $counter => $item) {
                 $cursor = $previousCursor + $counter + 1;
 
-                // Apply DataMapper to each item
-                $itemAsModel = $dataMapper->map($modelClassPath, $item);
+                // Apply DataMapper to each item if it's not a model yet (e.g. when using lazy loading)
+                $itemAsModel = $item;
+
+                if (!is_a($item, $modelClassPath)) {
+                    $itemAsModel = $dataMapper->map($modelClassPath, $item);
+                }
 
                 $this->edges[] = [
                     'node' => $itemAsModel,
