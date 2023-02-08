@@ -9,8 +9,10 @@ use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 use Itx\Typo3GraphQL\Resolver\DefaultFieldResolver;
+use Itx\Typo3GraphQL\Resolver\ResolverContext;
 use Itx\Typo3GraphQL\Schema\SchemaGenerator;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
+use Itx\Typo3GraphQL\Types\TypeRegistry;
 use JsonException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -59,7 +61,9 @@ class GraphQLServerMiddleware implements MiddlewareInterface
             $request = $request->withParsedBody($parsedBody);
         }
 
-        $schema = $this->schemaGenerator->generate();
+        $typeRegistry = new TypeRegistry();
+
+        $schema = $this->schemaGenerator->generate($typeRegistry);
 
         // Only check schema in development context
         if (Environment::getContext()->isDevelopment()) {
@@ -81,6 +85,7 @@ class GraphQLServerMiddleware implements MiddlewareInterface
 
         $serverConfig = [
             'schema' => $schema,
+            'context' => new ResolverContext($this->configurationService, $typeRegistry),
             'validationRules' => $rules,
             'fieldResolver' => [DefaultFieldResolver::class, 'defaultFieldResolver'],
         ];

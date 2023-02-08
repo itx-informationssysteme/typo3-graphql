@@ -8,6 +8,7 @@ use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Types\Model\DateTimeType;
 use Itx\Typo3GraphQL\Types\Model\DiscreteFilterInputType;
 use Itx\Typo3GraphQL\Types\Model\FacetType;
+use Itx\Typo3GraphQL\Types\Model\FileExtensions;
 use Itx\Typo3GraphQL\Types\Model\FileType;
 use Itx\Typo3GraphQL\Types\Model\FilterCollectionInputType;
 use Itx\Typo3GraphQL\Types\Model\FilterOptionType;
@@ -38,6 +39,7 @@ class TypeRegistry
         $this->addType(self::filterCollectionInput());
         $this->addType(self::facet());
         $this->addType(self::dateTime());
+        $this->addType(self::fileExtensions());
     }
 
     /**
@@ -173,6 +175,16 @@ class TypeRegistry
     {
         /** @var DateTimeType $type */
         $type = self::getOrCreateCustomType(DateTimeType::class);
+
+        return $type;
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    public static function fileExtensions(): FileExtensions {
+        /** @var FileExtensions $type */
+        $type = self::getOrCreateCustomType(FileExtensions::class);
 
         return $type;
     }

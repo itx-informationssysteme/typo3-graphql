@@ -42,6 +42,25 @@ settings:
     # Can be true, false
     isIntrospectionEnabled: false
 
+    # Image Manipulation settings, these are an explicit allow list, if empty image manipulation (apart from cropping) is disabled
+    # These settings are recommended to be set to the sizes/types you actually use in your frontend in order to prevent abuse
+    imageManipulation:
+        # Image types that are allowed to be requested
+        allowedImageTypes:
+            - 'jpg'
+            - 'jpeg'
+            - 'png'
+            - 'gif'
+            - 'webp'
+
+        # Image sizes in pixels, that are allowed to be requested.
+        allowedImageSizes:
+            - 320
+            - 640
+            - 1024
+            - 2048
+            - 4096
+
 # Settings only active in development context
 developmentSettingsOverrides:
     maxQueryComplexity: 9999

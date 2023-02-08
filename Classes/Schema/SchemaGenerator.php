@@ -64,11 +64,9 @@ class SchemaGenerator
      * @throws UnsupportedTypeException
      * @throws NotFoundException
      */
-    public function generate(): Schema
+    public function generate(TypeRegistry $typeRegistry): Schema
     {
         $queries = [];
-
-        $typeRegistry = new TypeRegistry();
 
         $modelsConfiguration = $this->configurationService->getModels();
 
@@ -131,7 +129,7 @@ class SchemaGenerator
 
                     try {
                         $context = new Context($modelClassPath, $tableName, $fieldName, $columnConfiguration, $typeRegistry, $fieldAnnotations);
-                        $field = $this->typeMapper->buildField($context)->setDescription($this->languageService->sL($columnConfiguration['label']));
+                        $field = $this->typeMapper->buildField($context);
 
                         $fields[] = $field->build();
                     }

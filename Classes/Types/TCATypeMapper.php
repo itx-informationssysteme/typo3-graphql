@@ -36,7 +36,11 @@ class TCATypeMapper
         'l18n_parent'
     ];
 
-    public function __construct(LanguageService $languageService, TableNameResolver $tableNameResolver, QueryResolver $queryResolver, ResolverBuffer $resolverBuffer, FilterResolver $filterResolver)
+    public function __construct(LanguageService   $languageService,
+                                TableNameResolver $tableNameResolver,
+                                QueryResolver     $queryResolver,
+                                ResolverBuffer    $resolverBuffer,
+                                FilterResolver    $filterResolver)
     {
         $this->languageService = $languageService;
         $this->tableNameResolver = $tableNameResolver;
@@ -51,11 +55,13 @@ class TCATypeMapper
      * @return FieldBuilder
      * @throws NotFoundException
      * @throws UnsupportedTypeException
-     * @throws NameNotFoundException
+     * @throws NameNotFoundException|InvalidArgument
      */
     public function buildField(Context $context): FieldBuilder
     {
         $fieldBuilder = FieldBuilder::create($context->getFieldName());
+
+        $fieldBuilder->setDescription($this->languageService->sL($context->getColumnConfiguration()['label'] ?? ''));
 
         $columnConfiguration = $context->getColumnConfiguration();
 
@@ -94,7 +100,9 @@ class TCATypeMapper
         }
 
         // If the field has some kind of relation, the type is a list of the related type
-        if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' && (($columnConfiguration['config']['maxitems'] ?? 2) > 1) && ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
+        if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' &&
+            (($columnConfiguration['config']['maxitems'] ?? 2) > 1) &&
+            ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
             $isLazy = false;
             foreach ($context->getFieldAnnotations() as $annotation) {
                 if ($annotation instanceof Lazy) {
@@ -103,7 +111,10 @@ class TCATypeMapper
             }
 
             if ($isLazy) {
-                $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(), $context->getTypeRegistry(), $this->filterResolver, $context->getTableName());
+                $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(),
+                                                                                   $context->getTypeRegistry(),
+                                                                                   $this->filterResolver,
+                                                                                   $context->getTableName());
 
                 $fieldBuilder->setType(Type::nonNull($paginationConnection));
 
@@ -169,6 +180,10 @@ class TCATypeMapper
         $fieldBuilder->setType(Type::int());
     }
 
+    /**
+     * @throws NameNotFoundException
+     * @throws InvalidArgument
+     */
     protected function handleInlineType(Context $context, FieldBuilder $fieldBuilder): void
     {
         $columnConfiguration = $context->getColumnConfiguration();
@@ -177,7 +192,26 @@ class TCATypeMapper
             return;
         }
 
-        $fieldBuilder->setType(TypeRegistry::file());
+        $expectedFileTypes =
+            $columnConfiguration['config']['overrideChildTca']['columns']['uid_local']['config']['appearance']['elementBrowserAllowed']
+            ?? '';
+
+        // Fetch available crop variants
+        $cropVariants =
+            implode(', ', array_keys($columnConfiguration['config']['overrideChildTca']['columns']['crop']['config']['cropVariants'] ?? []));
+
+        $description = $this->languageService->sL($columnConfiguration['label'] ?? '');
+
+        if ($expectedFileTypes) {
+            $description .= "\n - Allowed file types: $expectedFileTypes";
+        }
+
+        if ($cropVariants) {
+            $description .= "\n - Available crop variants: $cropVariants";
+        }
+
+        $fieldBuilder->setType(TypeRegistry::file())
+                     ->setDescription($description);
     }
 
     /**
@@ -190,13 +224,15 @@ class TCATypeMapper
 
         if (!empty($columnConfiguration['config']['items'])) {
             // If all values are integers or floats, we don't need an enum
-            if (count(array_filter($columnConfiguration['config']['items'], static fn($x) => !MathUtility::canBeInterpretedAsInteger($x[1]))) === 0) {
+            if (count(array_filter($columnConfiguration['config']['items'],
+                    static fn($x) => !MathUtility::canBeInterpretedAsInteger($x[1]))) === 0) {
                 $fieldBuilder->setType(Type::int());
 
                 return;
             }
 
-            if (count(array_filter($columnConfiguration['config']['items'], static fn($x) => !MathUtility::canBeInterpretedAsFloat($x[1]))) === 0) {
+            if (count(array_filter($columnConfiguration['config']['items'],
+                    static fn($x) => !MathUtility::canBeInterpretedAsFloat($x[1]))) === 0) {
                 $fieldBuilder->setType(Type::float());
 
                 return;
@@ -274,7 +310,8 @@ class TCATypeMapper
 
                 /** @var ObjectStorage $root */
                 $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
-                    $foreignTable, $schemaContext
+                    $foreignTable,
+                    $schemaContext
                 ) {
                     $facets = [];
 
@@ -282,10 +319,22 @@ class TCATypeMapper
                         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
                         $mmTable = $schemaContext->getColumnConfiguration()['config']['MM'];
 
-                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root, $args, $context, $resolveInfo, $foreignTable, $modelClassPath, $mmTable, $root->getUid());
+                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root,
+                                                                                                           $args,
+                                                                                                           $context,
+                                                                                                           $resolveInfo,
+                                                                                                           $foreignTable,
+                                                                                                           $modelClassPath,
+                                                                                                           $mmTable,
+                                                                                                           $root->getUid());
                     }
 
-                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root, $args, $context, $resolveInfo, $schemaContext, $schemaContext->getColumnConfiguration()['config']['foreign_table']);
+                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root,
+                                                                                   $args,
+                                                                                   $context,
+                                                                                   $resolveInfo,
+                                                                                   $schemaContext,
+                                                                                   $schemaContext->getColumnConfiguration()['config']['foreign_table']);
                     $queryResult->setFacets($facets);
 
                     return $queryResult;
