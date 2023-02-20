@@ -36,8 +36,8 @@ settings:
     # Maximum query complexity
     maxQueryComplexity: 100
 
-    # Comma separated list of origins, e.g. https://typo3.org,http://localhost:3000
-    allowedCORSOrigins: ''
+    # List of origins, e.g. http://localhost:3000
+    allowedCORSOrigins:
 
     # Can be true, false
     isIntrospectionEnabled: false
