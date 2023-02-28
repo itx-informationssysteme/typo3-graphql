@@ -197,8 +197,9 @@ class TCATypeMapper
             ?? '';
 
         // Fetch available crop variants
-        $cropVariants =
-            implode(', ', array_keys($columnConfiguration['config']['overrideChildTca']['columns']['crop']['config']['cropVariants'] ?? []));
+        $cropVariants = implode(', ',
+                                array_keys($columnConfiguration['config']['overrideChildTca']['columns']['crop']['config']['cropVariants']
+                                               ?? []));
 
         $description = $this->languageService->sL($columnConfiguration['label'] ?? '');
 
@@ -210,8 +211,7 @@ class TCATypeMapper
             $description .= "\n - Available crop variants: $cropVariants";
         }
 
-        $fieldBuilder->setType(TypeRegistry::file())
-                     ->setDescription($description);
+        $fieldBuilder->setType(TypeRegistry::file())->setDescription($description);
     }
 
     /**
@@ -348,18 +348,8 @@ class TCATypeMapper
      */
     public function handleCategoryType(Context $context, FieldBuilder $fieldBuilder): void
     {
-        $columnConfiguration = $context->getColumnConfiguration();
+        $type = $context->getTypeRegistry()->getTypeByTableName('sys_category');
 
-        if ($columnConfiguration['config']['relationship'] !== 'oneToOne') {
-            return;
-        }
-
-        try {
-            $type = $context->getTypeRegistry()->getTypeByTableName('sys_category');
-            $fieldBuilder->setType($type);
-        }
-        catch (NotFoundException $e) {
-            throw new NotFoundException("Could not find type for foreign table 'sys_category'");
-        }
+        $fieldBuilder->setType($type);
     }
 }
