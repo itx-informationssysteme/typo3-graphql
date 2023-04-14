@@ -178,6 +178,10 @@ class FilterResolver
 
         $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")->from($tableName)->groupBy("$lastElementTable.$lastElement")->addSelectLiteral("COUNT($tableName.uid) AS resultCount")->groupBy("$lastElementTable.$lastElement")->orderBy("$lastElementTable.$lastElement", 'ASC');
 
+
+        $sql = $queryBuilder->getSQL();
+        $params = $queryBuilder->getParameters();
+
         $results = $queryBuilder->execute()->fetchAllAssociative() ?? [];
 
         $options = [];
@@ -215,9 +219,10 @@ class FilterResolver
 
             if ($tca['MM'] ?? false) {
                 // Join with MM and foreign table
-                $queryBuilder->join($currentTable, $tca['MM'], $tca['MM'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_local', $queryBuilder->quoteIdentifier($currentTable . '.uid')));
+                $queryBuilder->join($currentTable, $tca['MM'], $tca['MM'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_foreign', $queryBuilder->quoteIdentifier($currentTable . '.uid')));
+                $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.tablenames', $queryBuilder->createNamedParameter($currentTable)));
 
-                $queryBuilder->join($tca['MM'], $tca['foreign_table'], $tca['foreign_table'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_foreign', $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
+                $queryBuilder->join($tca['MM'], $tca['foreign_table'], $tca['foreign_table'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_local', $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
                 continue;
             }
 
@@ -240,10 +245,6 @@ class FilterResolver
             $tca = $GLOBALS['TCA'][$currentTable]['columns'][$filterPathElement]['config'] ?? null;
             if ($tca === null) {
                 throw new FieldDoesNotExistException("No TCA field found for $currentTable.$filterPathElement");
-            }
-
-            if ($tca['type'] !== 'select') {
-                throw new FieldDoesNotExistException("TCA for $currentTable.$filterPathElement is not of type select");
             }
 
             if ($tca['foreign_table'] === null) {
