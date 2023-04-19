@@ -21,6 +21,7 @@ class PaginationUtility
     }
 
     /**
+     * @return int Returns 0 if the cursor is empty
      * @throws BadInputException
      */
     public static function offsetFromCursor(string $value): int
@@ -68,8 +69,9 @@ class PaginationUtility
      */
     public static function addArgumentsToFieldBuilder(FieldBuilder $fieldBuilder): FieldBuilder
     {
-        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count', 10)
+        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count (page size)', 10)
                      ->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')
+                     ->addArgument(QueryArgumentsUtility::$offset, Type::int(), 'Offset for pagination, overrides cursor')
                      ->addArgument(QueryArgumentsUtility::$sortByField, Type::string(), 'Sort by field')
                      ->addArgument(QueryArgumentsUtility::$sortingOrder, TypeRegistry::sortingOrder(), 'Sorting order', 'ASC')
                      ->addArgument(QueryArgumentsUtility::$filters,

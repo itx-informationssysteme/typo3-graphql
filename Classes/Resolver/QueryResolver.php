@@ -82,7 +82,7 @@ class QueryResolver
         $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
-        $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
+        $offset = $args[QueryArgumentsUtility::$offset] ?? PaginationUtility::offsetFromCursor($args['after'] ?? '');
 
         $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
         $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
@@ -191,7 +191,7 @@ class QueryResolver
         $tableName = $schemaContext->getTableName();
         $localUid = $root->getUid();
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
-        $offset = PaginationUtility::offsetFromCursor($args['after'] ?? 0);
+        $offset = $args[QueryArgumentsUtility::$offset] ?? PaginationUtility::offsetFromCursor($args['after'] ?? '');
 
         $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
         $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
