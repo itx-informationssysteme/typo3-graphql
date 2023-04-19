@@ -90,6 +90,9 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
                                     $cropVariantCollection = CropVariantCollection::create((string)$cropString);
                                     $cropVariant = $args[self::ARGUMENT_CROP] ?? 'default';
                                     $cropArea = $cropVariantCollection->getCropArea($cropVariant);
+                                    if ($cropArea->isEmpty()) {
+                                        throw new BadInputException('Crop variant "' . $cropVariant . '" not found');
+                                    }
 
                                     $processingInstructions = [
                                         'width' => $this->checkIfSizeIsAllowed($args[self::ARGUMENT_WIDTH] ?? null, $context),
