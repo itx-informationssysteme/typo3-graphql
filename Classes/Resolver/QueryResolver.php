@@ -91,11 +91,7 @@ class QueryResolver
         $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
         // Path as key for discrete filters
-        $discreteFilters = array_combine(array_map(static function($filter) {
-            return $filter['path'];
-        },
-            $discreteFilters),
-                                         $discreteFilters);
+        $discreteFilters = array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);

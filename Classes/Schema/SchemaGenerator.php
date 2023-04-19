@@ -45,7 +45,16 @@ class SchemaGenerator
     protected ConfigurationService $configurationService;
     protected ReflectionService $reflectionService;
 
-    public function __construct(PersistenceManager $persistenceManager, TableNameResolver $tableNameResolver, LoggerInterface $logger, LanguageService $languageService, TCATypeMapper $typeMapper, QueryResolver $queryResolver, ConfigurationService $configurationService, EventDispatcherInterface $eventDispatcher, FilterResolver $filterResolver, ReflectionService $reflectionService)
+    public function __construct(PersistenceManager       $persistenceManager,
+                                TableNameResolver        $tableNameResolver,
+                                LoggerInterface          $logger,
+                                LanguageService          $languageService,
+                                TCATypeMapper            $typeMapper,
+                                QueryResolver            $queryResolver,
+                                ConfigurationService     $configurationService,
+                                EventDispatcherInterface $eventDispatcher,
+                                FilterResolver           $filterResolver,
+                                ReflectionService        $reflectionService)
     {
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
@@ -81,15 +90,24 @@ class SchemaGenerator
             // Get the table name
             $tableName = $this->tableNameResolver->resolve($modelClassPath);
 
-            $objectName = NamingUtility::generateName($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']), false);
+            $objectName =
+                NamingUtility::generateName($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']), false);
 
             // Type configuration
             $object = ObjectBuilder::create($objectName)->setDescription("The $objectName type");
 
             // Build a ObjectType from the type configuration
-            $objectType = new ObjectType($object->setFields(function() use ($modelsConfiguration, $typeRegistry, $modelClassPath, $tableName) {
+            $objectType = new ObjectType($object->setFields(function() use (
+                $modelsConfiguration,
+                $typeRegistry,
+                $modelClassPath,
+                $tableName
+            ) {
                 $fields = [
-                    FieldBuilder::create('uid')->setType(Type::nonNull(Type::int()))->setDescription('Unique identifier in table')->build(),
+                    FieldBuilder::create('uid')
+                                ->setType(Type::nonNull(Type::int()))
+                                ->setDescription('Unique identifier in table')
+                                ->build(),
                     FieldBuilder::create('pid')->setType(Type::nonNull(Type::int()))->setDescription('Page id')->build(),
                 ];
 
@@ -107,7 +125,8 @@ class SchemaGenerator
 
                 // Then we collect all properties that either have an @Expose annotation or are covered by its class's @ExposeAll annotation
                 foreach ($schema->getProperties() as $property) {
-                    if ($property->getName() === 'uid' || $property->getName() === 'pid' || str_starts_with($property->getName(), '_')) {
+                    if ($property->getName() === 'uid' || $property->getName() === 'pid' ||
+                        str_starts_with($property->getName(), '_')) {
                         continue;
                     }
 
@@ -120,7 +139,9 @@ class SchemaGenerator
 
                 // Add fields for all columns to type config
                 foreach ($allowList as $fieldName) {
-                    $columnConfiguration = $GLOBALS['TCA'][$tableName]['columns'][GeneralUtility::camelCaseToLowerCaseUnderscored($fieldName)] ?? null;
+                    $columnConfiguration =
+                        $GLOBALS['TCA'][$tableName]['columns'][GeneralUtility::camelCaseToLowerCaseUnderscored($fieldName)] ??
+                        null;
                     if ($columnConfiguration === null) {
                         throw new NotFoundException(sprintf('Column %s not found in table %s', $fieldName, $tableName));
                     }
@@ -128,7 +149,12 @@ class SchemaGenerator
                     $fieldAnnotations = $annotationReader->getPropertyAnnotations($schema->getProperty($fieldName));
 
                     try {
-                        $context = new Context($modelClassPath, $tableName, $fieldName, $columnConfiguration, $typeRegistry, $fieldAnnotations);
+                        $context = new Context($modelClassPath,
+                                               $tableName,
+                                               $fieldName,
+                                               $columnConfiguration,
+                                               $typeRegistry,
+                                               $fieldAnnotations);
                         $field = $this->typeMapper->buildField($context);
 
                         $fields[] = $field->build();
@@ -140,7 +166,8 @@ class SchemaGenerator
 
                 // Add custom fields to model
                 /** @var CustomModelFieldEvent $customEvent */
-                $customEvent = $this->eventDispatcher->dispatch(new CustomModelFieldEvent($modelClassPath, $tableName, $typeRegistry));
+                $customEvent =
+                    $this->eventDispatcher->dispatch(new CustomModelFieldEvent($modelClassPath, $tableName, $typeRegistry));
 
                 foreach ($customEvent->getFieldBuilders() as $field) {
                     $fields[] = $field->build();
@@ -156,41 +183,68 @@ class SchemaGenerator
                 continue;
             }
 
-            $connectionType = PaginationUtility::generateConnectionTypes($objectType, $typeRegistry, $this->filterResolver, $tableName);
+            $connectionType =
+                PaginationUtility::generateConnectionTypes($objectType, $typeRegistry, $this->filterResolver, $tableName);
 
             // Add a query to fetch multiple records
-            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))->setType(Type::nonNull($connectionType))->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use ($modelClassPath, $tableName) {
-                $facets = [];
+            $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))
+                                         ->setType(Type::nonNull($connectionType))
+                                         ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                                             $modelClassPath,
+                                             $tableName
+                                         ) {
+                                             $facets = [];
 
-                // See if requested page ids are allowed
-                $allowedMountPoints = $this->configurationService->getMountPointsForModel($modelClassPath);
+                                             // See if requested page ids are allowed
+                                             $allowedMountPoints =
+                                                 $this->configurationService->getMountPointsForModel($modelClassPath);
 
-                if (count($allowedMountPoints) > 0) {
-                    // Check if mount points from arguments are contained in allowed mount points
-                    $requestedMountPoints = $args[QueryArgumentsUtility::$pageIds] ?? [];
-                    $invalidMountPoints = array_diff($requestedMountPoints, $allowedMountPoints);
+                                             if (count($allowedMountPoints) > 0) {
+                                                 // Check if mount points from arguments are contained in allowed mount points
+                                                 $requestedMountPoints = $args[QueryArgumentsUtility::$pageIds] ?? [];
+                                                 $invalidMountPoints = array_diff($requestedMountPoints, $allowedMountPoints);
 
-                    if (count($invalidMountPoints) > 0) {
-                        throw new \InvalidArgumentException(sprintf('Requested mount points "%s" are not allowed', implode(', ', $invalidMountPoints)));
-                    }
+                                                 if (count($invalidMountPoints) > 0) {
+                                                     throw new \InvalidArgumentException(sprintf('Requested mount points "%s" are not allowed',
+                                                                                                 implode(', ',
+                                                                                                         $invalidMountPoints)));
+                                                 }
 
-                    // If no mount points are requested, we use the allowed mount points
-                    if (count($requestedMountPoints) === 0) {
-                        $args[QueryArgumentsUtility::$pageIds] = $allowedMountPoints;
-                    }
-                }
+                                                 // If no mount points are requested, we use the allowed mount points
+                                                 if (count($requestedMountPoints) === 0) {
+                                                     $args[QueryArgumentsUtility::$pageIds] = $allowedMountPoints;
+                                                 }
+                                             }
 
-                // Query facets if requested
-                if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
-                    $facets = $this->filterResolver->fetchFiltersIncludingFacets($root, $args, $context, $resolveInfo, $tableName, $modelClassPath);
-                }
+                                             // Query facets if requested
+                                             if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
+                                                 $facets = $this->filterResolver->fetchFiltersIncludingFacets($root,
+                                                                                                              $args,
+                                                                                                              $context,
+                                                                                                              $resolveInfo,
+                                                                                                              $tableName,
+                                                                                                              $modelClassPath);
+                                             }
 
-                // Query actual records
-                $queryResult = $this->queryResolver->fetchMultipleRecords($root, $args, $context, $resolveInfo, $modelClassPath, $tableName);
-                $queryResult->setFacets($facets);
+                                             // Query actual records
+                                             $queryResult = $this->queryResolver->fetchMultipleRecords($root,
+                                                                                                       $args,
+                                                                                                       $context,
+                                                                                                       $resolveInfo,
+                                                                                                       $modelClassPath,
+                                                                                                       $tableName);
+                                             $queryResult->setFacets($facets);
 
-                return $queryResult;
-            })->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->addArgument(QueryArgumentsUtility::$pageIds, Type::listOf(Type::int()), 'List of storage page ids', []);
+                                             return $queryResult;
+                                         })
+                                         ->addArgument(QueryArgumentsUtility::$language,
+                                                       Type::nonNull(Type::int()),
+                                                       'Language field',
+                                                       0)
+                                         ->addArgument(QueryArgumentsUtility::$pageIds,
+                                                       Type::listOf(Type::int()),
+                                                       'List of storage page ids',
+                                                       []);
 
             $queries[] = PaginationUtility::addArgumentsToFieldBuilder($multipleQuery)->build();
 
@@ -198,15 +252,34 @@ class SchemaGenerator
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record
-            $queries[] = FieldBuilder::create($singleQueryName)->setType($objectType)->setResolver(function($root, $args, $context, ResolveInfo $resolveInfo) use (
-                $modelClassPath
-            ) {
-                return $this->queryResolver->fetchSingleRecord($root, $args, $context, $resolveInfo, $modelClassPath);
-            })->addArgument(QueryArgumentsUtility::$uid, Type::nonNull(Type::int()), "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language, Type::nonNull(Type::int()), 'Language field', 0)->build();
+            $queries[] = FieldBuilder::create($singleQueryName)
+                                     ->setType($objectType)
+                                     ->setResolver(function($root,
+                                         $args,
+                                         $context,
+                                                            ResolveInfo $resolveInfo) use
+                                     (
+                                         $modelClassPath
+                                     ) {
+                                         return $this->queryResolver->fetchSingleRecord($root,
+                                                                                        $args,
+                                                                                        $context,
+                                                                                        $resolveInfo,
+                                                                                        $modelClassPath);
+                                     })
+                                     ->addArgument(QueryArgumentsUtility::$uid,
+                                                   Type::nonNull(Type::int()),
+                                                   "Get a $singleQueryName by it's uid")
+                                     ->addArgument(QueryArgumentsUtility::$language,
+                                                   Type::nonNull(Type::int()),
+                                                   'Language field',
+                                                   0)
+                                     ->build();
 
             // Allow for custom new query fields
             /** @var CustomQueryFieldEvent $customEvent */
-            $customEvent = $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($modelClassPath, $tableName, $typeRegistry));
+            $customEvent =
+                $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($modelClassPath, $tableName, $typeRegistry));
 
             foreach ($customEvent->getFieldBuilders() as $field) {
                 $queries[] = $field->build();

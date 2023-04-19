@@ -42,7 +42,10 @@ class PaginationUtility
      * @throws NameNotFoundException
      * @throws NotFoundException
      */
-    public static function generateConnectionTypes(Type $objectType, TypeRegistry $typeRegistry, FilterResolver $filterResolver, string $tableName): ConnectionType
+    public static function generateConnectionTypes(Type           $objectType,
+                                                   TypeRegistry   $typeRegistry,
+                                                   FilterResolver $filterResolver,
+                                                   string         $tableName): ConnectionType
     {
         $edgeType = new EdgeType($objectType);
         $connectionType = new ConnectionType($objectType, $edgeType);
@@ -65,7 +68,14 @@ class PaginationUtility
      */
     public static function addArgumentsToFieldBuilder(FieldBuilder $fieldBuilder): FieldBuilder
     {
-        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count', 10)->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')->addArgument(QueryArgumentsUtility::$sortByField, Type::string(), 'Sort by field')->addArgument(QueryArgumentsUtility::$sortingOrder, TypeRegistry::sortingOrder(), 'Sorting order', 'ASC')->addArgument(QueryArgumentsUtility::$filters, TypeRegistry::filterCollectionInput(), 'Apply predefined filters to this query.', []);
+        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count', 10)
+                     ->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')
+                     ->addArgument(QueryArgumentsUtility::$sortByField, Type::string(), 'Sort by field')
+                     ->addArgument(QueryArgumentsUtility::$sortingOrder, TypeRegistry::sortingOrder(), 'Sorting order', 'ASC')
+                     ->addArgument(QueryArgumentsUtility::$filters,
+                                   TypeRegistry::filterCollectionInput(),
+                                   'Apply predefined filters to this query.',
+                                   []);
 
         return $fieldBuilder;
     }
