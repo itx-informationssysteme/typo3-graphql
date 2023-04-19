@@ -116,35 +116,33 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
                                 })
                                 ->build();
 
-        $fields[] =
-            FieldBuilder::create('alternative', Type::string())->setDescription('Returns the alternative text for this file')->setResolver(function(FileReference   $root,
-                                                                                                           array           $args,
-                                                                                                           ResolverContext $context,
-                                                                                                           ResolveInfo     $resolveInfo) use
-                (
-                    $imageService
-                ) {
-                    if ($root->getOriginalResource() === null) {
-                        return '';
-                    }
+        $fields[] = FieldBuilder::create('alternative', Type::string())
+                                ->setDescription('Returns the alternative text for this file')
+                                ->setResolver(function(FileReference   $root,
+                                                       array           $args,
+                                                       ResolverContext $context,
+                                                       ResolveInfo     $resolveInfo) {
+                                    if ($root->getOriginalResource() === null) {
+                                        return '';
+                                    }
 
-                return $root->getOriginalResource()->getAlternative();
-                })->build();
+                                    return $root->getOriginalResource()->getAlternative();
+                                })
+                                ->build();
 
-        $fields[] =
-            FieldBuilder::create('link', Type::string())->setDescription('Returns the link for this file reference. This is the link that can be edited in the background. Not the link to the file.')->setResolver(function(FileReference   $root,
-                                                                                                           array           $args,
-                                                                                                           ResolverContext $context,
-                                                                                                           ResolveInfo     $resolveInfo) use
-                (
-                    $imageService
-                ) {
-                    if ($root->getOriginalResource() === null) {
-                        return '';
-                    }
+        $fields[] = FieldBuilder::create('link', Type::string())
+                                ->setDescription('Returns the link for this file reference. This is the link that can be edited in the background. Not the link to the file.')
+                                ->setResolver(function(FileReference   $root,
+                                                       array           $args,
+                                                       ResolverContext $context,
+                                                       ResolveInfo     $resolveInfo) {
+                                    if ($root->getOriginalResource() === null) {
+                                        return '';
+                                    }
 
-                return $root->getOriginalResource()->getLink();
-                })->build();
+                                    return $root->getOriginalResource()->getLink();
+                                })
+                                ->build();
 
         $objectBuilder->setFields($fields);
 
