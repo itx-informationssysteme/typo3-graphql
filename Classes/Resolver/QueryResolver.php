@@ -29,7 +29,11 @@ class QueryResolver
     protected FilterRepository $filterRepository;
     protected DataMapper $dataMapper;
 
-    public function __construct(PersistenceManager $persistenceManager, FileRepository $fileRepository, ConfigurationService $configurationService, FilterRepository $filterRepository, DataMapper $dataMapper)
+    public function __construct(PersistenceManager   $persistenceManager,
+                                FileRepository       $fileRepository,
+                                ConfigurationService $configurationService,
+                                FilterRepository     $filterRepository,
+                                DataMapper           $dataMapper)
     {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
@@ -49,7 +53,11 @@ class QueryResolver
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
 
         $languageOverlayMode = $this->configurationService->getModels()[$modelClassPath]['languageOverlayMode'] ?? true;
-        $query->getQuerySettings()->setRespectStoragePage(false)->setRespectSysLanguage(true)->setLanguageUid($language)->setLanguageOverlayMode($languageOverlayMode);
+        $query->getQuerySettings()
+              ->setRespectStoragePage(false)
+              ->setRespectSysLanguage(true)
+              ->setLanguageUid($language)
+              ->setLanguageOverlayMode($languageOverlayMode);
 
         $query->matching($query->equals('uid', $uid));
 
@@ -64,7 +72,12 @@ class QueryResolver
     /**
      * @throws BadInputException|InvalidQueryException
      */
-    public function fetchMultipleRecords($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath, string $tableName): PaginatedQueryResult
+    public function fetchMultipleRecords($root,
+                                         array $args,
+                                         mixed $context,
+                                         ResolveInfo $resolveInfo,
+                                         string $modelClassPath,
+                                         string $tableName): PaginatedQueryResult
     {
         $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
@@ -80,7 +93,9 @@ class QueryResolver
         // Path as key for discrete filters
         $discreteFilters = array_combine(array_map(static function($filter) {
             return $filter['path'];
-        }, $discreteFilters),            $discreteFilters);
+        },
+            $discreteFilters),
+                                         $discreteFilters);
 
         // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
@@ -92,7 +107,10 @@ class QueryResolver
         }
 
         $languageOverlayMode = $this->configurationService->getModels()[$modelClassPath]['languageOverlayMode'] ?? true;
-        $query->getQuerySettings()->setRespectSysLanguage(true)->setLanguageUid($language)->setLanguageOverlayMode($languageOverlayMode);
+        $query->getQuerySettings()
+              ->setRespectSysLanguage(true)
+              ->setLanguageUid($language)
+              ->setLanguageOverlayMode($languageOverlayMode);
 
         $filterConfigurations = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
 
@@ -115,13 +133,24 @@ class QueryResolver
             $query->setOrderings([$sortBy => $sortDirection]);
         }
 
-        return new PaginatedQueryResult($query->execute()->toArray(), $count, $offset, $limit, $resolveInfo, $modelClassPath, $this->dataMapper);
+        return new PaginatedQueryResult($query->execute()->toArray(),
+                                        $count,
+                                        $offset,
+                                        $limit,
+                                        $resolveInfo,
+                                        $modelClassPath,
+                                        $this->dataMapper);
     }
 
     /**
      * @throws NotFoundException
      */
-    public function fetchForeignRecord($root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext, string $foreignTable): ?array
+    public function fetchForeignRecord($root,
+                                       array $args,
+                                       mixed $context,
+                                       ResolveInfo $resolveInfo,
+                                       Context $schemaContext,
+                                       string $foreignTable): ?array
     {
         $foreignUid = $root[$resolveInfo->fieldName];
 
@@ -156,7 +185,12 @@ class QueryResolver
      * @throws FieldDoesNotExistException
      * @throws NotFoundException
      */
-    public function fetchForeignRecordsWithMM(AbstractDomainObject $root, array $args, $context, ResolveInfo $resolveInfo, Context $schemaContext, string $foreignTable): PaginatedQueryResult
+    public function fetchForeignRecordsWithMM(AbstractDomainObject $root,
+                                              array                $args,
+                                                                   $context,
+                                              ResolveInfo          $resolveInfo,
+                                              Context              $schemaContext,
+                                              string               $foreignTable): PaginatedQueryResult
     {
         $tableName = $schemaContext->getTableName();
         $localUid = $root->getUid();
@@ -174,15 +208,15 @@ class QueryResolver
 
         $qb = $connectionPool->getQueryBuilderForTable($foreignTable);
 
-        $qb->from($foreignTable)->leftJoin($foreignTable, $mm, 'm', $qb->expr()->eq("$foreignTable.uid", 'm.uid_foreign'))->andWhere($qb->expr()->eq('m.uid_local', $localUid));
+        $qb->from($foreignTable)
+           ->leftJoin($foreignTable, $mm, 'm', $qb->expr()->eq("$foreignTable.uid", 'm.uid_foreign'))
+           ->andWhere($qb->expr()->eq('m.uid_local', $localUid));
 
         $filters = $args[QueryArgumentsUtility::$filters] ?? [];
         $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
         // Path as key for discrete filters
-        $discreteFilters = array_combine(array_map(static function($filter) {
-            return $filter['path'];
-        }, $discreteFilters),            $discreteFilters);
+        $discreteFilters = array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
 
         $filterConfigurations = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
 
@@ -198,7 +232,8 @@ class QueryResolver
 
             $lastElementTable = FilterResolver::buildJoinsByWalkingPath($filterPathElements, $foreignTable, $qb);
 
-            $qb->andWhere($qb->expr()->in($lastElementTable . '.' . $lastElement, $qb->quoteArrayBasedValueListToStringList($discreteFilter['options'])));
+            $qb->andWhere($qb->expr()->in($lastElementTable . '.' . $lastElement,
+                                          $qb->quoteArrayBasedValueListToStringList($discreteFilter['options'])));
         }
 
         $count = $qb->count("$foreignTable.uid")->execute()->fetchOne();
@@ -212,6 +247,12 @@ class QueryResolver
             $qb->orderBy("$foreignTable." . $qb->createNamedParameter($sortBy), $sortDirection);
         }
 
-        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(), $count, $offset, $limit, $resolveInfo, $modelClassPath, $this->dataMapper);
+        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
+                                        $count,
+                                        $offset,
+                                        $limit,
+                                        $resolveInfo,
+                                        $modelClassPath,
+                                        $this->dataMapper);
     }
 }
