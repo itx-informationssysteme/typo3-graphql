@@ -177,7 +177,7 @@ class FilterResolver
         }
 
         $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")->from($tableName)->groupBy("$lastElementTable.$lastElement")->addSelectLiteral("COUNT($tableName.uid) AS resultCount")->groupBy("$lastElementTable.$lastElement")->orderBy("$lastElementTable.$lastElement", 'ASC');
-        
+
         $results = $queryBuilder->execute()->fetchAllAssociative() ?? [];
 
         $options = [];
@@ -214,11 +214,19 @@ class FilterResolver
             $lastElementTable = $tca['foreign_table'];
 
             if ($tca['MM'] ?? false) {
-                // Join with MM and foreign table
-                $queryBuilder->join($currentTable, $tca['MM'], $tca['MM'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_foreign', $queryBuilder->quoteIdentifier($currentTable . '.uid')));
-                $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.tablenames', $queryBuilder->createNamedParameter($currentTable)));
+                // Figure out from which side of the MM table we need to join TODO: This might not be robust enough
+                $isLocalTable = ($tca['MM_match_fields']['tablenames'] ?? '') === $currentTable;
 
-                $queryBuilder->join($tca['MM'], $tca['foreign_table'], $tca['foreign_table'], $queryBuilder->expr()->eq($tca['MM'] . '.uid_local', $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
+                $mmTableLocalField = $isLocalTable ? 'uid_foreign' : 'uid_local';
+                $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
+
+                // Join with MM and foreign table
+                $queryBuilder->join($currentTable, $tca['MM'], $tca['MM'], $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableLocalField", $queryBuilder->quoteIdentifier($currentTable . '.uid')));
+                foreach ($tca['MM_match_fields'] ?? [] as $key => $value) {
+                    $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.' . $key, $queryBuilder->createNamedParameter($value)));
+                }
+
+                $queryBuilder->join($tca['MM'], $tca['foreign_table'], $tca['foreign_table'], $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField", $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
                 continue;
             }
 
