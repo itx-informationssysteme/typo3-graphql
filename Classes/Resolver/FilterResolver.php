@@ -177,11 +177,7 @@ class FilterResolver
         }
 
         $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")->from($tableName)->groupBy("$lastElementTable.$lastElement")->addSelectLiteral("COUNT($tableName.uid) AS resultCount")->groupBy("$lastElementTable.$lastElement")->orderBy("$lastElementTable.$lastElement", 'ASC');
-
-
-        $sql = $queryBuilder->getSQL();
-        $params = $queryBuilder->getParameters();
-
+        
         $results = $queryBuilder->execute()->fetchAllAssociative() ?? [];
 
         $options = [];
