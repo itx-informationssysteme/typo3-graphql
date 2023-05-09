@@ -13,6 +13,7 @@ use Itx\Typo3GraphQL\Types\Model\FileType;
 use Itx\Typo3GraphQL\Types\Model\FilterCollectionInputType;
 use Itx\Typo3GraphQL\Types\Model\FilterOptionType;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
+use Itx\Typo3GraphQL\Types\Model\RangeInputType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
@@ -28,7 +29,8 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public function __construct() {
+    public function __construct()
+    {
         $this->addType(self::link());
         $this->addType(self::file());
         $this->addType(self::pageInfo());
@@ -182,7 +184,19 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public static function fileExtensions(): FileExtensions {
+    public static function rangeInput() :RangeInputType
+    {
+        /**@var RangeInputType $type*/
+        $type = self::getOrCreateCustomType(RangeInputType::class);
+
+        return $type;
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    public static function fileExtensions(): FileExtensions
+    {
         /** @var FileExtensions $type */
         $type = self::getOrCreateCustomType(FileExtensions::class);
 
@@ -192,7 +206,8 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public function addModelObjectType(Type $type, string $tableName, string $modelClassPath): void {
+    public function addModelObjectType(Type $type, string $tableName, string $modelClassPath): void
+    {
         $name = $type->toString();
 
         if ($name === '') {
@@ -207,7 +222,8 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public function addType(Type $type): void {
+    public function addType(Type $type): void
+    {
         $name = $type->toString();
 
         if ($name === '') {
@@ -222,7 +238,8 @@ class TypeRegistry
      *
      * @throws NotFoundException
      */
-    public function getType(string $name): Type {
+    public function getType(string $name): Type
+    {
         if (empty($this->typeStore[$name])) {
             throw new NotFoundException("There is no type with name $name registered.");
         }
@@ -230,7 +247,8 @@ class TypeRegistry
         return $this->typeStore[$name];
     }
 
-    public function hasType(string $name): bool {
+    public function hasType(string $name): bool
+    {
         return isset($this->typeStore[$name]);
     }
 
@@ -239,7 +257,8 @@ class TypeRegistry
      *
      * @throws NotFoundException
      */
-    public function getTypeByTableName(string $name): Type {
+    public function getTypeByTableName(string $name): Type
+    {
         if (empty($this->tableToObjectNameMap[$name])) {
             throw new NotFoundException("There is no type with name $name registered.");
         }
@@ -252,7 +271,8 @@ class TypeRegistry
     /**
      * @throws NotFoundException
      */
-    public function getModelClassPathByTableName(string $tableName) {
+    public function getModelClassPathByTableName(string $tableName)
+    {
         if (empty($this->tableToModelClasspathMap[$tableName])) {
             throw new NotFoundException("There is no model class path for table $tableName registered.");
         }
