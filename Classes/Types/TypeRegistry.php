@@ -13,7 +13,9 @@ use Itx\Typo3GraphQL\Types\Model\FileType;
 use Itx\Typo3GraphQL\Types\Model\FilterCollectionInputType;
 use Itx\Typo3GraphQL\Types\Model\FilterOptionType;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
+use Itx\Typo3GraphQL\Types\Model\RangeFacetType;
 use Itx\Typo3GraphQL\Types\Model\RangeInputType;
+use Itx\Typo3GraphQL\Types\Model\RangeType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
@@ -40,6 +42,9 @@ class TypeRegistry
         $this->addType(self::discreteFilterInput());
         $this->addType(self::filterCollectionInput());
         $this->addType(self::facet());
+        $this->addType(self::rangeFacet());
+        $this->addType(self::range());
+        $this->addType(self::rangeInput());
         $this->addType(self::dateTime());
         $this->addType(self::fileExtensions());
     }
@@ -169,6 +174,19 @@ class TypeRegistry
     }
 
     /**
+     * Gets an instance of RangeFacetType
+     *
+     * @throws NameNotFoundException
+     */
+    public static function rangeFacet(): RangeFacetType
+    {
+        /** @var FacetType $type */
+        $type = self::getOrCreateCustomType(RangeFacetType::class);
+
+        return $type;
+    }
+
+    /**
      * Gets an instance of DateTime
      *
      * @throws NameNotFoundException
@@ -188,6 +206,17 @@ class TypeRegistry
     {
         /**@var RangeInputType $type*/
         $type = self::getOrCreateCustomType(RangeInputType::class);
+
+        return $type;
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    public static function range() :RangeType
+    {
+        /**@var RangeType $type*/
+        $type = self::getOrCreateCustomType(RangeType::class);
 
         return $type;
     }
