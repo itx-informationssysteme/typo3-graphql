@@ -3,41 +3,27 @@
 namespace Itx\Typo3GraphQL\Types\Model;
 
 use GraphQL\Language\AST\Node;
+use GraphQL\Type\Definition\ObjectType;
+use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NotImplementedException;
+use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
+use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 
-class RangeType extends \GraphQL\Type\Definition\ScalarType implements TypeNameInterface
+class RangeType extends ObjectType implements TypeNameInterface
 {
-    /**
-     * @var string
-     */
-    protected $min;
-
-    /**
-     * @var string
-     */
-    protected $max;
-
-    public function __construct(array $config = [])
+    public function __construct()
     {
-        $this->name = self::getTypeName();
-        parent::__construct($config);
-    }
+        $objectBuilder = InputObjectBuilder::create(self::getTypeName());
 
-    public function serialize($value)
-    {
-        return GeneralUtility::makeInstance(ContentObjectRenderer::class);
-    }
+        $fields = [];
 
-    public function parseValue($value)
-    {
-        throw new NotImplementedException('Can not parse value of type Range');
-    }
+        $fields[] = InputFieldBuilder::create('min', Type::nonNull(Type::string()))->build();
+        $fields[] = InputFieldBuilder::create('max', Type::nonNull(Type::string()))->build();
 
-    public function parseLiteral(Node $valueNode, ?array $variables = null)
-    {
-        return $valueNode->value;
+        $objectBuilder->setFields($fields);
+        parent::__construct($objectBuilder->build());
     }
 
     public static function getTypeName(): string

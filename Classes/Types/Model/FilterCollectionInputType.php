@@ -14,13 +14,16 @@ class FilterCollectionInputType extends InputObjectType implements TypeNameInter
 {
     public $description = 'Filter collection';
 
+    /**
+     * @throws NameNotFoundException
+     */
     public function __construct()
     {
         $objectBuilder = InputObjectBuilder::create(self::getTypeName());
 
         $fields = [];
         $fields[] = InputFieldBuilder::create(QueryArgumentsUtility::$discreteFilters, Type::listOf(Type::nonNull(TypeRegistry::discreteFilterInput())))->setDefaultValue([])->setDescription('Discrete filters')->build();
-        $fields[] = InputFieldBuilder::create('rangeFilters', Type::listOf(TypeRegistry::rangeInput()));
+        $fields[] = InputFieldBuilder::create('rangeFilters', Type::listOf(TypeRegistry::rangeInput()))->build();
 
         $objectBuilder->setFields($fields);
 

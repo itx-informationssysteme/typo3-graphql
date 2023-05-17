@@ -43,13 +43,11 @@ class ConnectionType extends ObjectType
                                 ->setDescription('A list of all of the objects returned in the connection. This is a convenience field provided for quickly exploring the API; rather than querying for "{ edges { node } }" when no edge data is needed, this field can be be used instead. Note that when clients like Relay need to fetch the "cursor" field on the edge to enable efficient pagination, this shortcut cannot be used, and the full "{ edges { node } }" version should be used instead.')
                                 ->build();
 
-        $objectBuilderUnion = UnionBuilder::create('facetAndRangeFace')
-                                          ->setTypes([TypeRegistry::facet(), TypeRegistry::rangeFacet() ])
-                                            ->build();
-        //TODO create field type facet with connection type union
+        $fields[] = FieldBuilder::create('facets', Type::nonNull(Type::listOf(Type::nonNull(TypeRegistry::unionRangeFacetType()))))
+                                ->setDescription('This field Contains Range Facets and discrete Facets')
+                                ->build();
 
-
-            $objectBuilder->setFields($fields);
+        $objectBuilder->setFields($fields);
 
         parent::__construct($objectBuilder->build());
     }

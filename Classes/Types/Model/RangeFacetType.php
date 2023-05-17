@@ -4,6 +4,7 @@ namespace Itx\Typo3GraphQL\Types\Model;
 
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
+use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
@@ -11,6 +12,9 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 class RangeFacetType extends ObjectType implements TypeNameInterface
 {
 
+    /**
+     * @throws NameNotFoundException
+     */
     public function __construct()
     {
         $objectBuilder = ObjectBuilder::create(self::getTypeName());

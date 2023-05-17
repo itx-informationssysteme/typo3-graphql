@@ -18,6 +18,7 @@ use Itx\Typo3GraphQL\Types\Model\RangeInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
+use Itx\Typo3GraphQL\Types\Model\UnionFacetType;
 use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
 
 class TypeRegistry
@@ -47,6 +48,7 @@ class TypeRegistry
         $this->addType(self::rangeInput());
         $this->addType(self::dateTime());
         $this->addType(self::fileExtensions());
+        $this->addType(self::unionRangeFacetType());
     }
 
     /**
@@ -202,9 +204,9 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public static function rangeInput() :RangeInputType
+    public static function rangeInput(): RangeInputType
     {
-        /**@var RangeInputType $type*/
+        /**@var RangeInputType $type */
         $type = self::getOrCreateCustomType(RangeInputType::class);
 
         return $type;
@@ -213,9 +215,9 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public static function range() :RangeType
+    public static function range(): RangeType
     {
-        /**@var RangeType $type*/
+        /**@var RangeType $type */
         $type = self::getOrCreateCustomType(RangeType::class);
 
         return $type;
@@ -230,6 +232,21 @@ class TypeRegistry
         $type = self::getOrCreateCustomType(FileExtensions::class);
 
         return $type;
+    }
+
+    /**
+     * @return UnionFacetType
+     * @throws NameNotFoundException
+     */
+    public static function unionRangeFacetType() : UnionFacetType
+    {
+        /**
+         * @var UnionFacetType $type
+         */
+        $type = self::getOrCreateCustomType(UnionFacetType::class);
+
+        return $type;
+
     }
 
     /**

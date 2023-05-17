@@ -4,6 +4,7 @@ namespace Itx\Typo3GraphQL\Types\Model;
 
 use GraphQL\Type\Definition\InputObjectType;
 use GraphQL\Type\Definition\Type;
+use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
 use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
@@ -12,15 +13,8 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 class RangeFilterInputType extends InputObjectType implements TypeNameInterface
 {
     /**
-     * @var string
+     * @throws NameNotFoundException
      */
-    protected $path;
-
-    /**
-     * @var string
-     */
-    protected $range;
-
     public function __construct(ObjectBuilder $objectBuilder)
     {
         $objectBuilder = InputObjectBuilder::create(self::getTypeName());
@@ -28,7 +22,7 @@ class RangeFilterInputType extends InputObjectType implements TypeNameInterface
         $fields = [];
         $fields[] = InputFieldBuilder::create('path', Type::nonNull(Type::string()))->setDescription('The filter path')->build();
 
-        $fields[] = InputFieldBuilder::create('range', Type::nonNull(TypeRegistry::rangeInput()));
+        $fields[] = InputFieldBuilder::create('range', Type::nonNull(TypeRegistry::rangeInput()))->build();
 
         $objectBuilder->setFields($fields);
 
@@ -37,6 +31,6 @@ class RangeFilterInputType extends InputObjectType implements TypeNameInterface
 
     public static function getTypeName(): string
     {
-        return 'RangeFilterInputType';
+        return 'RangeFilterInput';
     }
 }
