@@ -2,7 +2,7 @@
 
 This extension provides a GraphQL API for TYPO3. It does that by exposing the TYPO3 data models as a GraphQL schema.
 
-Any table can be configured to be available in the API. The schema is fully configurable. 
+Any table can be configured to be available in the API. The schema is fully configurable.
 The GraphQL API can be accessed via the `/graphql` endpoint.
 
 > :warning: This extension is still in development. Expect breaking changes and things to be broken or not implemented yet.
@@ -37,6 +37,7 @@ The extension uses two mechanisms to configure the GraphQL schema.
     * Make sure your model is also correctly registered in the Extbase Persistence Configuration. See
       the [extensions own persistence configuration](Configuration/Extbase/Persistence/Classes.php) for an example on how to do
       that.
+    * Also make sure when overriding ObjectStorages, to include the correct ObjectStorage var Annotation with the correct Type.
 
 ## 💻 Usage
 
