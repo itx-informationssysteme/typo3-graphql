@@ -122,8 +122,7 @@ The events are:
 1. `Itx\Typo3GraphQL\Events\CustomModelFieldEvent` - Allows you to add custom fields to a model.
 2. `Itx\Typo3GraphQL\Events\CustomQueryFieldEvent` - Allows you to add custom fields to the `Query` type.
 3. `Itx\Typo3GraphQL\Events\CustomQueryArgumentEvent` - Allows you to add custom arguments to a query field.
-4. `Itx\Typo3GraphQL\Events\CustomQueryConstraintEvent` - Allows you to add custom constraints to a query field.
-5. `ModifyQueryBuilderForFilteringEvent` - Allows you to modify the query builder used for filtering. This is useful when you also used the `CustomQueryConstraintEvent` to add custom constraints.
+4. `Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent` - Allows you to modify the query builder used for filtering.
 
 Both work the same way. You can add a field to the schema by adding one or more `FieldBuilder` instances to the event.
 These provide the schema, as well as the resolver functions. See

@@ -257,7 +257,14 @@ class FilterResolver
                 $selected = in_array($result['value'], $filterArguments[$filterPath]->options, true);
             }
 
-            $options[] = new DiscreteFilterOption($result['value'], $result['resultCount'], $selected);
+            foreach (explode(",", $result['value']) as $value) {
+                if (!isset($options[$value])) {
+                    $options[$value] = new DiscreteFilterOption($value, $result['resultCount'], $selected);
+                    continue;
+                }
+
+                $options[$value]->resultCount += $result['resultCount'];
+            }
         }
 
         return $options;

@@ -6,7 +6,7 @@ use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
-use Itx\Typo3GraphQL\Events\CustomQueryConstraintEvent;
+use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
@@ -16,8 +16,8 @@ use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Resource\FileRepository;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\DomainObject\AbstractDomainObject;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
@@ -36,7 +36,8 @@ class QueryResolver
                                 ConfigurationService               $configurationService,
                                 FilterRepository                   $filterRepository,
                                 DataMapper                         $dataMapper,
-                                protected EventDispatcherInterface $eventDispatcher)
+                                protected EventDispatcherInterface $eventDispatcher,
+                                protected ConnectionPool           $connectionPool)
     {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
@@ -74,6 +75,9 @@ class QueryResolver
 
     /**
      * @throws BadInputException|InvalidQueryException
+     * @throws DBALException
+     * @throws FieldDoesNotExistException
+     * @throws Exception
      */
     public function fetchMultipleRecords($root,
                                          array $args,
@@ -90,102 +94,36 @@ class QueryResolver
         $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
         $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
 
-        $filters = $args[QueryArgumentsUtility::$filters] ?? [];
-        $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
+        $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
 
-        // Path as key for discrete filters
-        $discreteFilters = array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
+        $qb->from($tableName)->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
 
-        // TODO we can fetch only the field that we need by using the resolveInfo, but we need to make sure that the repository logic is kept
-        $query = $this->persistenceManager->createQueryForType($modelClassPath);
-
-        if (count($storagePids) === 0) {
-            $query->getQuerySettings()->setRespectStoragePage(false);
-        } else {
-            $query->getQuerySettings()->setRespectStoragePage(true)->setStoragePageIds($storagePids);
+        if (!empty($storagePids)) {
+            $qb->andWhere($qb->expr()->in("$tableName.pid", $storagePids));
         }
 
-        $languageOverlayMode = $this->configurationService->getModels()[$modelClassPath]['languageOverlayMode'] ?? true;
-        $query->getQuerySettings()
-              ->setRespectSysLanguage(true)
-              ->setLanguageUid($language)
-              ->setLanguageOverlayMode($languageOverlayMode);
+        $this->applyFiltersToQueryBuilder($qb, $modelClassPath, $tableName, $args);
 
-        $filterConfigurations = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
+        $count = $qb->count("$tableName.uid")->execute()->fetchOne();
 
-        $andQueries = [];
+        $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName);
 
-        foreach ($filterConfigurations as $filterConfiguration) {
-            $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
+        $qb->select(...$fields);
 
-            if (count($discreteFilter['options'] ?? []) === 0) {
-                continue;
-            }
-
-            $andQueries[] = $query->in($discreteFilter['path'], $discreteFilter['options']);
-        }
-
-        /** @var CustomQueryConstraintEvent $event */
-        $event = $this->eventDispatcher->dispatch(new CustomQueryConstraintEvent($modelClassPath, $tableName, $args, $query));
-        if (!empty($event->getConstraints())) {
-            $andQueries = [...$andQueries, ...$event->getConstraints()];
-        }
-
-        if (count($andQueries) !== 0) {
-            $query->matching($query->logicalAnd($andQueries));
-        }
-
-        $count = $query->count();
-
-        $query->setOffset($offset);
-        $query->setLimit($limit);
+        $qb->setMaxResults($limit);
+        $qb->setFirstResult($offset);
 
         if ($sortBy !== null) {
-            $query->setOrderings([$sortBy => $sortDirection]);
+            $qb->orderBy("$tableName." . $qb->createNamedParameter($sortBy), $sortDirection);
         }
 
-        return new PaginatedQueryResult($query->execute()->toArray(),
+        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
                                         $count,
                                         $offset,
                                         $limit,
                                         $resolveInfo,
                                         $modelClassPath,
                                         $this->dataMapper);
-    }
-
-    /**
-     * @throws NotFoundException
-     */
-    public function fetchForeignRecord($root,
-                                       array $args,
-                                       mixed $context,
-                                       ResolveInfo $resolveInfo,
-                                       Context $schemaContext,
-                                       string $foreignTable): ?array
-    {
-        $foreignUid = $root[$resolveInfo->fieldName];
-
-        // We don't need records with uid 0
-        if ($foreignUid === 0) {
-            return null;
-        }
-
-        // TODO: maybe improve on this regarding language overlays
-        $language = (int)($root['sys_language_uid'] ?? 0);
-
-        $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
-
-        $query = $this->persistenceManager->createQueryForType($modelClassPath);
-        $query->getQuerySettings()->setRespectStoragePage(false)->setLanguageUid($language)->setLanguageOverlayMode(true);
-
-        $query->matching($query->equals('uid', $foreignUid));
-
-        $result = $query->execute()[0] ?? null;
-        if ($result === null) {
-            throw new NotFoundException("No result for $modelClassPath with uid $foreignUid found");
-        }
-
-        return $result;
     }
 
     /**
@@ -214,15 +152,44 @@ class QueryResolver
         $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
 
-        /** @var ConnectionPool $connectionPool */
-        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
-
-        $qb = $connectionPool->getQueryBuilderForTable($foreignTable);
+        $qb = $this->connectionPool->getQueryBuilderForTable($foreignTable);
 
         $qb->from($foreignTable)
            ->leftJoin($foreignTable, $mm, 'm', $qb->expr()->eq("$foreignTable.uid", 'm.uid_foreign'))
            ->andWhere($qb->expr()->eq('m.uid_local', $localUid));
 
+        $this->applyFiltersToQueryBuilder($qb, $modelClassPath, $foreignTable, $args);
+
+        $count = $qb->count("$foreignTable.uid")->execute()->fetchOne();
+
+        $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable);
+
+        $qb->select("$foreignTable.*");
+
+        $qb->setMaxResults($limit);
+        $qb->setFirstResult($offset);
+
+        if ($sortBy !== null) {
+            $qb->orderBy("$foreignTable." . $qb->createNamedParameter($sortBy), $sortDirection);
+        }
+
+        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
+                                        $count,
+                                        $offset,
+                                        $limit,
+                                        $resolveInfo,
+                                        $modelClassPath,
+                                        $this->dataMapper);
+    }
+
+    /**
+     * This functions applies all filters to the query.
+     *
+     * @throws FieldDoesNotExistException
+     * @throws InvalidQueryException
+     */
+    protected function applyFiltersToQueryBuilder(QueryBuilder $qb, string $modelClassPath, string $table, array $args): void
+    {
         $filters = $args[QueryArgumentsUtility::$filters] ?? [];
         $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
@@ -241,29 +208,18 @@ class QueryResolver
                 continue;
             }
 
-            $lastElementTable = FilterResolver::buildJoinsByWalkingPath($filterPathElements, $foreignTable, $qb);
+            $lastElementTable = FilterResolver::buildJoinsByWalkingPath($filterPathElements, $table, $qb);
 
-            $qb->andWhere($qb->expr()->in($lastElementTable . '.' . $lastElement,
-                                          $qb->quoteArrayBasedValueListToStringList($discreteFilter['options'])));
+            $inSetExpressions = [];
+
+            foreach ($discreteFilter['options'] as $option) {
+                $inSetExpressions[] =
+                    $qb->expr()->inSet($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
+            }
+
+            $qb->andWhere(...$inSetExpressions);
         }
 
-        $count = $qb->count("$foreignTable.uid")->execute()->fetchOne();
-
-        $qb->select("$foreignTable.*");
-
-        $qb->setMaxResults($limit);
-        $qb->setFirstResult($offset);
-
-        if ($sortBy !== null) {
-            $qb->orderBy("$foreignTable." . $qb->createNamedParameter($sortBy), $sortDirection);
-        }
-
-        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
-                                        $count,
-                                        $offset,
-                                        $limit,
-                                        $resolveInfo,
-                                        $modelClassPath,
-                                        $this->dataMapper);
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath, $table, $qb, $args));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Utility;
 
+use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Exception\BadInputException;
@@ -11,6 +12,7 @@ use Itx\Typo3GraphQL\Resolver\FilterResolver;
 use Itx\Typo3GraphQL\Types\Model\ConnectionType;
 use Itx\Typo3GraphQL\Types\Model\EdgeType;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 
 class PaginationUtility
@@ -80,5 +82,28 @@ class PaginationUtility
                                    []);
 
         return $fieldBuilder;
+    }
+
+    public static function getFieldSelection(ResolveInfo $resolveInfo, string $tableName): array
+    {
+        $info = $resolveInfo->getFieldSelection(2);
+        if (empty($info)) {
+            return [];
+        }
+
+        $fields = ['uid', 'pid'];
+
+        if ($info['edges']['node'] ?? false) {
+            $fields = array_keys($info['edges']['node']);
+        }
+
+        if ($info['items'] ?? false) {
+            $fields = [...$fields, ...array_keys($info['items'])];
+        }
+
+        $fields = array_unique($fields);
+
+        return array_map(static fn($field) => $tableName . '.' . GeneralUtility::camelCaseToLowerCaseUnderscored($field),
+            $fields);
     }
 }
