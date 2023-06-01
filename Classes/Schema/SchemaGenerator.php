@@ -11,7 +11,9 @@ use GraphQL\Type\SchemaConfig;
 use Itx\Typo3GraphQL\Annotation\Expose;
 use Itx\Typo3GraphQL\Annotation\ExposeAll;
 use Itx\Typo3GraphQL\Builder\FieldBuilder;
+use Itx\Typo3GraphQL\Enum\RootQueryType;
 use Itx\Typo3GraphQL\Events\CustomModelFieldEvent;
+use Itx\Typo3GraphQL\Events\CustomQueryArgumentEvent;
 use Itx\Typo3GraphQL\Events\CustomQueryFieldEvent;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
@@ -246,35 +248,46 @@ class SchemaGenerator
                                                        'List of storage page ids',
                                                        []);
 
+            /** @var CustomQueryArgumentEvent $event */
+            $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(RootQueryType::Multiple,
+                                                                                   $multipleQuery,
+                                                                                   $modelClassPath,
+                                                                                   $tableName, $typeRegistry));
+            $multipleQuery = $event->getFieldBuilder();
+
             $queries[] = PaginationUtility::addArgumentsToFieldBuilder($multipleQuery)->build();
 
             // Generate a name for the single query
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record
-            $queries[] = FieldBuilder::create($singleQueryName)
-                                     ->setType($objectType)
-                                     ->setResolver(function($root,
-                                         $args,
-                                         $context,
-                                                            ResolveInfo $resolveInfo) use
-                                     (
-                                         $modelClassPath
-                                     ) {
-                                         return $this->queryResolver->fetchSingleRecord($root,
-                                                                                        $args,
-                                                                                        $context,
-                                                                                        $resolveInfo,
-                                                                                        $modelClassPath);
-                                     })
-                                     ->addArgument(QueryArgumentsUtility::$uid,
-                                                   Type::nonNull(Type::int()),
-                                                   "Get a $singleQueryName by it's uid")
-                                     ->addArgument(QueryArgumentsUtility::$language,
-                                                   Type::nonNull(Type::int()),
-                                                   'Language field',
-                                                   0)
-                                     ->build();
+            $singleQuery = FieldBuilder::create($singleQueryName)->setType($objectType)->setResolver(function($root,
+                    $args,
+                    $context,
+                                                                                                            ResolveInfo $resolveInfo) use
+                (
+                    $modelClassPath
+                ) {
+                    return $this->queryResolver->fetchSingleRecord($root,
+                                                                   $args,
+                                                                   $context,
+                                                                   $resolveInfo,
+                                                                   $modelClassPath);
+                })->addArgument(QueryArgumentsUtility::$uid,
+                                Type::nonNull(Type::int()),
+                                "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language,
+                                                                                   Type::nonNull(Type::int()),
+                                                                                   'Language field',
+                                                                                   0);
+
+            /** @var CustomQueryArgumentEvent $event */
+            $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(RootQueryType::Single,
+                                                                                   $singleQuery,
+                                                                                   $modelClassPath,
+                                                                                   $tableName, $typeRegistry));
+            $singleQuery = $event->getFieldBuilder();
+
+            $queries[] = $singleQuery->build();
 
             // Allow for custom new query fields
             /** @var CustomQueryFieldEvent $customEvent */

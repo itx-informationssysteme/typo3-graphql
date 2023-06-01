@@ -6,6 +6,7 @@ use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
+use Itx\Typo3GraphQL\Events\CustomQueryConstraintEvent;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
@@ -13,6 +14,7 @@ use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -29,11 +31,12 @@ class QueryResolver
     protected FilterRepository $filterRepository;
     protected DataMapper $dataMapper;
 
-    public function __construct(PersistenceManager   $persistenceManager,
-                                FileRepository       $fileRepository,
-                                ConfigurationService $configurationService,
-                                FilterRepository     $filterRepository,
-                                DataMapper           $dataMapper)
+    public function __construct(PersistenceManager                 $persistenceManager,
+                                FileRepository                     $fileRepository,
+                                ConfigurationService               $configurationService,
+                                FilterRepository                   $filterRepository,
+                                DataMapper                         $dataMapper,
+                                protected EventDispatcherInterface $eventDispatcher)
     {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
@@ -110,6 +113,8 @@ class QueryResolver
 
         $filterConfigurations = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
 
+        $andQueries = [];
+
         foreach ($filterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
 
@@ -117,7 +122,17 @@ class QueryResolver
                 continue;
             }
 
-            $query->matching($query->in($discreteFilter['path'], $discreteFilter['options']));
+            $andQueries[] = $query->in($discreteFilter['path'], $discreteFilter['options']);
+        }
+
+        /** @var CustomQueryConstraintEvent $event */
+        $event = $this->eventDispatcher->dispatch(new CustomQueryConstraintEvent($modelClassPath, $tableName, $args, $query));
+        if (!empty($event->getConstraints())) {
+            $andQueries = [...$andQueries, ...$event->getConstraints()];
+        }
+
+        if (count($andQueries) !== 0) {
+            $query->matching($query->logicalAnd($andQueries));
         }
 
         $count = $query->count();

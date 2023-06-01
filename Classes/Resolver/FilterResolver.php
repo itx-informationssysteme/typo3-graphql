@@ -7,10 +7,12 @@ use Doctrine\DBAL\Driver\Exception;
 use Generator;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
+use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -22,7 +24,9 @@ class FilterResolver
     protected PersistenceManager $persistenceManager;
     protected FilterRepository $filterRepository;
 
-    public function __construct(PersistenceManager $persistenceManager, FilterRepository $filterRepository)
+    public function __construct(PersistenceManager                 $persistenceManager,
+                                FilterRepository                   $filterRepository,
+                                protected EventDispatcherInterface $eventDispatcher)
     {
         $this->persistenceManager = $persistenceManager;
         $this->filterRepository = $filterRepository;
@@ -124,6 +128,7 @@ class FilterResolver
                                                  $args,
                                                  $discreteFilterArguments,
                                                  $resolveInfo,
+                                                 $modelClassPath,
                                                  $mmTable,
                                                  $localUid);
 
@@ -161,6 +166,7 @@ class FilterResolver
      * @param array                             $args
      * @param array<string,DiscreteFilterInput> $filterArguments
      * @param ResolveInfo                       $resolveInfo
+     * @param string                            $modelClassPath
      * @param string|null                       $mmTable
      * @param int|null                          $localUid
      *
@@ -174,6 +180,7 @@ class FilterResolver
                                         array       $args,
                                         array       $filterArguments,
                                         ResolveInfo $resolveInfo,
+                                        string      $modelClassPath,
                                         ?string     $mmTable,
                                         ?int        $localUid): array
     {
@@ -224,6 +231,10 @@ class FilterResolver
                                                               array_map(static fn($a) => $queryBuilder->createNamedParameter($a),
                                                                   $whereFilter->options)));
         }
+
+        /** @var ModifyQueryBuilderForFilteringEvent $event */
+        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath, $tableName, $queryBuilder, $args));
+        $queryBuilder = $event->getQueryBuilder();
 
         $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")
                      ->from($tableName)
