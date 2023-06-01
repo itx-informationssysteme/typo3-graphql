@@ -217,7 +217,7 @@ class QueryResolver
                     $qb->expr()->inSet($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
             }
 
-            $qb->andWhere(...$inSetExpressions);
+            $qb->andWhere($qb->expr()->orX(...$inSetExpressions));
         }
 
         $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath, $table, $qb, $args));

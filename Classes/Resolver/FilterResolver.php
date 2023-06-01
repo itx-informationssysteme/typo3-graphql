@@ -221,19 +221,28 @@ class FilterResolver
                 return $filterInput->path !== $filterPath && count($filterInput->options) > 0;
             });
 
+        /** @var DiscreteFilterInput $whereFilter */
         foreach ($whereFilters as $whereFilter) {
             $whereFilterPathElements = explode('.', $whereFilter->path);
             $whereFilterLastElement = array_pop($whereFilterPathElements);
 
             $whereFilterTable = self::buildJoinsByWalkingPath($whereFilterPathElements, $tableName, $queryBuilder);
 
-            $queryBuilder->andWhere($queryBuilder->expr()->in($whereFilterTable . '.' . $whereFilterLastElement,
-                                                              array_map(static fn($a) => $queryBuilder->createNamedParameter($a),
-                                                                  $whereFilter->options)));
+            $inSetExpressions = [];
+
+            foreach ($whereFilter->options as $option) {
+                $inSetExpressions[] = $queryBuilder->expr()->inSet($whereFilterTable . '.' . $whereFilterLastElement,
+                                                                   $queryBuilder->createNamedParameter($option));
+            }
+
+            $queryBuilder->andWhere($queryBuilder->expr()->orX(...$inSetExpressions));
         }
 
         /** @var ModifyQueryBuilderForFilteringEvent $event */
-        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath, $tableName, $queryBuilder, $args));
+        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
+                                                                                          $tableName,
+                                                                                          $queryBuilder,
+                                                                                          $args));
         $queryBuilder = $event->getQueryBuilder();
 
         $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")
@@ -252,18 +261,23 @@ class FilterResolver
 
         // Set selected to true for all options that are selected
         foreach ($results as $key => $result) {
-            $selected = false;
-            if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
-                $selected = in_array($result['value'], $filterArguments[$filterPath]->options, true);
-            }
 
             foreach (explode(",", $result['value']) as $value) {
+                $selected = false;
+                if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
+                    $selected = in_array($value, $filterArguments[$filterPath]->options, true);
+                }
+
                 if (!isset($options[$value])) {
                     $options[$value] = new DiscreteFilterOption($value, $result['resultCount'], $selected);
                     continue;
                 }
 
                 $options[$value]->resultCount += $result['resultCount'];
+
+                if ($selected) {
+                    $options[$value]->selected = true;
+                }
             }
         }
 
