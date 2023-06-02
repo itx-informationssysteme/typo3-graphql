@@ -164,7 +164,7 @@ class QueryResolver
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable);
 
-        $qb->select("$foreignTable.*");
+        $qb->select(...$fields);
 
         $qb->setMaxResults($limit);
         $qb->setFirstResult($offset);
