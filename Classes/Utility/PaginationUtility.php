@@ -103,7 +103,18 @@ class PaginationUtility
 
         $fields = array_unique($fields);
 
-        return array_map(static fn($field) => $tableName . '.' . GeneralUtility::camelCaseToLowerCaseUnderscored($field),
-            $fields);
+        $dbFields = [];
+        foreach ($fields as $field) {
+            $dbFieldName = GeneralUtility::camelCaseToLowerCaseUnderscored($field);
+            
+            // Check if field exists in TCA
+            if (!isset($GLOBALS['TCA'][$tableName]['columns'][$dbFieldName]) && $dbFieldName !== 'uid' && $dbFieldName !== 'pid') {
+                continue;
+            }
+
+            $dbFields[] = $tableName . '.' . $dbFieldName;
+        }
+
+        return $dbFields;
     }
 }
