@@ -9,6 +9,7 @@ use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
+use Itx\Typo3GraphQL\Resolver\DefaultFieldResolver;
 use Itx\Typo3GraphQL\Resolver\FilterResolver;
 use Itx\Typo3GraphQL\Resolver\QueryResolver;
 use Itx\Typo3GraphQL\Resolver\ResolverBuffer;
@@ -259,7 +260,7 @@ class TCATypeMapper
                 }
 
                 try {
-                    $builder->addValue($item, null, $this->languageService->sL($label));
+                    $builder->addValue($item, NamingUtility::generateName($item, false), $this->languageService->sL($label));
                 }
                 catch (InvalidArgument $e) {
                     $fieldBuilder->setType(Type::string());
@@ -272,6 +273,23 @@ class TCATypeMapper
 
             $context->getTypeRegistry()->addType($enumType);
 
+            // Check if this is a multi select field
+            if ($columnConfiguration['config']['renderType'] === 'selectMultipleSideBySide') {
+                $fieldBuilder->setType(Type::nonNull(Type::listOf(Type::nonNull($enumType))));
+                $fieldBuilder->setResolver(static function ($value, $args, $context, ResolveInfo $info) {
+                    // Access getter function with field name
+                    $fieldValue = DefaultFieldResolver::defaultFieldResolver($value, $args, $context, $info);
+                    if ($fieldValue === null) {
+                        return [];
+                    }
+
+                    return explode(',', $fieldValue);
+                });
+
+                return;
+            }
+
+            // Else we have a single select field
             $fieldBuilder->setType($enumType);
 
             return;
