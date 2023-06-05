@@ -94,7 +94,7 @@ class PaginationUtility
         $fields = ['uid', 'pid'];
 
         if ($info['edges']['node'] ?? false) {
-            $fields = array_keys($info['edges']['node']);
+            $fields = [...$fields, ...array_keys($info['edges']['node'])];
         }
 
         if ($info['items'] ?? false) {
@@ -106,7 +106,7 @@ class PaginationUtility
         $dbFields = [];
         foreach ($fields as $field) {
             $dbFieldName = GeneralUtility::camelCaseToLowerCaseUnderscored($field);
-            
+
             // Check if field exists in TCA
             if (!isset($GLOBALS['TCA'][$tableName]['columns'][$dbFieldName]) && $dbFieldName !== 'uid' && $dbFieldName !== 'pid') {
                 continue;
