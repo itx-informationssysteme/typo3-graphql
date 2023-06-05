@@ -14,23 +14,25 @@ class PaginatedQueryResult
     public array $items = [];
     public array $facets = [];
 
-    public function __construct(array $items, int $totalCount, int $offset, int $limit, ResolveInfo $resolveInfo, string $modelClassPath, DataMapper $dataMapper)
+    public function __construct(array       $items,
+                                int         $totalCount,
+                                int         $offset,
+                                int         $limit,
+                                ResolveInfo $resolveInfo,
+                                string      $modelClassPath,
+                                DataMapper  $dataMapper)
     {
         $previousCursor = $offset;
 
-        if (!empty($resolveInfo->getFieldSelection()['edges'])) {
+        $itemsAsModel = $dataMapper->map($modelClassPath, $items);
+        $this->items = $itemsAsModel;
+
+        if ($resolveInfo->fieldName === 'edges') {
             foreach ($items as $counter => $item) {
                 $cursor = $previousCursor + $counter + 1;
 
-                // Apply DataMapper to each item if it's not a model yet (e.g. when using lazy loading)
-                $itemAsModel = $item;
-
-                if (!is_a($item, $modelClassPath)) {
-                    $itemAsModel = $dataMapper->map($modelClassPath, $item);
-                }
-
                 $this->edges[] = [
-                    'node' => $itemAsModel,
+                    'node' => $item,
                     'cursor' => PaginationUtility::toCursor($cursor),
                 ];
             }
@@ -42,10 +44,6 @@ class PaginatedQueryResult
             'endCursor' => PaginationUtility::toCursor($offset + count($items)),
             'hasNextPage' => $totalCount > $offset + count($items),
         ];
-
-        if (!empty($resolveInfo->getFieldSelection()['items'])) {
-            $this->items = $items;
-        }
     }
 
     public function getFacets(): array

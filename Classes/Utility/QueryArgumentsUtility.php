@@ -12,6 +12,8 @@ class QueryArgumentsUtility
     public static string $paginationFirst = 'first';
     public static string $paginationAfter = 'after';
 
+    public static string $offset = 'offset';
+
     public static string $sortByField = 'sortBy';
     public static string $sortingOrder = 'sorting';
 
