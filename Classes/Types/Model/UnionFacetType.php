@@ -16,11 +16,11 @@ class UnionFacetType extends \GraphQL\Type\Definition\UnionType implements TypeN
     {
         $builder = UnionBuilder::create(self::getTypeName())
                                ->setTypes([TypeRegistry::rangeFacet(), TypeRegistry::facet()])
-                               ->setResolveType(static function($value) {
-                                   return match ($value->type) {
-                                       'RangeFacet' => TypeRegistry::rangeFacet(),
-                                       'Facet' => TypeRegistry::facet(),
-                                       default => throw new \RuntimeException('Could not find Type ' . $value->type),
+                               ->setResolveType(function($value) {
+                                   return match ($value['type']) {
+                                       \Itx\Typo3GraphQL\Enum\FacetType::RANGE => TypeRegistry::rangeFacet(),
+                                       \Itx\Typo3GraphQL\Enum\FacetType::DISCRETE => TypeRegistry::facet(),
+                                       default => throw new \RuntimeException('Could not find Type ' . $value['type']),
                                    };
                                });
         parent::__construct($builder->build());

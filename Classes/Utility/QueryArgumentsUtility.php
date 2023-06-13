@@ -19,5 +19,6 @@ class QueryArgumentsUtility
 
     public static string $filters = 'filters';
     public static string $discreteFilters = 'discreteFilters';
+    public static string $rangeFilters = 'rangeFilters';
     public static string $filterPath = 'filterPath';
 }

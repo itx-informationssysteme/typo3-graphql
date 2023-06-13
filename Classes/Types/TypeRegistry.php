@@ -3,6 +3,7 @@
 namespace Itx\Typo3GraphQL\Types;
 
 use GraphQL\Type\Definition\Type;
+use Itx\Basicdistribution\Domain\Model\GraphQL\RangeFilterInputType;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Types\Model\DateTimeType;
@@ -46,6 +47,7 @@ class TypeRegistry
         $this->addType(self::rangeFacet());
         $this->addType(self::range());
         $this->addType(self::rangeInput());
+        $this->addType(self::rangeFilterInput());
         $this->addType(self::dateTime());
         $this->addType(self::fileExtensions());
         $this->addType(self::unionRangeFacetType());
@@ -162,6 +164,14 @@ class TypeRegistry
         return $type;
     }
 
+    public static function rangeFilterInput() : RangeFilterInputType
+    {
+        /** @var RangeFilterInputType $type */
+        $type = self::getOrCreateCustomType(RangeFilterInputType::class);
+
+        return $type;
+    }
+
     /**
      * Gets an instance of FacetType
      *
@@ -182,7 +192,7 @@ class TypeRegistry
      */
     public static function rangeFacet(): RangeFacetType
     {
-        /** @var FacetType $type */
+        /** @var RangeFacetType $type */
         $type = self::getOrCreateCustomType(RangeFacetType::class);
 
         return $type;
@@ -238,7 +248,7 @@ class TypeRegistry
      * @return UnionFacetType
      * @throws NameNotFoundException
      */
-    public static function unionRangeFacetType() : UnionFacetType
+    public static function unionRangeFacetType(): UnionFacetType
     {
         /**
          * @var UnionFacetType $type

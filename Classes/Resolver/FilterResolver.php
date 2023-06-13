@@ -7,10 +7,16 @@ use Doctrine\DBAL\Driver\Exception;
 use Generator;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
+use Itx\Typo3GraphQL\Enum\FacetType;
 use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
+use Itx\Typo3GraphQL\Exception\NameNotFoundException;
+use Itx\Typo3GraphQL\Types\Model\RangeFilterInputType;
+use Itx\Typo3GraphQL\Types\Model\RangeInputType;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
+use Itx\Typo3GraphQL\Types\Skeleton\Range;
+use Itx\Typo3GraphQL\Types\Skeleton\RangeFilterInput;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -110,34 +116,65 @@ class FilterResolver
                                           ?string $mmTable = null,
                                           ?int $localUid = null): array
     {
-        // TODO check if type === discrete
-        $discreteFilterArguments = $this->extractDiscreteFilterOptionsMap($args);
-        $discreteFilterPaths = map($discreteFilterArguments)->map(fn(DiscreteFilterInput $filter) => $filter->path)->toArray();
-
-        $filters = $this->filterRepository->findByModelAndPaths($modelClassPath, $discreteFilterPaths);
-
         $facets = [];
-        foreach ($filters as $filter) {
 
-            $facet = [];
-            $facet['label'] = $filter->getName();
-            $facet['path'] = $filter->getFilterPath();
+        if(array_key_exists('discreteFilters', $args['filters'])){
+            $discreteFilterArguments = $this->extractDiscreteFilterOptionsMap($args);
+            $discreteFilterPaths = map($discreteFilterArguments)->map(fn(DiscreteFilterInput $filter) => $filter->path)->toArray();
 
-            $options = $this->fetchFilterOptions($tableName,
-                                                 $filter->getFilterPath(),
-                                                 $args,
-                                                 $discreteFilterArguments,
-                                                 $resolveInfo,
-                                                 $modelClassPath,
-                                                 $mmTable,
-                                                 $localUid);
+            $filters = $this->filterRepository->findByModelAndPaths($modelClassPath, $discreteFilterPaths);
 
-            $facet['options'] = $options;
+            foreach ($filters as $filter) {
 
-            $facets[] = $facet;
+                $facet = [];
+                $facet['label'] = $filter->getName();
+                $facet['path'] = $filter->getFilterPath();
+                $facet['type'] = FacetType::DISCRETE;
+
+                $options = $this->fetchFilterOptions($tableName,
+                                                     $filter->getFilterPath(),
+                                                     $args,
+                                                     $discreteFilterArguments,
+                                                     $resolveInfo,
+                                                     $modelClassPath,
+                                                     $mmTable,
+                                                     $localUid);
+
+                $facet['options'] = $options;
+
+                $facets[] = $facet;
+            }
         }
 
-        return $facets;
+        if(array_key_exists('rangeFilters', $args['filters'])){
+            $rangefilterArguments = $this->extractRangeFilterObjectsMap($args);
+            $rangeFilterPaths = map($rangefilterArguments)->map(fn(RangeFilterInput $filter) => $filter->path)->toArray();
+
+            $filters = $this->filterRepository->findByModedilAndPaths($modelClassPath, $rangeFilterPaths);
+
+            $facets = [];
+            foreach ($filters as $filter) {
+
+                $facet = [];
+                $facet['label'] = $filter->getName();
+                $facet['path'] = $filter->getFilterPath();
+                $facet['type'] = FacetType::RANGE;
+
+                $options = $this->fetchFilterOptions($tableName,
+                                                     $filter->getFilterPath(),
+                                                     $args,
+                                                     $discreteFilterArguments,
+                                                     $resolveInfo,
+                                                     $modelClassPath,
+                                                     $mmTable,
+                                                     $localUid);
+
+                $facet['options'] = $options;
+
+                $facets[] = $facet;
+            }
+        }
+            return $facets;
     }
 
     /**
@@ -158,6 +195,27 @@ class FilterResolver
         }
 
         return $discreteFilterArguments;
+    }
+
+    /**
+     * @param array $args
+     *
+     * @return array<string,RangeFilterInputType>
+     * @throws NameNotFoundException
+     */
+    private function extractRangeFilterObjectsMap(array $args): array
+    {
+        $filterArguments = $args[QueryArgumentsUtility::$filters] ?? [];
+
+        $rangeFilterArguments = $filterArguments[QueryArgumentsUtility::$rangeFilters] ?? [];
+
+        // Set key path from range filter array as key
+        foreach ($rangeFilterArguments as $key => $filter) {
+            $rangeFilterArguments[$filter['path']] = new RangeFilterInput($rangeFilterArguments[$filter['path']], new Range($rangeFilterArguments[$filter['min']],$rangeFilterArguments[$filter['max']] ));
+            unset($rangeFilterArguments[$key]);
+        }
+
+        return $rangeFilterArguments;
     }
 
     /**
