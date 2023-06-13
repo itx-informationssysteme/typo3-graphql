@@ -183,7 +183,6 @@ class TCATypeMapper
 
     /**
      * @throws NameNotFoundException
-     * @throws InvalidArgument
      */
     protected function handleInlineType(Context $context, FieldBuilder $fieldBuilder): void
     {
@@ -280,6 +279,12 @@ class TCATypeMapper
                     // Access getter function with field name
                     $fieldValue = DefaultFieldResolver::defaultFieldResolver($value, $args, $context, $info);
                     if ($fieldValue === null) {
+                        return [];
+                    }
+
+                    $fieldValue = trim($fieldValue);
+                    
+                    if ($fieldValue === '') {
                         return [];
                     }
 
