@@ -114,7 +114,16 @@ class FilterResolver
         $discreteFilterArguments = $this->extractDiscreteFilterOptionsMap($args);
         $discreteFilterPaths = map($discreteFilterArguments)->map(fn(DiscreteFilterInput $filter) => $filter->path)->toArray();
 
-        $filters = $this->filterRepository->findByModelAndPaths($modelClassPath, $discreteFilterPaths);
+        // Switch keys and values for $discreteFilterPaths
+        $filters = array_flip($discreteFilterPaths);
+
+        // Reorder to the same order as the discrete filter paths
+        $filterResult = $this->filterRepository->findByModelAndPaths($modelClassPath, $discreteFilterPaths);
+
+        // Sort them as we received them
+        foreach ($filterResult as $filter) {
+            $filters[$filter->getFilterPath()] = $filter;
+        }
 
         $facets = [];
         foreach ($filters as $filter) {
