@@ -164,6 +164,9 @@ class TypeRegistry
         return $type;
     }
 
+    /**
+     * @throws NameNotFoundException
+     */
     public static function rangeFilterInput() : RangeFilterInputType
     {
         /** @var RangeFilterInputType $type */

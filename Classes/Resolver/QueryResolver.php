@@ -191,14 +191,29 @@ class QueryResolver
     protected function applyFiltersToQueryBuilder(QueryBuilder $qb, string $modelClassPath, string $table, array $args): void
     {
         $filters = $args[QueryArgumentsUtility::$filters] ?? [];
-        $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
+        $discreteFilters = [];
+        $rangeFilters = [];
 
-        // Path as key for discrete filters
-        $discreteFilters = array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
+        if ($filters[QueryArgumentsUtility::$discreteFilters]) {
+            $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
-        $filterConfigurations = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
+            // Path as key for discrete filters
+            $discreteFilters =
+                array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
+        }
 
-        foreach ($filterConfigurations as $filterConfiguration) {
+        if ($filters[QueryArgumentsUtility::$rangeFilters]) {
+            $rangeFilters = $filters[QueryArgumentsUtility::$rangeFilters] ?? [];
+
+            // Path as key for discrete filters
+            $rangeFilters = array_combine(array_map(static fn($filter) => $filter['path'], $rangeFilters), $rangeFilters);
+        }
+
+        $discreteFilterConfigurations =
+            $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
+        $rangeFilterConfiguration = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($rangeFilters));
+
+        foreach ($discreteFilterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
 
             $filterPathElements = explode('.', $discreteFilter['path']);
@@ -215,6 +230,24 @@ class QueryResolver
             foreach ($discreteFilter['options'] as $option) {
                 $inSetExpressions[] =
                     $qb->expr()->inSet($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
+            }
+
+            $qb->andWhere($qb->expr()->orX(...$inSetExpressions));
+        }
+
+        foreach ($rangeFilterConfiguration as $filterConfiguration) {
+            $rangeFilter = $rangeFilters[$filterConfiguration->getFilterPath()] ?? [];
+
+            $filterPathElements = explode('.', $rangeFilter['path']);
+            $lastElement = array_pop($filterPathElements);
+
+            $lastElementTable = FilterResolver::buildJoinsByWalkingPath($filterPathElements, $table, $qb);
+
+            $inSetExpressions = [];
+
+            foreach ($rangeFilter['options'] as $option) {
+                $inSetExpressions[] =
+                    $qb->expr()->in($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
             }
 
             $qb->andWhere($qb->expr()->orX(...$inSetExpressions));
