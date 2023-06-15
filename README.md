@@ -69,6 +69,7 @@ postings(filters: { discreteFilters: [{ path: "locations.name", options: [] }] }
         options {
             value
             resultCount
+            disabled
         }
         path
     }
@@ -105,7 +106,7 @@ postings(filters: { discreteFilters: [{ path: "locations.name", options: ["Testl
 ```
 
 In the query above the filter options will be filtered as well in order to be able to disable options that are not available to
-prevent impossible filter option combinations.
+prevent impossible filter option combinations. Whether a filter option will still get results or not is shown by the `disabled` field.
 
 > Make sure to always have a filter record for the type of filter you want to use. Otherwise, the filter will not be available in
 > the GraphQL API.

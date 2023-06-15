@@ -13,6 +13,7 @@ use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -26,7 +27,8 @@ class FilterResolver
 
     public function __construct(PersistenceManager                 $persistenceManager,
                                 FilterRepository                   $filterRepository,
-                                protected EventDispatcherInterface $eventDispatcher)
+                                protected EventDispatcherInterface $eventDispatcher,
+                                protected FrontendInterface        $cache)
     {
         $this->persistenceManager = $persistenceManager;
         $this->filterRepository = $filterRepository;
@@ -132,14 +134,14 @@ class FilterResolver
             $facet['label'] = $filter->getName();
             $facet['path'] = $filter->getFilterPath();
 
-            $options = $this->fetchFilterOptions($tableName,
-                                                 $filter->getFilterPath(),
-                                                 $args,
-                                                 $discreteFilterArguments,
-                                                 $resolveInfo,
-                                                 $modelClassPath,
-                                                 $mmTable,
-                                                 $localUid);
+            $options = $this->fetchAndProcessFilterOptions($tableName,
+                                                           $filter->getFilterPath(),
+                                                           $args,
+                                                           $discreteFilterArguments,
+                                                           $resolveInfo,
+                                                           $modelClassPath,
+                                                           $mmTable,
+                                                           $localUid);
 
             $facet['options'] = $options;
 
@@ -179,7 +181,7 @@ class FilterResolver
      * @param string|null                       $mmTable
      * @param int|null                          $localUid
      *
-     * @return array
+     * @return array<DiscreteFilterOption>
      * @throws DBALException
      * @throws Exception
      * @throws FieldDoesNotExistException
@@ -261,28 +263,82 @@ class FilterResolver
                      ->groupBy("$lastElementTable.$lastElement")
                      ->orderBy("$lastElementTable.$lastElement", 'ASC');
 
-        $results = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+        return $queryBuilder->execute()->fetchAllAssociative() ?? [];
+    }
 
+    /**
+     * @throws FieldDoesNotExistException
+     * @throws Exception
+     * @throws DBALException
+     */
+    private function fetchAndProcessFilterOptions(string      $tableName,
+                                                  string      $filterPath,
+                                                  array       $args,
+                                                  array       $filterArguments,
+                                                  ResolveInfo $resolveInfo,
+                                                  string      $modelClassPath,
+                                                  ?string     $mmTable,
+                                                  ?int        $localUid): array
+    {
         $options = [];
 
         $isSelectedNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['selected']) &&
             $resolveInfo->getFieldSelection(3)['facets']['options']['selected'];
 
-        // Set selected to true for all options that are selected
-        foreach ($results as $key => $result) {
+        // Check whether the disabled field was requested
+        $isDisabledNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['disabled']) &&
+            $resolveInfo->getFieldSelection(3)['facets']['options']['disabled'];
 
-            foreach (explode(",", $result['value']) as $value) {
+        $cacheKey = md5($tableName . $filterPath . $args[QueryArgumentsUtility::$language]);
+
+        if (!$this->cache->has($cacheKey)) {
+            $originalFilterOptions = $this->fetchFilterOptions($tableName,
+                                                               $filterPath,
+                                                               $args,
+                                                               [],
+                                                               $resolveInfo,
+                                                               $modelClassPath,
+                                                               $mmTable,
+                                                               $localUid);
+
+            // Cache for 1 day
+            $this->cache->set($cacheKey, $originalFilterOptions, ['filter_options'], 86400);
+        } else {
+            $originalFilterOptions = $this->cache->get($cacheKey);
+        }
+
+        // Index array with value as key
+        $actualFilterOptions = $this->fetchFilterOptions($tableName,
+                                                         $filterPath,
+                                                         $args,
+                                                         $filterArguments,
+                                                         $resolveInfo,
+                                                         $modelClassPath,
+                                                         $mmTable,
+                                                         $localUid);
+        $actualFilterOptions = array_combine(array_column($actualFilterOptions, 'value'), $actualFilterOptions);
+
+        // Set selected to true for all options that are selected
+        foreach ($originalFilterOptions as $originalFilterOption) {
+            foreach (explode(",", $originalFilterOption['value']) as $value) {
                 $selected = false;
                 if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
                     $selected = in_array($value, $filterArguments[$filterPath]->options, true);
                 }
 
+                $disabled = false;
+
+                if ($isDisabledNeeded && empty($actualFilterOptions[$value])) {
+                    $disabled = true;
+                }
+
                 if (!isset($options[$value])) {
-                    $options[$value] = new DiscreteFilterOption($value, $result['resultCount'], $selected);
+                    $options[$value] =
+                        new DiscreteFilterOption($value, $originalFilterOption['resultCount'], $selected, $disabled);
                     continue;
                 }
 
-                $options[$value]->resultCount += $result['resultCount'];
+                $options[$value]->resultCount += $originalFilterOption['resultCount'];
 
                 if ($selected) {
                     $options[$value]->selected = true;
