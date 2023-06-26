@@ -263,7 +263,9 @@ class FilterResolver
                      ->groupBy("$lastElementTable.$lastElement")
                      ->orderBy("$lastElementTable.$lastElement", 'ASC');
 
-        return $queryBuilder->execute()->fetchAllAssociative() ?? [];
+        $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+
+        return $this->mapFilterOptions($result);
     }
 
     /**
@@ -280,14 +282,8 @@ class FilterResolver
                                                   ?string     $mmTable,
                                                   ?int        $localUid): array
     {
-        $options = [];
-
         $isSelectedNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['selected']) &&
             $resolveInfo->getFieldSelection(3)['facets']['options']['selected'];
-
-        // Check whether the disabled field was requested
-        $isDisabledNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['disabled']) &&
-            $resolveInfo->getFieldSelection(3)['facets']['options']['disabled'];
 
         $cacheKey = md5($tableName . $filterPath . $args[QueryArgumentsUtility::$language]);
 
@@ -316,33 +312,49 @@ class FilterResolver
                                                          $modelClassPath,
                                                          $mmTable,
                                                          $localUid);
-        $actualFilterOptions = array_combine(array_column($actualFilterOptions, 'value'), $actualFilterOptions);
 
-        // Set selected to true for all options that are selected
+        // Set selected to true for all options that are selected and disabled to true for all options that are not in actualFilterOptions anymore
         foreach ($originalFilterOptions as $originalFilterOption) {
-            foreach (explode(",", $originalFilterOption['value']) as $value) {
-                $selected = false;
-                if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
-                    $selected = in_array($value, $filterArguments[$filterPath]->options, true);
-                }
+            $selected = false;
+            if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
+                $selected = in_array($originalFilterOption->value, $filterArguments[$filterPath]->options, true);
+            }
+            $originalFilterOption->selected = $selected;
 
-                $disabled = false;
+            $disabled = false;
 
-                if ($isDisabledNeeded && empty($actualFilterOptions[$value])) {
-                    $disabled = true;
-                }
+            if (empty($actualFilterOptions[$originalFilterOption->value])) {
+                $disabled = true;
+                $originalFilterOption->resultCount = 0;
+            }
+
+            $originalFilterOption->disabled = $disabled;
+
+        }
+
+        return $originalFilterOptions;
+    }
+
+    /**
+     * @param array $rawFilterOptions
+     *
+     * @return array<DiscreteFilterOption>
+     */
+    private function mapFilterOptions(array $rawFilterOptions): array
+    {
+        $options = [];
+
+        foreach ($rawFilterOptions as $rawFilterOption) {
+            foreach (explode(",", $rawFilterOption['value']) as $value) {
+                $value = trim($value);
 
                 if (!isset($options[$value])) {
-                    $options[$value] =
-                        new DiscreteFilterOption($value, $originalFilterOption['resultCount'], $selected, $disabled);
+                    $options[$value] = new DiscreteFilterOption($value, $rawFilterOption['resultCount'], false, false);
+
                     continue;
                 }
 
-                $options[$value]->resultCount += $originalFilterOption['resultCount'];
-
-                if ($selected) {
-                    $options[$value]->selected = true;
-                }
+                $options[$value]->resultCount += $rawFilterOption['resultCount'];
             }
         }
 
