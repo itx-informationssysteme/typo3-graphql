@@ -259,7 +259,7 @@ class TCATypeMapper
                 }
 
                 try {
-                    $builder->addValue($item, NamingUtility::generateName($item, false), $this->languageService->sL($label));
+                    $builder->addValue($item, $item, $this->languageService->sL($label));
                 }
                 catch (InvalidArgument $e) {
                     $fieldBuilder->setType(Type::string());
@@ -283,7 +283,7 @@ class TCATypeMapper
                     }
 
                     $fieldValue = trim($fieldValue);
-                    
+
                     if ($fieldValue === '') {
                         return [];
                     }
