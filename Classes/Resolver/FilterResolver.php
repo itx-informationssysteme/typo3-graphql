@@ -10,15 +10,14 @@ use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
 use Itx\Typo3GraphQL\Enum\FacetType;
 use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
-use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Types\Model\RangeFilterInputType;
-use Itx\Typo3GraphQL\Types\Model\RangeInputType;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Types\Skeleton\Range;
 use Itx\Typo3GraphQL\Types\Skeleton\RangeFilterInput;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -32,7 +31,8 @@ class FilterResolver
 
     public function __construct(PersistenceManager                 $persistenceManager,
                                 FilterRepository                   $filterRepository,
-                                protected EventDispatcherInterface $eventDispatcher)
+                                protected EventDispatcherInterface $eventDispatcher,
+                                protected FrontendInterface        $cache)
     {
         $this->persistenceManager = $persistenceManager;
         $this->filterRepository = $filterRepository;
@@ -118,11 +118,21 @@ class FilterResolver
     {
         $facets = [];
 
-        if(array_key_exists('discreteFilters', $args['filters'])){
+        if (array_key_exists('discreteFilters', $args['filters'])) {
             $discreteFilterArguments = $this->extractDiscreteFilterOptionsMap($args);
-            $discreteFilterPaths = map($discreteFilterArguments)->map(fn(DiscreteFilterInput $filter) => $filter->path)->toArray();
+            $discreteFilterPaths =
+                map($discreteFilterArguments)->map(fn(DiscreteFilterInput $filter) => $filter->path)->toArray();
 
-            $filters = $this->filterRepository->findByModelAndPaths($modelClassPath, $discreteFilterPaths);
+            // Switch keys and values for $discreteFilterPaths
+            $filters = array_flip($discreteFilterPaths);
+
+            // Reorder to the same order as the discrete filter paths
+            $filterResult = $this->filterRepository->findByModelAndPaths($modelClassPath, $discreteFilterPaths);
+
+            // Sort them as we received them
+            foreach ($filterResult as $filter) {
+                $filters[$filter->getFilterPath()] = $filter;
+            }
 
             foreach ($filters as $filter) {
 
@@ -131,14 +141,14 @@ class FilterResolver
                 $facet['path'] = $filter->getFilterPath();
                 $facet['type'] = FacetType::DISCRETE;
 
-                $options = $this->fetchFilterOptions($tableName,
-                                                     $filter->getFilterPath(),
-                                                     $args,
-                                                     $discreteFilterArguments,
-                                                     $resolveInfo,
-                                                     $modelClassPath,
-                                                     $mmTable,
-                                                     $localUid);
+                $options = $this->fetchAndProcessFilterOptions($tableName,
+                                                               $filter->getFilterPath(),
+                                                               $args,
+                                                               $discreteFilterArguments,
+                                                               $resolveInfo,
+                                                               $modelClassPath,
+                                                               $mmTable,
+                                                               $localUid);
 
                 $facet['options'] = $options;
 
@@ -146,7 +156,7 @@ class FilterResolver
             }
         }
 
-        if(array_key_exists('rangeFilters', $args['filters'])){
+        if (array_key_exists('rangeFilters', $args['filters'])) {
             $rangefilterArguments = $this->extractRangeFilterObjectsMap($args);
             $rangeFilterPaths = map($rangefilterArguments)->map(fn(RangeFilterInput $filter) => $filter->path)->toArray();
 
@@ -160,21 +170,13 @@ class FilterResolver
                 $facet['path'] = $filter->getFilterPath();
                 $facet['type'] = FacetType::RANGE;
 
-                $options = $this->fetchFilterOptions($tableName,
-                                                     $filter->getFilterPath(),
-                                                     $args,
-                                                     $discreteFilterArguments,
-                                                     $resolveInfo,
-                                                     $modelClassPath,
-                                                     $mmTable,
-                                                     $localUid);
-
-                $facet['options'] = $options;
+                // TODO Compute available filter options
 
                 $facets[] = $facet;
             }
         }
-            return $facets;
+
+        return $facets;
     }
 
     /**
@@ -201,7 +203,6 @@ class FilterResolver
      * @param array $args
      *
      * @return array<string,RangeFilterInputType>
-     * @throws NameNotFoundException
      */
     private function extractRangeFilterObjectsMap(array $args): array
     {
@@ -211,7 +212,9 @@ class FilterResolver
 
         // Set key path from range filter array as key
         foreach ($rangeFilterArguments as $key => $filter) {
-            $rangeFilterArguments[$filter['path']] = new RangeFilterInput($rangeFilterArguments[$filter['path']], new Range($rangeFilterArguments[$filter['min']],$rangeFilterArguments[$filter['max']] ));
+            $rangeFilterArguments[$filter['path']] = new RangeFilterInput($rangeFilterArguments[$filter['path']],
+                                                                          new Range($rangeFilterArguments[$filter['min']],
+                                                                                    $rangeFilterArguments[$filter['max']]));
             unset($rangeFilterArguments[$key]);
         }
 
@@ -228,7 +231,7 @@ class FilterResolver
      * @param string|null                       $mmTable
      * @param int|null                          $localUid
      *
-     * @return array
+     * @return array<DiscreteFilterOption>
      * @throws DBALException
      * @throws Exception
      * @throws FieldDoesNotExistException
@@ -310,32 +313,98 @@ class FilterResolver
                      ->groupBy("$lastElementTable.$lastElement")
                      ->orderBy("$lastElementTable.$lastElement", 'ASC');
 
-        $results = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+        $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
 
-        $options = [];
+        return $this->mapFilterOptions($result);
+    }
 
+    /**
+     * @throws FieldDoesNotExistException
+     * @throws Exception
+     * @throws DBALException
+     */
+    private function fetchAndProcessFilterOptions(string      $tableName,
+                                                  string      $filterPath,
+                                                  array       $args,
+                                                  array       $filterArguments,
+                                                  ResolveInfo $resolveInfo,
+                                                  string      $modelClassPath,
+                                                  ?string     $mmTable,
+                                                  ?int        $localUid): array
+    {
         $isSelectedNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['selected']) &&
             $resolveInfo->getFieldSelection(3)['facets']['options']['selected'];
 
-        // Set selected to true for all options that are selected
-        foreach ($results as $key => $result) {
+        $cacheKey = md5($tableName . $filterPath . $args[QueryArgumentsUtility::$language]);
 
-            foreach (explode(",", $result['value']) as $value) {
-                $selected = false;
-                if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
-                    $selected = in_array($value, $filterArguments[$filterPath]->options, true);
-                }
+        if (!$this->cache->has($cacheKey)) {
+            $originalFilterOptions = $this->fetchFilterOptions($tableName,
+                                                               $filterPath,
+                                                               $args,
+                                                               [],
+                                                               $resolveInfo,
+                                                               $modelClassPath,
+                                                               $mmTable,
+                                                               $localUid);
+
+            // Cache for 1 day
+            $this->cache->set($cacheKey, $originalFilterOptions, ['filter_options'], 86400);
+        } else {
+            $originalFilterOptions = $this->cache->get($cacheKey);
+        }
+
+        // Index array with value as key
+        $actualFilterOptions = $this->fetchFilterOptions($tableName,
+                                                         $filterPath,
+                                                         $args,
+                                                         $filterArguments,
+                                                         $resolveInfo,
+                                                         $modelClassPath,
+                                                         $mmTable,
+                                                         $localUid);
+
+        // Set selected to true for all options that are selected and disabled to true for all options that are not in actualFilterOptions anymore
+        foreach ($originalFilterOptions as $originalFilterOption) {
+            $selected = false;
+            if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
+                $selected = in_array($originalFilterOption->value, $filterArguments[$filterPath]->options, true);
+            }
+            $originalFilterOption->selected = $selected;
+
+            $disabled = false;
+
+            if (empty($actualFilterOptions[$originalFilterOption->value])) {
+                $disabled = true;
+                $originalFilterOption->resultCount = 0;
+            }
+
+            $originalFilterOption->disabled = $disabled;
+
+        }
+
+        return $originalFilterOptions;
+    }
+
+    /**
+     * @param array $rawFilterOptions
+     *
+     * @return array<DiscreteFilterOption>
+     */
+    private function mapFilterOptions(array $rawFilterOptions): array
+    {
+        $options = [];
+
+        foreach ($rawFilterOptions as $rawFilterOption) {
+            foreach (explode(",", $rawFilterOption['value']) as $value) {
+                $value = trim($value);
 
                 if (!isset($options[$value])) {
-                    $options[$value] = new DiscreteFilterOption($value, $result['resultCount'], $selected);
+                    $options[$value] = new DiscreteFilterOption($value, $rawFilterOption['resultCount'], false, false);
+
                     continue;
                 }
 
-                $options[$value]->resultCount += $result['resultCount'];
-
-                if ($selected) {
-                    $options[$value]->selected = true;
-                }
+                $options[$value]->resultCount += $rawFilterOption['resultCount'];
             }
         }
 

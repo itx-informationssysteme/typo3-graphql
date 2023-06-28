@@ -27,6 +27,10 @@ class FilterOptionType extends \GraphQL\Type\Definition\ObjectType implements Ty
                                 ->setDescription('Whether this filter option was selected through a filter argument.')
                                 ->build();
 
+        $fields[] = FieldBuilder::create('disabled', Type::nonNull(Type::boolean()))
+                                ->setDescription('Whether this filter option is disabled, because of other filters.')
+                                ->build();
+
         $objectBuilder->setFields($fields);
 
         parent::__construct($objectBuilder->build());

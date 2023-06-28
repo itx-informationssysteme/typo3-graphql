@@ -104,11 +104,13 @@ class QueryResolver
 
         $this->applyFiltersToQueryBuilder($qb, $modelClassPath, $tableName, $args);
 
-        $count = $qb->count("$tableName.uid")->execute()->fetchOne();
+        $tableNameQuoted = $qb->quoteIdentifier($tableName);
+
+        $count = $qb->selectLiteral("COUNT(DISTINCT $tableNameQuoted.uid)")->execute()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName);
 
-        $qb->select(...$fields);
+        $qb->select(...$fields)->distinct();
 
         $qb->setMaxResults($limit);
         $qb->setFirstResult($offset);
@@ -160,11 +162,13 @@ class QueryResolver
 
         $this->applyFiltersToQueryBuilder($qb, $modelClassPath, $foreignTable, $args);
 
-        $count = $qb->count("$foreignTable.uid")->execute()->fetchOne();
+        $foreignTableQuoted = $qb->quoteIdentifier($foreignTable);
+
+        $count = $qb->selectLiteral("COUNT(DISTINCT $foreignTableQuoted.uid)")->distinct()->execute()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable);
 
-        $qb->select(...$fields);
+        $qb->select(...$fields)->distinct();
 
         $qb->setMaxResults($limit);
         $qb->setFirstResult($offset);

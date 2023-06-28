@@ -22,3 +22,7 @@ services:
             -   name: event.listener
                 identifier: 'typo3_graphql.afterTca'
                 event: TYPO3\CMS\Core\Configuration\Event\AfterTcaCompilationEvent
+
+    Itx\Typo3GraphQL\Resolver\FilterResolver:
+        arguments:
+            $cache: '@cache.typo3_graphql_cache'
