@@ -160,11 +160,9 @@ class FilterResolver
             $rangefilterArguments = $this->extractRangeFilterObjectsMap($args);
             $rangeFilterPaths = map($rangefilterArguments)->map(fn(RangeFilterInput $filter) => $filter->path)->toArray();
 
-            $filters = $this->filterRepository->findByModedilAndPaths($modelClassPath, $rangeFilterPaths);
+            $filters = $this->filterRepository->findByModelAndPaths($modelClassPath, $rangeFilterPaths);
 
-            $facets = [];
             foreach ($filters as $filter) {
-
                 $facet = [];
                 $facet['label'] = $filter->getName();
                 $facet['path'] = $filter->getFilterPath();

@@ -8,14 +8,13 @@ use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
 use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
-use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class RangeFilterInputType extends InputObjectType implements TypeNameInterface
 {
     /**
      * @throws NameNotFoundException
      */
-    public function __construct(ObjectBuilder $objectBuilder)
+    public function __construct()
     {
         $objectBuilder = InputObjectBuilder::create(self::getTypeName());
 

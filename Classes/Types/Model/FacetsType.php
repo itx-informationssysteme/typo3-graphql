@@ -4,10 +4,9 @@ namespace Itx\Typo3GraphQL\Types\Model;
 
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
-use PHPStan\ShouldNotHappenException;
 use SimPod\GraphQLUtils\Builder\UnionBuilder;
 
-class UnionFacetType extends \GraphQL\Type\Definition\UnionType implements TypeNameInterface
+class FacetsType extends \GraphQL\Type\Definition\UnionType implements TypeNameInterface
 {
     /**
      * @throws NameNotFoundException
@@ -15,11 +14,11 @@ class UnionFacetType extends \GraphQL\Type\Definition\UnionType implements TypeN
     public function __construct()
     {
         $builder = UnionBuilder::create(self::getTypeName())
-                               ->setTypes([TypeRegistry::rangeFacet(), TypeRegistry::facet()])
+                               ->setTypes([TypeRegistry::rangeFacet(), TypeRegistry::discreteFacet()])
                                ->setResolveType(function($value) {
                                    return match ($value['type']) {
                                        \Itx\Typo3GraphQL\Enum\FacetType::RANGE => TypeRegistry::rangeFacet(),
-                                       \Itx\Typo3GraphQL\Enum\FacetType::DISCRETE => TypeRegistry::facet(),
+                                       \Itx\Typo3GraphQL\Enum\FacetType::DISCRETE => TypeRegistry::discreteFacet(),
                                        default => throw new \RuntimeException('Could not find Type ' . $value['type']),
                                    };
                                });
@@ -28,6 +27,6 @@ class UnionFacetType extends \GraphQL\Type\Definition\UnionType implements TypeN
 
     public static function getTypeName(): string
     {
-        return 'UnionFacet';
+        return 'Facets';
     }
 }

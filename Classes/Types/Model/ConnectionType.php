@@ -2,16 +2,13 @@
 
 namespace Itx\Typo3GraphQL\Types\Model;
 
-use Exception;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
-use GraphQL\Type\Definition\UnionType;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
-use SimPod\GraphQLUtils\Builder\UnionBuilder;
 
 class ConnectionType extends ObjectType
 {
@@ -43,7 +40,7 @@ class ConnectionType extends ObjectType
                                 ->setDescription('A list of all of the objects returned in the connection. This is a convenience field provided for quickly exploring the API; rather than querying for "{ edges { node } }" when no edge data is needed, this field can be be used instead. Note that when clients like Relay need to fetch the "cursor" field on the edge to enable efficient pagination, this shortcut cannot be used, and the full "{ edges { node } }" version should be used instead.')
                                 ->build();
 
-        $fields[] = FieldBuilder::create('facets', Type::nonNull(Type::listOf(Type::nonNull(TypeRegistry::unionRangeFacetType()))))
+        $fields[] = FieldBuilder::create('facets', Type::nonNull(Type::listOf(Type::nonNull(TypeRegistry::facetsType()))))
                                 ->setDescription('This field Contains Range Facets and discrete Facets')
                                 ->build();
 

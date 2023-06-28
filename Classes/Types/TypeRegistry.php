@@ -3,23 +3,23 @@
 namespace Itx\Typo3GraphQL\Types;
 
 use GraphQL\Type\Definition\Type;
-use Itx\Basicdistribution\Domain\Model\GraphQL\RangeFilterInputType;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Types\Model\DateTimeType;
+use Itx\Typo3GraphQL\Types\Model\DiscreteFacetType;
 use Itx\Typo3GraphQL\Types\Model\DiscreteFilterInputType;
-use Itx\Typo3GraphQL\Types\Model\FacetType;
+use Itx\Typo3GraphQL\Types\Model\FacetsType;
 use Itx\Typo3GraphQL\Types\Model\FileExtensions;
 use Itx\Typo3GraphQL\Types\Model\FileType;
 use Itx\Typo3GraphQL\Types\Model\FilterCollectionInputType;
 use Itx\Typo3GraphQL\Types\Model\FilterOptionType;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
 use Itx\Typo3GraphQL\Types\Model\RangeFacetType;
+use Itx\Typo3GraphQL\Types\Model\RangeFilterInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
-use Itx\Typo3GraphQL\Types\Model\UnionFacetType;
 use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
 
 class TypeRegistry
@@ -43,14 +43,14 @@ class TypeRegistry
         $this->addType(self::filterOption());
         $this->addType(self::discreteFilterInput());
         $this->addType(self::filterCollectionInput());
-        $this->addType(self::facet());
+        $this->addType(self::discreteFacet());
         $this->addType(self::rangeFacet());
         $this->addType(self::range());
         $this->addType(self::rangeInput());
         $this->addType(self::rangeFilterInput());
         $this->addType(self::dateTime());
         $this->addType(self::fileExtensions());
-        $this->addType(self::unionRangeFacetType());
+        $this->addType(self::facetsType());
     }
 
     /**
@@ -180,10 +180,10 @@ class TypeRegistry
      *
      * @throws NameNotFoundException
      */
-    public static function facet(): FacetType
+    public static function discreteFacet(): DiscreteFacetType
     {
-        /** @var FacetType $type */
-        $type = self::getOrCreateCustomType(FacetType::class);
+        /** @var DiscreteFacetType $type */
+        $type = self::getOrCreateCustomType(DiscreteFacetType::class);
 
         return $type;
     }
@@ -248,15 +248,15 @@ class TypeRegistry
     }
 
     /**
-     * @return UnionFacetType
+     * @return FacetsType
      * @throws NameNotFoundException
      */
-    public static function unionRangeFacetType(): UnionFacetType
+    public static function facetsType(): FacetsType
     {
         /**
-         * @var UnionFacetType $type
+         * @var FacetsType $type
          */
-        $type = self::getOrCreateCustomType(UnionFacetType::class);
+        $type = self::getOrCreateCustomType(FacetsType::class);
 
         return $type;
 
