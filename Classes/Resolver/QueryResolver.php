@@ -6,7 +6,6 @@ use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
-use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
@@ -214,8 +213,8 @@ class QueryResolver
         }
 
         $discreteFilterConfigurations =
-            $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($discreteFilters));
-        $rangeFilterConfiguration = $this->filterRepository->findByModelAndPaths($modelClassPath, array_keys($rangeFilters));
+            $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($discreteFilters), 'discrete');
+        $rangeFilterConfiguration = $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($rangeFilters), 'range');
 
         foreach ($discreteFilterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
@@ -242,21 +241,24 @@ class QueryResolver
         foreach ($rangeFilterConfiguration as $filterConfiguration) {
             $rangeFilter = $rangeFilters[$filterConfiguration->getFilterPath()] ?? [];
 
-            $filterPathElements = explode('.', $rangeFilter['path']);
-            $lastElement = array_pop($filterPathElements);
+            $whereFilterPathElements = explode('.', $rangeFilter['path']);
+            $whereFilterLastElement = array_pop($whereFilterPathElements);
 
-            $lastElementTable = FilterResolver::buildJoinsByWalkingPath($filterPathElements, $table, $qb);
+            $whereFilterTable = FilterResolver::buildJoinsByWalkingPath($whereFilterPathElements, $table, $qb);
 
-            $inSetExpressions = [];
+            $andExpressions = [];
 
-            foreach ($rangeFilter['options'] as $option) {
-                $inSetExpressions[] =
-                    $qb->expr()->in($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
+            if (($rangeFilter['range']['min'] ?? null) !== null) {
+                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                     $qb->createNamedParameter($rangeFilter['range']['min'] ));
             }
 
-            $qb->andWhere($qb->expr()->orX(...$inSetExpressions));
-        }
+            if (($rangeFilter['range']['max'] ?? null) !== null) {
+                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                     $qb->createNamedParameter($rangeFilter['range']['max'] ));
+            }
 
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath, $table, $qb, $args));
+            $qb->andWhere(...$andExpressions);
+        }
     }
 }

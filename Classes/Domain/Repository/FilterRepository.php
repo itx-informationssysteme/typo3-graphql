@@ -46,7 +46,7 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
      * @return Filter[]|QueryResultInterface
      * @throws InvalidQueryException
      */
-    public function findByModelAndPaths($model, array $paths): QueryResultInterface|array
+    public function findByModelAndPathsAndType($model, array $paths, string $type): QueryResultInterface|array
     {
         $filters = [];
 
@@ -66,7 +66,7 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
 
         // TODO Language overlay?
         $query->getQuerySettings()->setRespectStoragePage(false);
-        $query->matching($query->logicalAnd($query->equals('model', $model), $query->in('filter_path', $paths)));
+        $query->matching($query->logicalAnd($query->equals('model', $model), $query->in('filter_path', $paths), $query->equals('type_of_filter', $type)));
 
         $results = $query->execute();
 

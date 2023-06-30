@@ -21,10 +21,9 @@ class RangeFacetType extends ObjectType implements TypeNameInterface
 
         $fields = [];
         $fields[] = FieldBuilder::create('label', Type::nonNull(Type::string()))->setDescription('The filter label')->build();
-        $fields[] = FieldBuilder::create('range', TypeRegistry::range())->build();
-        $fields[] = FieldBuilder::create('selectedRange', TypeRegistry::range())->build();
-        $fields[] = FieldBuilder::create('isSelected', Type::boolean())->build();
-        $fields[] = FieldBuilder::create('unit', Type::string())->build();
+        $fields[] = FieldBuilder::create('range', Type::nonNull(TypeRegistry::range()))->build();
+        $fields[] = FieldBuilder::create('unit', Type::nonNull(Type::string()))->build();
+        $fields[] = FieldBuilder::create('resultCount', Type::nonNull(Type::int()))->build();
 
         $objectBuilder->setFields($fields);
 

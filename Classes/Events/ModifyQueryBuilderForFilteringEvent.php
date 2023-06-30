@@ -10,7 +10,7 @@ class ModifyQueryBuilderForFilteringEvent
     protected string $tableName;
     protected QueryBuilder $queryBuilder;
 
-    public function __construct(string $modelClassPath, string $tableName, QueryBuilder $queryBuilder, protected array $args)
+    public function __construct(string $modelClassPath, string $tableName, QueryBuilder $queryBuilder, protected array $args, protected string $filterType)
     {
         $this->modelClassPath = $modelClassPath;
         $this->tableName = $tableName;
