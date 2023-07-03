@@ -11,6 +11,9 @@ class Filter extends AbstractEntity
     protected string $model = '';
     protected string $filterPath = '';
 
+    protected string $unit;
+    protected string $typeOfFilter;
+
     /** @var ObjectStorage */
     protected ObjectStorage $categories;
 
@@ -65,5 +68,37 @@ class Filter extends AbstractEntity
     public function setFilterPath(string $filterPath): void
     {
         $this->filterPath = $filterPath;
+    }
+
+    /**
+     * @return string
+     */
+    public function getUnit(): string
+    {
+        return $this->unit;
+    }
+
+    /**
+     * @param string $unit
+     */
+    public function setUnit(string $unit): void
+    {
+        $this->unit = $unit;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTypeOfFilter(): string
+    {
+        return $this->typeOfFilter;
+    }
+
+    /**
+     * @param string $typeOfFilter
+     */
+    public function setTypeOfFilter(string $typeOfFilter): void
+    {
+        $this->typeOfFilter = $typeOfFilter;
     }
 }

@@ -90,12 +90,14 @@ Example querying with filtering:
 ```
 postings(filters: { discreteFilters: [{ path: "locations.name", options: ["Testlocation"] }] }) {
     facets {
-        label
-        options {
-            value
-            resultCount
+        ... on DiscreteFacet {
+            label
+            options {
+                value
+                resultCount
+            }
+            path
         }
-        path
     }
     edges {
         node {
@@ -104,6 +106,10 @@ postings(filters: { discreteFilters: [{ path: "locations.name", options: ["Testl
     }
 }
 ```
+
+Currently there are two types of filters available:
+* `DiscreteFilter` - This filter type allows you to select one or more options from a list of options.
+* `RangeFilter` - This filter type allows you to select a range of values.
 
 In the query above the filter options will be filtered as well in order to be able to disable options that are not available to
 prevent impossible filter option combinations. Whether a filter option will still get results or not is shown by the `disabled` field.

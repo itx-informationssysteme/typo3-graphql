@@ -38,6 +38,17 @@ return [
                 'required' => true,
             ],
         ],
+        'type_of_filter' => [
+            'label' => 'LLL:EXT:basicdistribution/Resources/Private/Language/Backend.xlf:typo3graphql.typeOfFilter',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'items' => [
+                    ['Discrete Filter', 'discrete'],
+                    ['Range Filter', 'range']
+                ]
+            ]
+        ],
         'filter_path' => [
             'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3graphql_domain_model_filter.filterPath',
             'config' => [
@@ -47,6 +58,15 @@ return [
                 'required' => true,
                 'max' => 256,
             ],
+        ],
+        'unit' => [
+            'label' => 'LLL:EXT:basicdistribution/Resources/Private/Language/Backend.xlf:typo3graphql.unit',
+            'config' => [
+                'type' => 'input',
+                'size' => 30,
+                'eval' => 'trim',
+            ],
+            'displayCond' => 'FIELD:type_of_filter:=:range',
         ],
         'categories' => [
             'config' => [
@@ -114,6 +134,6 @@ return [
         ],
     ],
     'types' => [
-        0 => ['showitem' => 'sys_language_uid, l10n_parent, hidden, name, model, filter_path, categories'],
+        0 => ['showitem' => 'sys_language_uid, l10n_parent, hidden, name, type_of_filter, model, filter_path, unit, categories'],
     ],
 ];

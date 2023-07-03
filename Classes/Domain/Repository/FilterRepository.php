@@ -37,22 +37,22 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
         return $query->execute();
     }
 
-    private function bufferKey($model, $filter): string
+    private function bufferKey(string $model, string $filter, string $type): string
     {
-        return $model . $filter;
+        return $model . $filter . $type;
     }
 
     /**
      * @return Filter[]|QueryResultInterface
      * @throws InvalidQueryException
      */
-    public function findByModelAndPaths($model, array $paths): QueryResultInterface|array
+    public function findByModelAndPathsAndType($model, array $paths, string $type): QueryResultInterface|array
     {
         $filters = [];
 
         // Check if we have a cached result
         foreach ($paths as $path) {
-            $key = $this->bufferKey($model, $path);
+            $key = $this->bufferKey($model, $path, $type);
             if (isset($this->filterBuffer[$key])) {
                 $filters[] = $this->filterBuffer[$key];
             }
@@ -66,12 +66,12 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
 
         // TODO Language overlay?
         $query->getQuerySettings()->setRespectStoragePage(false);
-        $query->matching($query->logicalAnd($query->equals('model', $model), $query->in('filter_path', $paths)));
+        $query->matching($query->logicalAnd($query->equals('model', $model), $query->in('filter_path', $paths), $query->equals('type_of_filter', $type)));
 
         $results = $query->execute();
 
         foreach ($results as $result) {
-            $this->filterBuffer[$this->bufferKey($model, $result->getFilterPath())] = $result;
+            $this->filterBuffer[$this->bufferKey($model, $result->getFilterPath(), $type)] = $result;
         }
 
         return $results;

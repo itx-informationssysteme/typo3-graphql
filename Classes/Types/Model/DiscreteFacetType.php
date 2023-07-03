@@ -9,9 +9,9 @@ use Itx\Typo3GraphQL\Types\TypeRegistry;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
-class FacetType extends ObjectType implements TypeNameInterface
+class DiscreteFacetType extends ObjectType implements TypeNameInterface
 {
-    public $description = 'A filter facet';
+    public $description = 'A discrete filter facet';
 
     /**
      * @throws NameNotFoundException
@@ -40,6 +40,6 @@ class FacetType extends ObjectType implements TypeNameInterface
 
     public static function getTypeName(): string
     {
-        return 'Facet';
+        return 'DiscreteFacet';
     }
 }

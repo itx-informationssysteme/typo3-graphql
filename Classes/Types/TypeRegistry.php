@@ -6,13 +6,18 @@ use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Types\Model\DateTimeType;
+use Itx\Typo3GraphQL\Types\Model\DiscreteFacetType;
 use Itx\Typo3GraphQL\Types\Model\DiscreteFilterInputType;
-use Itx\Typo3GraphQL\Types\Model\FacetType;
+use Itx\Typo3GraphQL\Types\Model\FacetsType;
 use Itx\Typo3GraphQL\Types\Model\FileExtensions;
 use Itx\Typo3GraphQL\Types\Model\FileType;
 use Itx\Typo3GraphQL\Types\Model\FilterCollectionInputType;
 use Itx\Typo3GraphQL\Types\Model\FilterOptionType;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
+use Itx\Typo3GraphQL\Types\Model\RangeFacetType;
+use Itx\Typo3GraphQL\Types\Model\RangeFilterInputType;
+use Itx\Typo3GraphQL\Types\Model\RangeInputType;
+use Itx\Typo3GraphQL\Types\Model\RangeType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
@@ -28,7 +33,8 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public function __construct() {
+    public function __construct()
+    {
         $this->addType(self::link());
         $this->addType(self::file());
         $this->addType(self::pageInfo());
@@ -37,9 +43,14 @@ class TypeRegistry
         $this->addType(self::filterOption());
         $this->addType(self::discreteFilterInput());
         $this->addType(self::filterCollectionInput());
-        $this->addType(self::facet());
+        $this->addType(self::discreteFacet());
+        $this->addType(self::rangeFacet());
+        $this->addType(self::range());
+        $this->addType(self::rangeInput());
+        $this->addType(self::rangeFilterInput());
         $this->addType(self::dateTime());
         $this->addType(self::fileExtensions());
+        $this->addType(self::facetsType());
     }
 
     /**
@@ -154,14 +165,38 @@ class TypeRegistry
     }
 
     /**
+     * @throws NameNotFoundException
+     */
+    public static function rangeFilterInput() : RangeFilterInputType
+    {
+        /** @var RangeFilterInputType $type */
+        $type = self::getOrCreateCustomType(RangeFilterInputType::class);
+
+        return $type;
+    }
+
+    /**
      * Gets an instance of FacetType
      *
      * @throws NameNotFoundException
      */
-    public static function facet(): FacetType
+    public static function discreteFacet(): DiscreteFacetType
     {
-        /** @var FacetType $type */
-        $type = self::getOrCreateCustomType(FacetType::class);
+        /** @var DiscreteFacetType $type */
+        $type = self::getOrCreateCustomType(DiscreteFacetType::class);
+
+        return $type;
+    }
+
+    /**
+     * Gets an instance of RangeFacetType
+     *
+     * @throws NameNotFoundException
+     */
+    public static function rangeFacet(): RangeFacetType
+    {
+        /** @var RangeFacetType $type */
+        $type = self::getOrCreateCustomType(RangeFacetType::class);
 
         return $type;
     }
@@ -182,9 +217,10 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public static function fileExtensions(): FileExtensions {
-        /** @var FileExtensions $type */
-        $type = self::getOrCreateCustomType(FileExtensions::class);
+    public static function rangeInput(): RangeInputType
+    {
+        /**@var RangeInputType $type */
+        $type = self::getOrCreateCustomType(RangeInputType::class);
 
         return $type;
     }
@@ -192,7 +228,45 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public function addModelObjectType(Type $type, string $tableName, string $modelClassPath): void {
+    public static function range(): RangeType
+    {
+        /**@var RangeType $type */
+        $type = self::getOrCreateCustomType(RangeType::class);
+
+        return $type;
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    public static function fileExtensions(): FileExtensions
+    {
+        /** @var FileExtensions $type */
+        $type = self::getOrCreateCustomType(FileExtensions::class);
+
+        return $type;
+    }
+
+    /**
+     * @return FacetsType
+     * @throws NameNotFoundException
+     */
+    public static function facetsType(): FacetsType
+    {
+        /**
+         * @var FacetsType $type
+         */
+        $type = self::getOrCreateCustomType(FacetsType::class);
+
+        return $type;
+
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    public function addModelObjectType(Type $type, string $tableName, string $modelClassPath): void
+    {
         $name = $type->toString();
 
         if ($name === '') {
@@ -207,7 +281,8 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public function addType(Type $type): void {
+    public function addType(Type $type): void
+    {
         $name = $type->toString();
 
         if ($name === '') {
@@ -222,7 +297,8 @@ class TypeRegistry
      *
      * @throws NotFoundException
      */
-    public function getType(string $name): Type {
+    public function getType(string $name): Type
+    {
         if (empty($this->typeStore[$name])) {
             throw new NotFoundException("There is no type with name $name registered.");
         }
@@ -230,7 +306,8 @@ class TypeRegistry
         return $this->typeStore[$name];
     }
 
-    public function hasType(string $name): bool {
+    public function hasType(string $name): bool
+    {
         return isset($this->typeStore[$name]);
     }
 
@@ -239,7 +316,8 @@ class TypeRegistry
      *
      * @throws NotFoundException
      */
-    public function getTypeByTableName(string $name): Type {
+    public function getTypeByTableName(string $name): Type
+    {
         if (empty($this->tableToObjectNameMap[$name])) {
             throw new NotFoundException("There is no type with name $name registered.");
         }
@@ -252,7 +330,8 @@ class TypeRegistry
     /**
      * @throws NotFoundException
      */
-    public function getModelClassPathByTableName(string $tableName) {
+    public function getModelClassPathByTableName(string $tableName)
+    {
         if (empty($this->tableToModelClasspathMap[$tableName])) {
             throw new NotFoundException("There is no model class path for table $tableName registered.");
         }
