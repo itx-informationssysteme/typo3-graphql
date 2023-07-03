@@ -9,6 +9,7 @@ services:
         exclude: '../Classes/Domain/Model/*'
 
     cache.typo3_graphql_cache:
+        public: true
         class: TYPO3\CMS\Core\Cache\Frontend\FrontendInterface
         factory: [ '@TYPO3\CMS\Core\Cache\CacheManager', 'getCache' ]
         arguments: [ 'typo3_graphql_cache' ]

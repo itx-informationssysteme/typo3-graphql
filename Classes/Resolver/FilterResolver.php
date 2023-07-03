@@ -8,6 +8,7 @@ use Generator;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
 use Itx\Typo3GraphQL\Enum\FacetType;
+use Itx\Typo3GraphQL\Enum\FilterEventSource;
 use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
@@ -252,7 +253,8 @@ class FilterResolver
                                         ResolveInfo $resolveInfo,
                                         string      $modelClassPath,
                                         ?string     $mmTable,
-                                        ?int        $localUid): array
+                                        ?int        $localUid,
+                                        bool        $triggerEvent): array
     {
         $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
@@ -288,25 +290,24 @@ class FilterResolver
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
 
-        /** @var ModifyQueryBuilderForFilteringEvent $event */
-        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                          $tableName,
-                                                                                          $queryBuilder,
-                                                                                          $args,
-                                                                                          'discrete'));
-        $queryBuilder = $event->getQueryBuilder();
+        if ($triggerEvent) {
+            /** @var ModifyQueryBuilderForFilteringEvent $event */
+            $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
+                                                                                              $tableName,
+                                                                                              $queryBuilder,
+                                                                                              $args,
+                                                                                              FilterEventSource::FILTER,
+                                                                                              'discrete'));
+            $queryBuilder = $event->getQueryBuilder();
+        }
 
         $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")
                      ->from($tableName)
-                     ->groupBy("$lastElementTable.$lastElement")
                      ->addSelectLiteral("COUNT($tableName.uid) AS resultCount")
                      ->groupBy("$lastElementTable.$lastElement")
                      ->orderBy("$lastElementTable.$lastElement", 'ASC');
 
         $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
-
-        $sql = $queryBuilder->getSQL();
-        $params = $queryBuilder->getParameters();
 
         return $this->mapFilterOptions($result);
     }
@@ -351,7 +352,8 @@ class FilterResolver
                                                                $resolveInfo,
                                                                $modelClassPath,
                                                                $mmTable,
-                                                               $localUid);
+                                                               $localUid,
+                                                               false);
 
             // Cache for 1 day
             $this->cache->set($cacheKey, $originalFilterOptions, ['filter_options'], 86400);
@@ -368,7 +370,8 @@ class FilterResolver
                                                          $resolveInfo,
                                                          $modelClassPath,
                                                          $mmTable,
-                                                         $localUid);
+                                                         $localUid,
+                                                         true);
 
         // Set selected to true for all options that are selected and disabled to true for all options that are not in actualFilterOptions anymore
         foreach ($originalFilterOptions as $originalFilterOption) {
@@ -458,6 +461,7 @@ class FilterResolver
                                                                                           $tableName,
                                                                                           $queryBuilder,
                                                                                           $args,
+                                                                                          FilterEventSource::FILTER,
                                                                                           'range'));
         $queryBuilder = $event->getQueryBuilder();
 

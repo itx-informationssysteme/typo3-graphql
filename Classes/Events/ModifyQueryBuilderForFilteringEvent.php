@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Events;
 
+use Itx\Typo3GraphQL\Enum\FilterEventSource;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 
 class ModifyQueryBuilderForFilteringEvent
@@ -10,7 +11,7 @@ class ModifyQueryBuilderForFilteringEvent
     protected string $tableName;
     protected QueryBuilder $queryBuilder;
 
-    public function __construct(string $modelClassPath, string $tableName, QueryBuilder $queryBuilder, protected array $args, protected string $filterType)
+    public function __construct(string $modelClassPath, string $tableName, QueryBuilder $queryBuilder, protected array $args, protected FilterEventSource $filterEventSource, protected ?string $filterType = null)
     {
         $this->modelClassPath = $modelClassPath;
         $this->tableName = $tableName;
@@ -49,5 +50,37 @@ class ModifyQueryBuilderForFilteringEvent
     public function getArgs(): array
     {
         return $this->args;
+    }
+
+    /**
+     * @return FilterEventSource
+     */
+    public function getFilterEventSource(): FilterEventSource
+    {
+        return $this->filterEventSource;
+    }
+
+    /**
+     * @param FilterEventSource $filterEventSource
+     */
+    public function setFilterEventSource(FilterEventSource $filterEventSource): void
+    {
+        $this->filterEventSource = $filterEventSource;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getFilterType(): ?string
+    {
+        return $this->filterType;
+    }
+
+    /**
+     * @param string|null $filterType
+     */
+    public function setFilterType(?string $filterType): void
+    {
+        $this->filterType = $filterType;
     }
 }

@@ -108,7 +108,8 @@ class PaginationUtility
             $dbFieldName = GeneralUtility::camelCaseToLowerCaseUnderscored($field);
 
             // Check if field exists in TCA
-            if (!isset($GLOBALS['TCA'][$tableName]['columns'][$dbFieldName]) && $dbFieldName !== 'uid' && $dbFieldName !== 'pid') {
+            if ((!isset($GLOBALS['TCA'][$tableName]['columns'][$dbFieldName]) && $dbFieldName !== 'uid' &&
+                    $dbFieldName !== 'pid') || ($GLOBALS['TCA'][$tableName]['columns'][$dbFieldName]['config']['type'] ?? null) === 'none') {
                 continue;
             }
 

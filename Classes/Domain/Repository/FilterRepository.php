@@ -37,9 +37,9 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
         return $query->execute();
     }
 
-    private function bufferKey($model, $filter): string
+    private function bufferKey(string $model, string $filter, string $type): string
     {
-        return $model . $filter;
+        return $model . $filter . $type;
     }
 
     /**
@@ -52,7 +52,7 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
 
         // Check if we have a cached result
         foreach ($paths as $path) {
-            $key = $this->bufferKey($model, $path);
+            $key = $this->bufferKey($model, $path, $type);
             if (isset($this->filterBuffer[$key])) {
                 $filters[] = $this->filterBuffer[$key];
             }
@@ -71,7 +71,7 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
         $results = $query->execute();
 
         foreach ($results as $result) {
-            $this->filterBuffer[$this->bufferKey($model, $result->getFilterPath())] = $result;
+            $this->filterBuffer[$this->bufferKey($model, $result->getFilterPath(), $type)] = $result;
         }
 
         return $results;

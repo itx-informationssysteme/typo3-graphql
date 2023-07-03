@@ -6,6 +6,8 @@ use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
+use Itx\Typo3GraphQL\Enum\FilterEventSource;
+use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
@@ -105,7 +107,13 @@ class QueryResolver
 
         $tableNameQuoted = $qb->quoteIdentifier($tableName);
 
-        $count = $qb->selectLiteral("COUNT(DISTINCT $tableNameQuoted.uid)")->execute()->fetchOne();
+        $qb->selectLiteral("COUNT(DISTINCT $tableNameQuoted.uid)");
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
+                                                                                 $tableName,
+                                                                                 $qb,
+                                                                                 $args,
+                                                                                 FilterEventSource::QUERY_COUNT));
+        $count = $qb->execute()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName);
 
@@ -117,6 +125,12 @@ class QueryResolver
         if ($sortBy !== null) {
             $qb->orderBy("$tableName." . $qb->createNamedParameter($sortBy), $sortDirection);
         }
+
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
+                                                                                 $tableName,
+                                                                                 $qb,
+                                                                                 $args,
+                                                                                 FilterEventSource::QUERY));
 
         return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
                                         $count,
@@ -163,7 +177,15 @@ class QueryResolver
 
         $foreignTableQuoted = $qb->quoteIdentifier($foreignTable);
 
-        $count = $qb->selectLiteral("COUNT(DISTINCT $foreignTableQuoted.uid)")->distinct()->execute()->fetchOne();
+        $qb->selectLiteral("COUNT(DISTINCT $foreignTableQuoted.uid)")->distinct();
+
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
+                                                                                 $foreignTable,
+                                                                                 $qb,
+                                                                                 $args,
+                                                                                 FilterEventSource::QUERY_COUNT));
+
+        $count = $qb->execute()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable);
 
@@ -175,6 +197,12 @@ class QueryResolver
         if ($sortBy !== null) {
             $qb->orderBy("$foreignTable." . $qb->createNamedParameter($sortBy), $sortDirection);
         }
+
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
+                                                                                 $foreignTable,
+                                                                                 $qb,
+                                                                                 $args,
+                                                                                 FilterEventSource::QUERY));
 
         return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
                                         $count,
@@ -214,7 +242,8 @@ class QueryResolver
 
         $discreteFilterConfigurations =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($discreteFilters), 'discrete');
-        $rangeFilterConfiguration = $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($rangeFilters), 'range');
+        $rangeFilterConfiguration =
+            $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($rangeFilters), 'range');
 
         foreach ($discreteFilterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
@@ -250,12 +279,12 @@ class QueryResolver
 
             if (($rangeFilter['range']['min'] ?? null) !== null) {
                 $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeFilter['range']['min'] ));
+                                                     $qb->createNamedParameter($rangeFilter['range']['min']));
             }
 
             if (($rangeFilter['range']['max'] ?? null) !== null) {
                 $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeFilter['range']['max'] ));
+                                                     $qb->createNamedParameter($rangeFilter['range']['max']));
             }
 
             $qb->andWhere(...$andExpressions);
