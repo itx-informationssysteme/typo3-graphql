@@ -6,6 +6,7 @@ use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use Generator;
 use GraphQL\Type\Definition\ResolveInfo;
+use Itx\Typo3GraphQL\Domain\Model\Filter;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
 use Itx\Typo3GraphQL\Enum\FacetType;
 use Itx\Typo3GraphQL\Enum\FilterEventSource;
@@ -138,7 +139,10 @@ class FilterResolver
                 $filters[$filter->getFilterPath()] = $filter;
             }
 
-            foreach ($filters as $filter) {
+            foreach ($filters as $path => $filter) {
+                if (!$filter instanceof Filter) {
+                    throw new \RuntimeException("Discrete Filter $path not found");
+                }
 
                 $facet = [];
                 $facet['label'] = $filter->getName();
@@ -162,9 +166,18 @@ class FilterResolver
         }
 
         if (array_key_exists('rangeFilters', $args['filters'])) {
-            $filters = $this->filterRepository->findByModelAndPathsAndType($modelClassPath, $rangeFilterPaths, 'range');
+            $filters = array_flip($rangeFilterPaths);
+            $filterResult = $this->filterRepository->findByModelAndPathsAndType($modelClassPath, $rangeFilterPaths, 'range');
 
-            foreach ($filters as $filter) {
+            foreach ($filterResult as $filter) {
+                $filters[$filter->getFilterPath()] = $filter;
+            }
+
+            foreach ($filters as $path => $filter) {
+                if (!$filter instanceof Filter) {
+                    throw new \RuntimeException("Range Filter $path not found");
+                }
+
                 $facet = [];
                 $facet['label'] = $filter->getName();
                 $facet['path'] = $filter->getFilterPath();
