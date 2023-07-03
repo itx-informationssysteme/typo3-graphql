@@ -182,6 +182,7 @@ class FilterResolver
                 $facet['label'] = $filter->getName();
                 $facet['path'] = $filter->getFilterPath();
                 $facet['type'] = FacetType::RANGE;
+                $facet['unit'] = $filter->getUnit();
 
                 $facet['range'] = $this->fetchRanges($tableName,
                                                      $filter->getFilterPath(),
