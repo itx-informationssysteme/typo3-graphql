@@ -17,6 +17,7 @@ use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Types\Skeleton\Range;
 use Itx\Typo3GraphQL\Types\Skeleton\RangeFilterInput;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
+use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -315,11 +316,16 @@ class FilterResolver
             $queryBuilder = $event->getQueryBuilder();
         }
 
+        $fieldPrefix = "$lastElementTable.";
+        if (!TcaUtility::doesFieldExist($lastElementTable, $lastElement)) {
+            $fieldPrefix = '';
+        }
+
         $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")
                      ->from($tableName)
                      ->addSelectLiteral("COUNT($tableName.uid) AS resultCount")
-                     ->groupBy("$lastElementTable.$lastElement")
-                     ->orderBy("$lastElementTable.$lastElement", 'ASC');
+                     ->groupBy("$fieldPrefix$lastElement")
+                     ->orderBy("$fieldPrefix$lastElement", 'ASC');
 
         $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
 
@@ -479,12 +485,17 @@ class FilterResolver
                                                                                           'range'));
         $queryBuilder = $event->getQueryBuilder();
 
-        $queryBuilder->addSelectLiteral("MIN($lastElementTable.$lastElement) AS min, MAX($lastElementTable.$lastElement) AS max")
+        $fieldPrefix = "$lastElementTable.";
+        if (!TcaUtility::doesFieldExist($lastElementTable, $lastElement)) {
+            $fieldPrefix = '';
+        }
+
+        $queryBuilder->addSelectLiteral("MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max")
                      ->from($tableName);
 
         $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
 
-        return new Range($result[0]['min'] ?? null, $result[0]['max'] ?? null);
+        return new Range($result[0]['min'] ?? 0, $result[0]['max'] ?? 0);
     }
 
     /**

@@ -15,6 +15,7 @@ use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
+use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
@@ -123,7 +124,12 @@ class QueryResolver
         $qb->setFirstResult($offset);
 
         if ($sortBy !== null) {
-            $qb->orderBy("$tableName." . $qb->createNamedParameter($sortBy), $sortDirection);
+            $fieldPrefix = "$tableName.";
+            if (!TcaUtility::doesFieldExist($tableName, $sortBy)) {
+                $fieldPrefix = '';
+            }
+
+            $qb->orderBy($fieldPrefix . $sortBy, $sortDirection);
         }
 
         $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
@@ -195,7 +201,12 @@ class QueryResolver
         $qb->setFirstResult($offset);
 
         if ($sortBy !== null) {
-            $qb->orderBy("$foreignTable." . $qb->createNamedParameter($sortBy), $sortDirection);
+            $fieldPrefix = "$foreignTable.";
+            if (!TcaUtility::doesFieldExist($foreignTable, $sortBy)) {
+                $fieldPrefix = '';
+            }
+
+            $qb->orderBy($fieldPrefix . $sortBy, $sortDirection);
         }
 
         $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
