@@ -15,8 +15,11 @@ use Itx\Typo3GraphQL\Resolver\QueryResolver;
 use Itx\Typo3GraphQL\Resolver\ResolverBuffer;
 use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Schema\TableNameResolver;
+use Itx\Typo3GraphQL\Service\ConfigurationService;
+use Itx\Typo3GraphQL\Types\Model\SortingInputType;
 use Itx\Typo3GraphQL\Utility\NamingUtility;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
+use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use SimPod\GraphQLUtils\Builder\EnumBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -37,11 +40,12 @@ class TCATypeMapper
         'l18n_parent'
     ];
 
-    public function __construct(LanguageService   $languageService,
-                                TableNameResolver $tableNameResolver,
-                                QueryResolver     $queryResolver,
-                                ResolverBuffer    $resolverBuffer,
-                                FilterResolver    $filterResolver)
+    public function __construct(LanguageService                $languageService,
+                                TableNameResolver              $tableNameResolver,
+                                QueryResolver                  $queryResolver,
+                                ResolverBuffer                 $resolverBuffer,
+                                FilterResolver                 $filterResolver,
+                                protected ConfigurationService $configurationService)
     {
         $this->languageService = $languageService;
         $this->tableNameResolver = $tableNameResolver;
@@ -119,7 +123,9 @@ class TCATypeMapper
 
                 $fieldBuilder->setType(Type::nonNull($paginationConnection));
 
-                PaginationUtility::addArgumentsToFieldBuilder($fieldBuilder);
+                $this->addPaginationArgumentsToFieldBuilder($fieldBuilder,
+                                                              $context->getModelClassPath(),
+                                                              $context->getTypeRegistry());
             } else {
                 $fieldBuilder->setType(Type::nonNull(Type::listOf(Type::nonNull($fieldBuilder->getType()))));
             }
@@ -275,7 +281,7 @@ class TCATypeMapper
             // Check if this is a multi select field
             if ($columnConfiguration['config']['renderType'] === 'selectMultipleSideBySide') {
                 $fieldBuilder->setType(Type::nonNull(Type::listOf(Type::nonNull($enumType))));
-                $fieldBuilder->setResolver(static function ($value, $args, $context, ResolveInfo $info) {
+                $fieldBuilder->setResolver(static function($value, $args, $context, ResolveInfo $info) {
                     // Access getter function with field name
                     $fieldValue = DefaultFieldResolver::defaultFieldResolver($value, $args, $context, $info);
                     if ($fieldValue === null) {
@@ -374,5 +380,42 @@ class TCATypeMapper
         $type = $context->getTypeRegistry()->getTypeByTableName('sys_category');
 
         $fieldBuilder->setType($type);
+    }
+
+    /**
+     * @throws NameNotFoundException
+     * @throws InvalidArgument
+     */
+    public function addPaginationArgumentsToFieldBuilder(FieldBuilder $fieldBuilder,
+                                                         string       $modelClassPath,
+                                                         TypeRegistry $typeRegistry): FieldBuilder
+    {
+        $sortableFields = $this->configurationService->getModels()[$modelClassPath]['sortableFields'] ?? [];
+
+        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count (page size)', 10)
+                     ->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')
+                     ->addArgument(QueryArgumentsUtility::$offset, Type::int(), 'Offset for pagination, overrides cursor')
+                     ->addArgument(QueryArgumentsUtility::$filters,
+                                   TypeRegistry::filterCollectionInput(),
+                                   'Apply predefined filters to this query.',
+                                   []);
+
+        if (count($sortableFields) > 0) {
+            $sortingFieldsEnumBuilder = EnumBuilder::create(ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false).'SortingField'));
+
+            foreach ($sortableFields as $sortableField) {
+                $sortingFieldsEnumBuilder->addValue($sortableField, $sortableField, NamingUtility::generateName($sortableField, false));
+            }
+
+            $sortingFieldsEnum = new EnumType($sortingFieldsEnumBuilder->build());
+            $typeRegistry->addType($sortingFieldsEnum);
+
+            $sortingType = new SortingInputType($modelClassPath, $sortingFieldsEnum);
+            $typeRegistry->addType($sortingType);
+
+            $fieldBuilder->addArgument('sorting', Type::listOf(Type::nonNull($sortingType)), 'Specify multiple sorting directions');
+        }
+
+        return $fieldBuilder;
     }
 }

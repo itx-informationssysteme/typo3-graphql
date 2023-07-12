@@ -14,8 +14,7 @@ class QueryArgumentsUtility
 
     public static string $offset = 'offset';
 
-    public static string $sortByField = 'sortBy';
-    public static string $sortingOrder = 'sorting';
+    public static string $sorting = 'sorting';
 
     public static string $filters = 'filters';
     public static string $discreteFilters = 'discreteFilters';

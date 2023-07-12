@@ -4,7 +4,6 @@ namespace Itx\Typo3GraphQL\Utility;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
-use Itx\Typo3GraphQL\Builder\FieldBuilder;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
@@ -66,32 +65,14 @@ class PaginationUtility
         return $connectionType;
     }
 
-    /**
-     * @throws NameNotFoundException
-     */
-    public static function addArgumentsToFieldBuilder(FieldBuilder $fieldBuilder): FieldBuilder
-    {
-        $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count (page size)', 10)
-                     ->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')
-                     ->addArgument(QueryArgumentsUtility::$offset, Type::int(), 'Offset for pagination, overrides cursor')
-                     ->addArgument(QueryArgumentsUtility::$sortByField, Type::string(), 'Sort by field')
-                     ->addArgument(QueryArgumentsUtility::$sortingOrder, TypeRegistry::sortingOrder(), 'Sorting order', 'ASC')
-                     ->addArgument(QueryArgumentsUtility::$filters,
-                                   TypeRegistry::filterCollectionInput(),
-                                   'Apply predefined filters to this query.',
-                                   []);
-
-        return $fieldBuilder;
-    }
-
-    public static function getFieldSelection(ResolveInfo $resolveInfo, string $tableName): array
+    public static function getFieldSelection(ResolveInfo $resolveInfo, string $tableName, array $additionalFields = []): array
     {
         $info = $resolveInfo->getFieldSelection(2);
         if (empty($info)) {
             return [];
         }
 
-        $fields = ['uid', 'pid'];
+        $fields = ['uid', 'pid', ...$additionalFields];
 
         if ($info['edges']['node'] ?? false) {
             $fields = [...$fields, ...array_keys($info['edges']['node'])];

@@ -93,8 +93,7 @@ class QueryResolver
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = $args[QueryArgumentsUtility::$offset] ?? PaginationUtility::offsetFromCursor($args['after'] ?? '');
 
-        $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
-        $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
+        $sorting = $args[QueryArgumentsUtility::$sorting] ?? [];
 
         $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
 
@@ -116,20 +115,23 @@ class QueryResolver
                                                                                  FilterEventSource::QUERY_COUNT));
         $count = $qb->execute()->fetchOne();
 
-        $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName);
+        $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName, array_map(static fn ($x) => $x['field'], $sorting));
 
         $qb->select(...$fields)->distinct();
 
         $qb->setMaxResults($limit);
         $qb->setFirstResult($offset);
 
-        if ($sortBy !== null) {
+        foreach ($sorting as $item) {
+            $field = $item['field'];
+            $order = $item['order'];
+
             $fieldPrefix = "$tableName.";
-            if (!TcaUtility::doesFieldExist($tableName, $sortBy)) {
+            if (!TcaUtility::doesFieldExist($tableName, $field)) {
                 $fieldPrefix = '';
             }
 
-            $qb->orderBy($fieldPrefix . $sortBy, $sortDirection);
+            $qb->addOrderBy($fieldPrefix . $field, $order);
         }
 
         $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
@@ -167,8 +169,7 @@ class QueryResolver
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = $args[QueryArgumentsUtility::$offset] ?? PaginationUtility::offsetFromCursor($args['after'] ?? '');
 
-        $sortBy = $args[QueryArgumentsUtility::$sortByField] ?? null;
-        $sortDirection = $args[QueryArgumentsUtility::$sortingOrder] ?? 'ASC';
+        $sorting = $args[QueryArgumentsUtility::$sorting] ?? [];
 
         $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
@@ -193,20 +194,23 @@ class QueryResolver
 
         $count = $qb->execute()->fetchOne();
 
-        $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable);
+        $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable, array_map(static fn ($x) => $x['field'], $sorting));
 
         $qb->select(...$fields)->distinct();
 
         $qb->setMaxResults($limit);
         $qb->setFirstResult($offset);
 
-        if ($sortBy !== null) {
-            $fieldPrefix = "$foreignTable.";
-            if (!TcaUtility::doesFieldExist($foreignTable, $sortBy)) {
+        foreach ($sorting as $item) {
+            $field = $item['field'];
+            $order = $item['order'];
+
+            $fieldPrefix = "$tableName.";
+            if (!TcaUtility::doesFieldExist($tableName, $field)) {
                 $fieldPrefix = '';
             }
 
-            $qb->orderBy($fieldPrefix . $sortBy, $sortDirection);
+            $qb->addOrderBy($fieldPrefix . $field, $order);
         }
 
         $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,

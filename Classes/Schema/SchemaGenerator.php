@@ -252,39 +252,42 @@ class SchemaGenerator
             $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(RootQueryType::Multiple,
                                                                                    $multipleQuery,
                                                                                    $modelClassPath,
-                                                                                   $tableName, $typeRegistry));
+                                                                                   $tableName,
+                                                                                   $typeRegistry));
             $multipleQuery = $event->getFieldBuilder();
 
-            $queries[] = PaginationUtility::addArgumentsToFieldBuilder($multipleQuery)->build();
+
+            $queries[] = $this->typeMapper->addPaginationArgumentsToFieldBuilder($multipleQuery, $modelClassPath, $typeRegistry)->build();
 
             // Generate a name for the single query
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record
             $singleQuery = FieldBuilder::create($singleQueryName)->setType($objectType)->setResolver(function($root,
-                    $args,
-                    $context,
-                                                                                                            ResolveInfo $resolveInfo) use
-                (
-                    $modelClassPath
-                ) {
-                    return $this->queryResolver->fetchSingleRecord($root,
-                                                                   $args,
-                                                                   $context,
-                                                                   $resolveInfo,
-                                                                   $modelClassPath);
-                })->addArgument(QueryArgumentsUtility::$uid,
-                                Type::nonNull(Type::int()),
-                                "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language,
-                                                                                   Type::nonNull(Type::int()),
-                                                                                   'Language field',
-                                                                                   0);
+                $args,
+                $context,
+                                                                                                              ResolveInfo $resolveInfo) use
+            (
+                $modelClassPath
+            ) {
+                return $this->queryResolver->fetchSingleRecord($root,
+                                                               $args,
+                                                               $context,
+                                                               $resolveInfo,
+                                                               $modelClassPath);
+            })->addArgument(QueryArgumentsUtility::$uid,
+                            Type::nonNull(Type::int()),
+                            "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language,
+                                                                               Type::nonNull(Type::int()),
+                                                                               'Language field',
+                                                                               0);
 
             /** @var CustomQueryArgumentEvent $event */
             $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(RootQueryType::Single,
                                                                                    $singleQuery,
                                                                                    $modelClassPath,
-                                                                                   $tableName, $typeRegistry));
+                                                                                   $tableName,
+                                                                                   $typeRegistry));
             $singleQuery = $event->getFieldBuilder();
 
             $queries[] = $singleQuery->build();

@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Types;
 
+use GraphQL\Type\Definition\EnumType;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
@@ -21,6 +22,9 @@ use Itx\Typo3GraphQL\Types\Model\RangeType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
+use Itx\Typo3GraphQL\Utility\NamingUtility;
+use SimPod\GraphQLUtils\Builder\EnumBuilder;
+use SimPod\GraphQLUtils\Exception\InvalidArgument;
 
 class TypeRegistry
 {
@@ -337,5 +341,30 @@ class TypeRegistry
         }
 
         return $this->tableToModelClasspathMap[$tableName];
+    }
+
+    /**
+     * Allows to create a custom enum type. Name will be generated from the given name.
+     *
+     * @throws NameNotFoundException
+     * @throws InvalidArgument
+     */
+    public function createEnumType(string $name, array $values, string $description = ''): EnumType
+    {
+        $sanitizedName = NamingUtility::generateName($name, false);
+
+        $builder = EnumBuilder::create($sanitizedName);
+
+        $builder->setDescription($description);
+
+        foreach ($values as $value) {
+            $builder->addValue($value);
+        }
+
+        $type = new EnumType($builder->build());
+
+        $this->addType($type);
+
+        return $type;
     }
 }

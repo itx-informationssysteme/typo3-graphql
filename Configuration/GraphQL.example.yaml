@@ -4,6 +4,9 @@ models:
         queryable: true
         languageOverlayMode: true
 
+        # Fields that are allowed to be used in orderBy
+        sortableFields: ['sorting', 'title', 'uid']
+
         # Mount points are used to limit the allowed pageIds to a given set of page ids, when empty, all pages are allowed (use with caution!)
         mountPoints:
             - 1
@@ -12,6 +15,7 @@ models:
         enabled: true
         queryable: true
         languageOverlayMode: true
+        sortableFields: ['sorting']
         mountPoints:
             - 1
 
@@ -19,6 +23,7 @@ models:
         enabled: true
         queryable: true
         languageOverlayMode: true
+        sortableFields: ['sorting']
         mountPoints:
             - 1
 
@@ -26,6 +31,7 @@ models:
         enabled: true
         queryable: true
         languageOverlayMode: true
+        sortableFields: ['sorting']
         mountPoints:
             - 1
 
