@@ -14,23 +14,11 @@ class CustomQueryFieldEvent
     /** @var FieldBuilder[]  */
     protected array $fieldBuilders = [];
 
-    public function __construct(string $modelClassPath, string $tableName, TypeRegistry $typeRegistry)
+    public function __construct(TypeRegistry $typeRegistry)
     {
-        $this->modelClassPath = $modelClassPath;
-        $this->tableName = $tableName;
         $this->typeRegistry = $typeRegistry;
     }
-
-    public function getModelClassPath(): string
-    {
-        return $this->modelClassPath;
-    }
-
-    public function getTableName(): string
-    {
-        return $this->tableName;
-    }
-
+    
     public function getTypeRegistry(): TypeRegistry
     {
         return $this->typeRegistry;

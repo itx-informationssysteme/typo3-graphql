@@ -20,12 +20,16 @@ class PaginatedQueryResult
                                 int         $limit,
                                 ResolveInfo $resolveInfo,
                                 string      $modelClassPath,
-                                DataMapper  $dataMapper)
+                                ?DataMapper $dataMapper = null)
     {
         $previousCursor = $offset;
 
-        $itemsAsModel = $dataMapper->map($modelClassPath, $items);
-        $this->items = $itemsAsModel;
+        if ($dataMapper) {
+            $itemsAsModel = $dataMapper->map($modelClassPath, $items);
+            $this->items = $itemsAsModel;
+        } else {
+            $this->items = $items;
+        }
 
         if ($resolveInfo->fieldName === 'edges') {
             foreach ($items as $counter => $item) {

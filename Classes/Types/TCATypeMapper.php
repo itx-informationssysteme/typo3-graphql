@@ -117,9 +117,7 @@ class TCATypeMapper
 
             if ($isLazy) {
                 $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(),
-                                                                                   $context->getTypeRegistry(),
-                                                                                   $this->filterResolver,
-                                                                                   $context->getTableName());
+                                                                                   $context->getTypeRegistry());
 
                 $fieldBuilder->setType(Type::nonNull($paginationConnection));
 

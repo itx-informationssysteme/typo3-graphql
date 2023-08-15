@@ -396,8 +396,8 @@ class FilterResolver
         // Set selected to true for all options that are selected and disabled to true for all options that are not in actualFilterOptions anymore
         foreach ($originalFilterOptions as $originalFilterOption) {
             $selected = false;
-            if ($isSelectedNeeded && !empty($filterArguments[$filterPath])) {
-                $selected = in_array($originalFilterOption->value, $filterArguments[$filterPath]->options, true);
+            if ($isSelectedNeeded && !empty($discreteFilterArguments[$filterPath])) {
+                $selected = in_array($originalFilterOption->value, $discreteFilterArguments[$filterPath]->options, true);
             }
             $originalFilterOption->selected = $selected;
 

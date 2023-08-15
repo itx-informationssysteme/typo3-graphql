@@ -5,6 +5,7 @@ namespace Itx\Typo3GraphQL\Resolver;
 use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
+use Itx\Typo3GraphQL\Domain\Model\Filter;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
 use Itx\Typo3GraphQL\Enum\FilterEventSource;
 use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
@@ -231,10 +232,11 @@ class QueryResolver
     /**
      * This functions applies all filters to the query.
      *
+     * @return array{0: array<Filter>, 1: array<Filter>}
      * @throws FieldDoesNotExistException
      * @throws InvalidQueryException
      */
-    protected function applyFiltersToQueryBuilder(QueryBuilder $qb, string $modelClassPath, string $table, array $args): void
+    public function applyFiltersToQueryBuilder(QueryBuilder $qb, string $modelClassPath, string $table, array $args): array
     {
         $filters = $args[QueryArgumentsUtility::$filters] ?? [];
         $discreteFilters = [];
@@ -304,5 +306,7 @@ class QueryResolver
 
             $qb->andWhere(...$andExpressions);
         }
+
+        return [$discreteFilterConfigurations, $rangeFilterConfiguration];
     }
 }

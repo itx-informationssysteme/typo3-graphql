@@ -29,6 +29,7 @@ use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
+use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
@@ -74,6 +75,7 @@ class SchemaGenerator
      * @throws NameNotFoundException
      * @throws UnsupportedTypeException
      * @throws NotFoundException
+     * @throws InvalidArgument
      */
     public function generate(TypeRegistry $typeRegistry): Schema
     {
@@ -185,8 +187,7 @@ class SchemaGenerator
                 continue;
             }
 
-            $connectionType =
-                PaginationUtility::generateConnectionTypes($objectType, $typeRegistry, $this->filterResolver, $tableName);
+            $connectionType = PaginationUtility::generateConnectionTypes($objectType, $typeRegistry);
 
             // Add a query to fetch multiple records
             $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))
@@ -256,8 +257,8 @@ class SchemaGenerator
                                                                                    $typeRegistry));
             $multipleQuery = $event->getFieldBuilder();
 
-
-            $queries[] = $this->typeMapper->addPaginationArgumentsToFieldBuilder($multipleQuery, $modelClassPath, $typeRegistry)->build();
+            $queries[] =
+                $this->typeMapper->addPaginationArgumentsToFieldBuilder($multipleQuery, $modelClassPath, $typeRegistry)->build();
 
             // Generate a name for the single query
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
@@ -291,15 +292,15 @@ class SchemaGenerator
             $singleQuery = $event->getFieldBuilder();
 
             $queries[] = $singleQuery->build();
+        }
 
-            // Allow for custom new query fields
-            /** @var CustomQueryFieldEvent $customEvent */
-            $customEvent =
-                $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($modelClassPath, $tableName, $typeRegistry));
+        // Allow for custom new query fields
+        /** @var CustomQueryFieldEvent $customEvent */
+        $customEvent =
+            $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($typeRegistry));
 
-            foreach ($customEvent->getFieldBuilders() as $field) {
-                $queries[] = $field->build();
-            }
+        foreach ($customEvent->getFieldBuilders() as $field) {
+            $queries[] = $field->build();
         }
 
         $schemaConfig = SchemaConfig::create();
