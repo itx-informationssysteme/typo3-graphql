@@ -403,11 +403,11 @@ class FilterResolver
 
             $disabled = false;
 
-            if (empty($actualFilterOptions[$originalFilterOption->value])) {
+            if (empty($actualFilterOptions[$originalFilterOption->value]) && !$selected) {
                 $disabled = true;
                 $originalFilterOption->resultCount = 0;
             } else {
-                $originalFilterOption->resultCount = $actualFilterOptions[$originalFilterOption->value]->resultCount;
+                $originalFilterOption->resultCount = $actualFilterOptions[$originalFilterOption->value]?->resultCount ?? 0;
             }
 
             $originalFilterOption->disabled = $disabled;
