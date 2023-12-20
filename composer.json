@@ -9,7 +9,7 @@
         }
     ],
     "require": {
-        "typo3/cms-core": "^11.5",
+        "typo3/cms-core": "^12.4",
 		"webonyx/graphql-php": "14.*",
 		"simpod/graphql-utils": "^0.5",
 		"aimeos/map": "^3"

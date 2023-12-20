@@ -7,19 +7,12 @@ use TYPO3\CMS\Core\Configuration\Event\AfterTcaCompilationEvent;
 
 class AfterTcaEventListener
 {
-    protected ConfigurationService $configurationService;
-
-    public function __construct(ConfigurationService $configurationService)
-    {
-        $this->configurationService = $configurationService;
-    }
-
     public function __invoke(AfterTcaCompilationEvent $event): void
     {
         $tca = $event->getTca();
 
         $items = [];
-        foreach ($this->configurationService->getModels() as $model => $modelConfiguration) {
+        foreach ((ConfigurationService::loadConfiguration()['models'] ?? []) as $model => $modelConfiguration) {
             if ($modelConfiguration['enabled'] === false) {
                 continue;
             }

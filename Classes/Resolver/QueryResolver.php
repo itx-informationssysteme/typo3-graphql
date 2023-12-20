@@ -2,7 +2,6 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
-use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Model\Filter;
@@ -78,7 +77,6 @@ class QueryResolver
 
     /**
      * @throws BadInputException|InvalidQueryException
-     * @throws DBALException
      * @throws FieldDoesNotExistException
      * @throws Exception
      */
@@ -152,11 +150,10 @@ class QueryResolver
 
     /**
      * @throws Exception
-     * @throws DBALException
      * @throws BadInputException
      * @throws InvalidQueryException
      * @throws FieldDoesNotExistException
-     * @throws NotFoundException
+     * @throws NotFoundException|\Doctrine\DBAL\Exception
      */
     public function fetchForeignRecordsWithMM(AbstractDomainObject $root,
                                               array                $args,
@@ -242,7 +239,7 @@ class QueryResolver
         $discreteFilters = [];
         $rangeFilters = [];
 
-        if ($filters[QueryArgumentsUtility::$discreteFilters]) {
+        if ($filters[QueryArgumentsUtility::$discreteFilters] ?? false) {
             $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
             // Path as key for discrete filters
@@ -250,7 +247,7 @@ class QueryResolver
                 array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
         }
 
-        if ($filters[QueryArgumentsUtility::$rangeFilters]) {
+        if ($filters[QueryArgumentsUtility::$rangeFilters] ?? false) {
             $rangeFilters = $filters[QueryArgumentsUtility::$rangeFilters] ?? [];
 
             // Path as key for discrete filters
