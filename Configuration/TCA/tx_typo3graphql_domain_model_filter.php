@@ -39,13 +39,19 @@ return [
             ],
         ],
         'type_of_filter' => [
-            'label' => 'LLL:EXT:basicdistribution/Resources/Private/Language/Backend.xlf:typo3graphql.typeOfFilter',
+            'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3graphql_domain_model_filter.typeOfFilter',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
                 'items' => [
-                    ['Discrete Filter', 'discrete'],
-                    ['Range Filter', 'range']
+                    [
+                        'label' => 'Discrete Filter',
+                        'value' => 'discrete'
+                    ],
+                    [
+                        'label' => 'Range Filter',
+                        'value' => 'range'
+                    ],
                 ]
             ]
         ],

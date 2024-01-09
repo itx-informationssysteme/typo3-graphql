@@ -19,7 +19,7 @@ class AfterTcaEventListener
 
             $splitModel = explode('\\', $model);
 
-            $items[] = [$splitModel[array_key_last($splitModel)], $model];
+            $items[] = ['label' => $splitModel[array_key_last($splitModel)], 'value' => $model];
         }
 
         $tca['tx_typo3graphql_domain_model_filter']['columns']['model']['config']['items'] = $items;

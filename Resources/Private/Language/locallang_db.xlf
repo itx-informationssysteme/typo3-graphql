@@ -16,6 +16,9 @@
 			<trans-unit id="tx_typo3graphql_domain_model_filter.model">
 				<source>Configured model</source>
 			</trans-unit>
+			<trans-unit id="tx_typo3graphql_domain_model_filter.typeOfFilter">
+				<source>Type of filter</source>
+			</trans-unit>
 		</body>
 	</file>
 </xliff>

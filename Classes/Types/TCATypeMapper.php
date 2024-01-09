@@ -86,7 +86,7 @@ class TCATypeMapper
                 $this->handleLinkType($context, $fieldBuilder);
                 break;
             case 'number':
-                $this->handleNumberType($context, $fieldBuilder);
+                $this->handleNumberType($context, $fieldBuilder, $columnConfiguration);
                 break;
             case 'language':
                 $fieldBuilder->setType(Type::int());
@@ -181,9 +181,9 @@ class TCATypeMapper
 
     }
 
-    protected function handleNumberType(Context $context, FieldBuilder $fieldBuilder): void
+    protected function handleNumberType(Context $context, FieldBuilder $fieldBuilder, array $columnConfiguration): void
     {
-        if ($columnConfiguration['config']['format'] ?? '' === 'decimal') {
+        if (($columnConfiguration['config']['format'] ?? '') === 'decimal') {
             $fieldBuilder->setType(Type::float());
 
             return;
@@ -385,6 +385,7 @@ class TCATypeMapper
      */
     public function handleCategoryType(Context $context, FieldBuilder $fieldBuilder): void
     {
+
         $type = $context->getTypeRegistry()->getTypeByTableName('sys_category');
 
         $fieldBuilder->setType($type);
