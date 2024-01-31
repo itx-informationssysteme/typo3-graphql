@@ -241,9 +241,8 @@ class SchemaGenerator
                                              return $queryResult;
                                          })
                                          ->addArgument(QueryArgumentsUtility::$language,
-                                                       Type::nonNull(Type::int()),
-                                                       'Language field',
-                                                       0)
+                                                       Type::int(),
+                                                       'Language field')
                                          ->addArgument(QueryArgumentsUtility::$pageIds,
                                                        Type::listOf(Type::int()),
                                                        'List of storage page ids',
@@ -279,9 +278,8 @@ class SchemaGenerator
             })->addArgument(QueryArgumentsUtility::$uid,
                             Type::nonNull(Type::int()),
                             "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language,
-                                                                               Type::nonNull(Type::int()),
-                                                                               'Language field',
-                                                                               0);
+                                                                               Type::int(),
+                                                                               'Language field');
 
             /** @var CustomQueryArgumentEvent $event */
             $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(RootQueryType::Single,

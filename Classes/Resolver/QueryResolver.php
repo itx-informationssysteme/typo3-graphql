@@ -87,7 +87,7 @@ class QueryResolver
                                          string $modelClassPath,
                                          string $tableName): PaginatedQueryResult
     {
-        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+        $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = $args[QueryArgumentsUtility::$offset] ?? PaginationUtility::offsetFromCursor($args['after'] ?? '');
@@ -96,7 +96,10 @@ class QueryResolver
 
         $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
 
-        $qb->from($tableName)->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
+        $qb->from($tableName);
+        if ($language !== null) {
+            $qb->andWhere($qb->expr()->eq('sys_language_uid', $language));
+        }
 
         if (!empty($storagePids)) {
             $qb->andWhere($qb->expr()->in("$tableName.pid", $storagePids));
