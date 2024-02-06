@@ -19,21 +19,15 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\JsonResponse;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class GraphQLServerMiddleware implements MiddlewareInterface
 {
     protected SchemaGenerator $schemaGenerator;
-    protected LoggerInterface $logger;
     protected ConfigurationService $configurationService;
-
-    public function __construct(SchemaGenerator $schemaGenerator, LoggerInterface $logger, ConfigurationService $configurationService)
-    {
-        $this->schemaGenerator = $schemaGenerator;
-        $this->logger = $logger;
-        $this->configurationService = $configurationService;
-    }
 
     /**
      * @param ServerRequestInterface  $request
@@ -60,6 +54,15 @@ class GraphQLServerMiddleware implements MiddlewareInterface
             $parsedBody = json_decode($parsedBodyString, true, 512, JSON_THROW_ON_ERROR);
             $request = $request->withParsedBody($parsedBody);
         }
+
+        $container = GeneralUtility::getContainer();
+        // Get all di dependencies
+        $this->schemaGenerator = $container->get(SchemaGenerator::class);
+        $this->configurationService = $container->get(ConfigurationService::class);
+
+        // Start Extbase
+        $extbaseBridge = new ExtbaseBridge(GeneralUtility::makeInstance(Context::class));
+        $extbaseBridge->boot($request, $handler);
 
         $typeRegistry = new TypeRegistry();
 

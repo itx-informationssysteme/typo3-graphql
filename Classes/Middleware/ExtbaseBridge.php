@@ -25,7 +25,7 @@ use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 /**
  * Sets up TSFE and Extbase, in order to use Extbase within a Slim Controller
  */
-class ExtbaseBridge implements MiddlewareInterface
+class ExtbaseBridge
 {
     private string $typo3Version = '';
     private Context $context;
@@ -36,11 +36,11 @@ class ExtbaseBridge implements MiddlewareInterface
         $this->typo3Version = (string)(new \TYPO3\CMS\Core\Information\Typo3Version());
     }
 
-    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    public function boot(ServerRequestInterface $request, RequestHandlerInterface $handler): void
     {
         $site = $request->getAttribute('site');
         if (!$site instanceof Site) {
-            return $handler->handle($request);
+            return;
         }
 
         if (($GLOBALS['TYPO3_REQUEST'] ?? null) === null) {
@@ -55,8 +55,6 @@ class ExtbaseBridge implements MiddlewareInterface
 
         $request = $this->bootFrontend($request);
         $this->bootExtbase($request);
-
-        return $handler->handle($request);
     }
 
     protected function createGlobalTsfe(Site $site, ServerRequestInterface $request): ServerRequestInterface
@@ -122,7 +120,7 @@ class ExtbaseBridge implements MiddlewareInterface
                'extensionName' => 'typo3_graphql',
                'vendorName' => 'Itx',
                'pluginName' => 'graphql',
-           ]);
+           ], $request);
         }
     }
 }

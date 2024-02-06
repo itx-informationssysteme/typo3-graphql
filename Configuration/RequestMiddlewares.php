@@ -13,12 +13,6 @@ return [
                 'typo3/cms-frontend/base-redirect-resolver',
             ],
         ],
-        'itx/typo3_graphql/extbase-bridge' => [
-            'target' => ExtbaseBridge::class,
-            'before' => [
-                'itx/typo3_graphql/graphql-server'
-            ],
-        ],
         'itx/typo3_graphql/graphql-cors' => [
             'target' => \Itx\Typo3GraphQL\Middleware\CorsMiddleware::class,
             'before' => [
