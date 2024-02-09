@@ -363,7 +363,7 @@ class FilterResolver
         $isSelectedNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['selected']) &&
             $resolveInfo->getFieldSelection(3)['facets']['options']['selected'];
 
-        $cacheKey = md5($tableName . $filterPath . ($args[QueryArgumentsUtility::$language] ?? ''));
+        $cacheKey = md5($tableName . $filterPath . ($args[QueryArgumentsUtility::$language] ?? '') . implode($args[QueryArgumentsUtility::$pageIds] ?? []));
 
         if (!$this->cache->has($cacheKey)) {
             $originalFilterOptions = $this->fetchFilterOptions($tableName,
