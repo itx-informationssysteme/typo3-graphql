@@ -410,20 +410,30 @@ class TCATypeMapper
                                    []);
 
         if (count($sortableFields) > 0) {
-            $sortingFieldsEnumBuilder =
-                EnumBuilder::create(ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'SortingField'));
+			$sortingFieldsEnumName = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'SortingField');
 
-            foreach ($sortableFields as $sortableField) {
-                $sortingFieldsEnumBuilder->addValue($sortableField,
-                                                    $sortableField,
-                                                    NamingUtility::generateName($sortableField, false));
-            }
+			$sortingTypeName = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'Sorting');
 
-            $sortingFieldsEnum = new EnumType($sortingFieldsEnumBuilder->build());
-            $typeRegistry->addType($sortingFieldsEnum);
+			try {
+				$sortingFieldsEnum = $typeRegistry->getType($sortingFieldsEnumName);
 
-            $sortingType = new SortingInputType($modelClassPath, $sortingFieldsEnum);
-            $typeRegistry->addType($sortingType);
+				$sortingType = $typeRegistry->getType($sortingTypeName);
+
+			} catch (NotFoundException $e) {
+				$sortingFieldsEnumBuilder = EnumBuilder::create($sortingFieldsEnumName);
+				foreach ($sortableFields as $sortableField) {
+					$sortingFieldsEnumBuilder->addValue($sortableField,
+														$sortableField,
+														NamingUtility::generateName($sortableField, false));
+				}
+
+				$sortingFieldsEnum = new EnumType($sortingFieldsEnumBuilder->build());
+
+				$sortingType = new SortingInputType($sortingTypeName, $sortingFieldsEnum);
+			}
+
+			$typeRegistry->addType($sortingFieldsEnum);
+			$typeRegistry->addType($sortingType);
 
             $fieldBuilder->addArgument('sorting',
                                        Type::listOf(Type::nonNull($sortingType)),
