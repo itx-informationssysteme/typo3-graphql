@@ -377,9 +377,22 @@ class FilterResolver
                                                                $localUid,
                                                                false);
 
-            // Cache for 1 day
-            $this->cache->set($cacheKey, $originalFilterOptions, ['filter_options', $tableName], 86400);
+            // Cache for 1 day, and apply cache tags based on $tableName and $mmTable
+            $cacheTags = [$tableName];
+            if ($mmTable !== null) {
+                $cacheTags[] = $mmTable;
+            }
 
+            $explodedFilterPath = explode('.', $filterPath);
+            array_pop($explodedFilterPath);
+            foreach (self::walkTcaRelations($explodedFilterPath, $tableName) as [$currentTable, $fieldName, $tca]) {
+                if (($tca['foreign_table'] ?? null) !== null) {
+                    $cacheTags[] = $tca['foreign_table'];
+                }
+            }
+
+
+            $this->cache->set($cacheKey, $originalFilterOptions, ['filter_options', ...$cacheTags], 86400);
         } else {
             $originalFilterOptions = $this->cache->get($cacheKey);
         }
