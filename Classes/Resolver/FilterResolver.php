@@ -22,6 +22,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Database\Query\Restriction\FrontendRestrictionContainer;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
@@ -279,6 +280,8 @@ class FilterResolver
 
         // Query Builder
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
+        $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
+        $queryBuilder->setRestrictions($frontendRestrictionContainer);
 
         $lastElementTable = self::buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
 
@@ -314,6 +317,7 @@ class FilterResolver
                                                                                               FilterEventSource::FILTER,
                                                                                               'discrete'));
             $queryBuilder = $event->getQueryBuilder();
+
         }
 
         $fieldPrefix = "$lastElementTable.";
@@ -465,6 +469,8 @@ class FilterResolver
 
         // Query Builder
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
+        $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
+        $queryBuilder->setRestrictions($frontendRestrictionContainer);
 
         $lastElementTable = self::buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
 

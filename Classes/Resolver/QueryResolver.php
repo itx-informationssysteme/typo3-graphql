@@ -20,7 +20,9 @@ use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Database\Query\Restriction\FrontendRestrictionContainer;
 use TYPO3\CMS\Core\Resource\FileRepository;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\DomainObject\AbstractDomainObject;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
@@ -97,6 +99,8 @@ class QueryResolver
         $sorting = $args[QueryArgumentsUtility::$sorting] ?? [];
 
         $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
+        $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
+        $qb->setRestrictions($frontendRestrictionContainer);
 
         $qb->from($tableName)->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
 
@@ -176,6 +180,8 @@ class QueryResolver
         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
 
         $qb = $this->connectionPool->getQueryBuilderForTable($foreignTable);
+        $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
+        $qb->setRestrictions($frontendRestrictionContainer);
 
         $qb->from($foreignTable)
            ->leftJoin($foreignTable, $mm, 'm', $qb->expr()->eq("$foreignTable.uid", 'm.uid_foreign'))
