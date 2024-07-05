@@ -17,6 +17,7 @@ use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Resource\FileRepository;
@@ -62,8 +63,7 @@ class QueryResolver
         $query->getQuerySettings()
               ->setRespectStoragePage(false)
               ->setRespectSysLanguage(true)
-              ->setLanguageUid($language)
-              ->setLanguageOverlayMode($languageOverlayMode);
+              ->setLanguageAspect(new LanguageAspect($language));
 
         $query->matching($query->equals('uid', $uid));
 
