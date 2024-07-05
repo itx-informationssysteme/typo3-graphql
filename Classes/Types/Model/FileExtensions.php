@@ -9,7 +9,7 @@ use SimPod\GraphQLUtils\Exception\InvalidArgument;
 
 class FileExtensions extends EnumType implements TypeNameInterface
 {
-    public $description = 'Available file extensions for image manipulation, when file is an image';
+    public ?string $description = 'Available file extensions for image manipulation, when file is an image';
 
     /**
      * @throws InvalidArgument
@@ -23,7 +23,7 @@ class FileExtensions extends EnumType implements TypeNameInterface
         foreach ($fileExtensions as $fileExtension) {
             $objectBuilder->addValue(trim($fileExtension), NamingUtility::generateName($fileExtension, false));
         }
-        
+
         parent::__construct($objectBuilder->build());
     }
 

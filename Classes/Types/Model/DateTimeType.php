@@ -16,7 +16,7 @@ class DateTimeType extends ScalarType implements TypeNameInterface
     /**
      * @var string
      */
-    public $description = 'The `DateTime` scalar type represents time data, represented as an ISO-8601 encoded UTC date string.';
+    public ?string $description = 'The `DateTime` scalar type represents time data, represented as an ISO-8601 encoded UTC date string.';
 
     public function __construct(array $config = [])
     {

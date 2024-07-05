@@ -26,7 +26,7 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
     public const ARGUMENT_CROP = 'crop';
     public const FILE_EXTENSION = 'fileExtension';
 
-    public $description = 'A file object with some additional information including a publicly accessible URL';
+    public ?string $description = 'A file object with some additional information including a publicly accessible URL';
 
     /**
      * @throws NameNotFoundException
