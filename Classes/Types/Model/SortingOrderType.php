@@ -7,7 +7,7 @@ use SimPod\GraphQLUtils\Exception\InvalidArgument;
 
 class SortingOrderType extends \GraphQL\Type\Definition\EnumType implements TypeNameInterface
 {
-    public $description = 'Sorting order';
+    public ?string $description = 'Sorting order';
 
     /**
      * @throws InvalidArgument

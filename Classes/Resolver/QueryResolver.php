@@ -145,7 +145,6 @@ class QueryResolver
         return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
                                         $count,
                                         $offset,
-                                        $limit,
                                         $resolveInfo,
                                         $modelClassPath,
                                         $this->dataMapper);
@@ -223,7 +222,6 @@ class QueryResolver
         return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
                                         $count,
                                         $offset,
-                                        $limit,
                                         $resolveInfo,
                                         $modelClassPath,
                                         $this->dataMapper);

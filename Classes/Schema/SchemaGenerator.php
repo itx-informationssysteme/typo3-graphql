@@ -102,7 +102,6 @@ class SchemaGenerator
 
             // Build a ObjectType from the type configuration
             $objectType = new ObjectType($object->setFields(function() use (
-                $modelsConfiguration,
                 $typeRegistry,
                 $modelClassPath,
                 $tableName

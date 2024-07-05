@@ -1,6 +1,6 @@
 <?php
 
-$EM_CONF[$_EXTKEY] = [
+$EM_CONF['typo3_graphql'] = [
     'title' => 'TYPO3 GraphQL API',
     'description' => '',
     'category' => 'extension',

@@ -25,7 +25,8 @@ class LinkType extends \GraphQL\Type\Definition\ScalarType implements TypeNameIn
         $instructions = [
             'parameter' => $value,
             'forceAbsoluteUrl' => true,
-            'language' => $args['language'] ?? 0,
+            // TODO: Language should be passed as argument
+            'language' => 0,
         ];
 
         return GeneralUtility::makeInstance(ContentObjectRenderer::class)->typoLink_URL($instructions);
