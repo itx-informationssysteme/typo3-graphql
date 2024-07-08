@@ -11,7 +11,7 @@ use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
 
 class SortingInputType extends \GraphQL\Type\Definition\InputObjectType
 {
-    public $description = 'Sorting';
+    public ?string $description = 'Sorting';
 
     /**
      * @throws NameNotFoundException

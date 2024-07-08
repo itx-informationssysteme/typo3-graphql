@@ -12,7 +12,7 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class ConnectionType extends ObjectType
 {
-    public $description = 'A connection to a list of items';
+    public ?string $description = 'A connection to a list of items';
 
     /**
      * @throws NameNotFoundException

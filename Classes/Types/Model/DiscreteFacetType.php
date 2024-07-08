@@ -11,7 +11,7 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class DiscreteFacetType extends ObjectType implements TypeNameInterface
 {
-    public $description = 'A discrete filter facet';
+    public ?string $description = 'A discrete filter facet';
 
     /**
      * @throws NameNotFoundException

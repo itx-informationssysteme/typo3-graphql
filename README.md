@@ -13,7 +13,12 @@ The GraphQL API can be accessed via the `/graphql` endpoint.
 * URL generation for images and files
 * Filter and facets API
 * Pagination
-* Languages support
+* Basic Languages support
+
+## What does not work yet?
+* Not every TCA field is supported yet.
+* Language overlays don't work yet.
+* There are probably other problems, please create an issue if you find one.
 
 ## 🔨 Installation
 
@@ -39,6 +44,8 @@ The extension uses two mechanisms to configure the GraphQL schema.
       that.
     * Also make sure when overriding ObjectStorages, to include the correct ObjectStorage var Annotation with the correct Type.
 
+> :warning: Every field you mark with `@Expose` or `@ExposeAll` will be publicly accessible in the GraphQL API.
+
 ## 💻 Usage
 
 The extension provides a `Query` type, which is the entry point for all queries. The `Query` type has a field for each model you
@@ -51,7 +58,7 @@ GraphQL Introspection is enabled by default in development mode and disabled in 
 
 ### ⚡ Filter API
 
-The extension also comes with an extensive filter and facet system. Right now, it supports discrete filters only.
+The extension also comes with an extensive filter and facet system. Right now, it supports discrete filters and range filters.
 
 You can add filter records anywhere in the page tree. Each filter defines a name, the model it applies to, and the filter path to the
 field it applies to.

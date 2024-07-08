@@ -9,7 +9,7 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class PageInfoType extends \GraphQL\Type\Definition\ObjectType implements TypeNameInterface
 {
-    public $description = 'Information to navigate the pagination';
+    public ?string $description = 'Information to navigate the pagination';
 
     public function __construct()
     {

@@ -17,7 +17,6 @@ class PaginatedQueryResult
     public function __construct(array       $items,
                                 int         $totalCount,
                                 int         $offset,
-                                int         $limit,
                                 ResolveInfo $resolveInfo,
                                 string      $modelClassPath,
                                 ?DataMapper $dataMapper = null)
