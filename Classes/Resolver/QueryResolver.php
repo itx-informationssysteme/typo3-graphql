@@ -2,7 +2,6 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
-use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Model\Filter;
@@ -18,6 +17,7 @@ use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Resource\FileRepository;
@@ -63,8 +63,7 @@ class QueryResolver
         $query->getQuerySettings()
               ->setRespectStoragePage(false)
               ->setRespectSysLanguage(true)
-              ->setLanguageUid($language)
-              ->setLanguageOverlayMode($languageOverlayMode);
+              ->setLanguageAspect(new LanguageAspect($language));
 
         $query->matching($query->equals('uid', $uid));
 
@@ -78,7 +77,6 @@ class QueryResolver
 
     /**
      * @throws BadInputException|InvalidQueryException
-     * @throws DBALException
      * @throws FieldDoesNotExistException
      * @throws Exception
      */
@@ -89,7 +87,7 @@ class QueryResolver
                                          string $modelClassPath,
                                          string $tableName): PaginatedQueryResult
     {
-        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+        $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = $args[QueryArgumentsUtility::$offset] ?? PaginationUtility::offsetFromCursor($args['after'] ?? '');
@@ -98,7 +96,10 @@ class QueryResolver
 
         $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
 
-        $qb->from($tableName)->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
+        $qb->from($tableName);
+        if ($language !== null) {
+            $qb->andWhere($qb->expr()->eq('sys_language_uid', $language));
+        }
 
         if (!empty($storagePids)) {
             $qb->andWhere($qb->expr()->in("$tableName.pid", $storagePids));
@@ -144,7 +145,6 @@ class QueryResolver
         return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
                                         $count,
                                         $offset,
-                                        $limit,
                                         $resolveInfo,
                                         $modelClassPath,
                                         $this->dataMapper);
@@ -152,11 +152,10 @@ class QueryResolver
 
     /**
      * @throws Exception
-     * @throws DBALException
      * @throws BadInputException
      * @throws InvalidQueryException
      * @throws FieldDoesNotExistException
-     * @throws NotFoundException
+     * @throws NotFoundException|\Doctrine\DBAL\Exception
      */
     public function fetchForeignRecordsWithMM(AbstractDomainObject $root,
                                               array                $args,
@@ -223,7 +222,6 @@ class QueryResolver
         return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
                                         $count,
                                         $offset,
-                                        $limit,
                                         $resolveInfo,
                                         $modelClassPath,
                                         $this->dataMapper);
@@ -242,7 +240,7 @@ class QueryResolver
         $discreteFilters = [];
         $rangeFilters = [];
 
-        if ($filters[QueryArgumentsUtility::$discreteFilters]) {
+        if ($filters[QueryArgumentsUtility::$discreteFilters] ?? false) {
             $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
             // Path as key for discrete filters
@@ -250,7 +248,7 @@ class QueryResolver
                 array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
         }
 
-        if ($filters[QueryArgumentsUtility::$rangeFilters]) {
+        if ($filters[QueryArgumentsUtility::$rangeFilters] ?? false) {
             $rangeFilters = $filters[QueryArgumentsUtility::$rangeFilters] ?? [];
 
             // Path as key for discrete filters

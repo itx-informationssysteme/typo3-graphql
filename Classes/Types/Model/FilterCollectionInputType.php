@@ -12,7 +12,7 @@ use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
 
 class FilterCollectionInputType extends InputObjectType implements TypeNameInterface
 {
-    public $description = 'Filter collection';
+    public ?string $description = 'Filter collection';
 
     /**
      * @throws NameNotFoundException

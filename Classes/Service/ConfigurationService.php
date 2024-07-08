@@ -6,18 +6,17 @@ use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Configuration\Loader\YamlFileLoader;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class ConfigurationService
 {
-    protected YamlFileLoader $yamlFileLoader;
     protected array $configuration;
     protected FrontendInterface $cache;
 
     protected const CONFIGURATION_FILE = 'Configuration/GraphQL.yaml';
 
-    public function __construct(YamlFileLoader $yamlFileLoader, FrontendInterface $cache)
+    public function __construct(FrontendInterface $cache)
     {
-        $this->yamlFileLoader = $yamlFileLoader;
         $this->cache = $cache;
 
         $cacheIdentifier = 'configuration';
@@ -25,7 +24,7 @@ class ConfigurationService
         $value = $this->cache->get($cacheIdentifier);
 
         if ($value === false) {
-            $value = $this->loadConfiguration();
+            $value = $this::loadConfiguration();
             $tags = ['graphql'];
             $lifetime = 0;
 
@@ -35,11 +34,14 @@ class ConfigurationService
         $this->configuration = $value;
     }
 
-    protected function loadConfiguration(): array
+    public static function loadConfiguration(): array
     {
         $configuration = [];
 
         $extensions = ExtensionManagementUtility::getLoadedExtensionListArray();
+
+        /** @var YamlFileLoader $yamlFileLoader */
+        $yamlFileLoader = GeneralUtility::makeInstance(YamlFileLoader::class);
 
         // Load all extensions configuration files
         foreach ($extensions as $extension) {
@@ -49,7 +51,7 @@ class ConfigurationService
                 continue;
             }
 
-            $newConfiguration = $this->yamlFileLoader->load(ExtensionManagementUtility::extPath($extension) . self::CONFIGURATION_FILE);
+            $newConfiguration = $yamlFileLoader->load(ExtensionManagementUtility::extPath($extension) . self::CONFIGURATION_FILE);
 
             $configuration = self::array_merge_recursive_overwrite($configuration, $newConfiguration);
         }

@@ -15,6 +15,7 @@ services:
         arguments: [ 'typo3_graphql_cache' ]
 
     Itx\Typo3GraphQL\Service\ConfigurationService:
+        public: true
         arguments:
             $cache: '@cache.typo3_graphql_cache'
 
@@ -27,3 +28,6 @@ services:
     Itx\Typo3GraphQL\Resolver\FilterResolver:
         arguments:
             $cache: '@cache.typo3_graphql_cache'
+
+    Itx\Typo3GraphQL\Schema\SchemaGenerator:
+        public: true

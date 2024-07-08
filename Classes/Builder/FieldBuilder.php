@@ -5,8 +5,8 @@ namespace Itx\Typo3GraphQL\Builder;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
-use JetBrains\PhpStorm\ArrayShape;
 
+/** @package Itx\Typo3GraphQL\Builder */
 class FieldBuilder
 {
     private string $name;
@@ -122,14 +122,7 @@ class FieldBuilder
      * @return array<string, mixed>
      * @throws UnsupportedTypeException
      */
-    #[ArrayShape([
-        'args' => "\mixed[][]|null",
-        'name' => "string",
-        'description' => "null|string",
-        'deprecationReason' => "null|string",
-        'resolve' => "callable",
-        'type' => Type::class,
-    ])] public function build(): array
+    public function build(): array
     {
         if ($this->type === null) {
             throw new UnsupportedTypeException('Type must be set', 1589716096);

@@ -23,6 +23,8 @@ use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use SimPod\GraphQLUtils\Builder\EnumBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
@@ -40,14 +42,13 @@ class TCATypeMapper
         'l18n_parent'
     ];
 
-    public function __construct(LanguageService                $languageService,
-                                TableNameResolver              $tableNameResolver,
+    public function __construct(TableNameResolver              $tableNameResolver,
                                 QueryResolver                  $queryResolver,
                                 ResolverBuffer                 $resolverBuffer,
                                 FilterResolver                 $filterResolver,
                                 protected ConfigurationService $configurationService)
     {
-        $this->languageService = $languageService;
+        $this->languageService = GeneralUtility::makeInstance(LanguageServiceFactory::class)?->create('en');
         $this->tableNameResolver = $tableNameResolver;
         $this->queryResolver = $queryResolver;
         $this->resolverBuffer = $resolverBuffer;
@@ -81,8 +82,11 @@ class TCATypeMapper
             case 'input':
                 $this->handleInputType($context, $fieldBuilder);
                 break;
+            case 'link':
+                $this->handleLinkType($context, $fieldBuilder);
+                break;
             case 'number':
-                $this->handleNumberType($context, $fieldBuilder);
+                $this->handleNumberType($context, $fieldBuilder, $columnConfiguration);
                 break;
             case 'language':
                 $fieldBuilder->setType(Type::int());
@@ -122,8 +126,8 @@ class TCATypeMapper
                 $fieldBuilder->setType(Type::nonNull($paginationConnection));
 
                 $this->addPaginationArgumentsToFieldBuilder($fieldBuilder,
-                                                              $context->getModelClassPath(),
-                                                              $context->getTypeRegistry());
+                                                            $context->getModelClassPath(),
+                                                            $context->getTypeRegistry());
             } else {
                 $fieldBuilder->setType(Type::nonNull(Type::listOf(Type::nonNull($fieldBuilder->getType()))));
             }
@@ -152,13 +156,6 @@ class TCATypeMapper
             return;
         }
 
-        // Link
-        if (($columnConfiguration['config']['renderType'] ?? '') === 'inputLink') {
-            $fieldBuilder->setType(TypeRegistry::link());
-
-            return;
-        }
-
         if (str_contains($columnConfiguration['config']['eval'] ?? '', 'int')) {
             $fieldBuilder->setType(Type::int());
 
@@ -174,9 +171,19 @@ class TCATypeMapper
         $fieldBuilder->setType(Type::string());
     }
 
-    protected function handleNumberType(Context $context, FieldBuilder $fieldBuilder): void
+    /**
+     * @throws NameNotFoundException
+     */
+    protected function handleLinkType(Context $context, FieldBuilder $fieldBuilder): void
     {
-        if ($columnConfiguration['config']['format'] ?? '' === 'decimal') {
+        // Link
+        $fieldBuilder->setType(TypeRegistry::link());
+
+    }
+
+    protected function handleNumberType(Context $context, FieldBuilder $fieldBuilder, array $columnConfiguration): void
+    {
+        if (($columnConfiguration['config']['format'] ?? '') === 'decimal') {
             $fieldBuilder->setType(Type::float());
 
             return;
@@ -229,14 +236,14 @@ class TCATypeMapper
         if (!empty($columnConfiguration['config']['items'])) {
             // If all values are integers or floats, we don't need an enum
             if (count(array_filter($columnConfiguration['config']['items'],
-                    static fn($x) => !MathUtility::canBeInterpretedAsInteger($x[1]))) === 0) {
+                    static fn($x) => !MathUtility::canBeInterpretedAsInteger($x['value']))) === 0) {
                 $fieldBuilder->setType(Type::int());
 
                 return;
             }
 
             if (count(array_filter($columnConfiguration['config']['items'],
-                    static fn($x) => !MathUtility::canBeInterpretedAsFloat($x[1]))) === 0) {
+                    static fn($x) => !MathUtility::canBeInterpretedAsFloat($x['value']))) === 0) {
                 $fieldBuilder->setType(Type::float());
 
                 return;
@@ -255,7 +262,10 @@ class TCATypeMapper
 
             $builder = EnumBuilder::create($name);
 
-            foreach ($columnConfiguration['config']['items'] as [$label, $item]) {
+            foreach ($columnConfiguration['config']['items'] as $configItem) {
+                $item = $configItem['value'];
+                $label = $configItem['label'];
+
                 if ($item === '') {
                     $fieldBuilder->setType(Type::string());
 
@@ -375,6 +385,7 @@ class TCATypeMapper
      */
     public function handleCategoryType(Context $context, FieldBuilder $fieldBuilder): void
     {
+
         $type = $context->getTypeRegistry()->getTypeByTableName('sys_category');
 
         $fieldBuilder->setType($type);
@@ -399,19 +410,34 @@ class TCATypeMapper
                                    []);
 
         if (count($sortableFields) > 0) {
-            $sortingFieldsEnumBuilder = EnumBuilder::create(ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false).'SortingField'));
+			$sortingFieldsEnumName = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'SortingField');
 
-            foreach ($sortableFields as $sortableField) {
-                $sortingFieldsEnumBuilder->addValue($sortableField, $sortableField, NamingUtility::generateName($sortableField, false));
-            }
+			$sortingTypeName = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'Sorting');
 
-            $sortingFieldsEnum = new EnumType($sortingFieldsEnumBuilder->build());
-            $typeRegistry->addType($sortingFieldsEnum);
+			try {
+				$sortingFieldsEnum = $typeRegistry->getType($sortingFieldsEnumName);
 
-            $sortingType = new SortingInputType($modelClassPath, $sortingFieldsEnum);
-            $typeRegistry->addType($sortingType);
+				$sortingType = $typeRegistry->getType($sortingTypeName);
 
-            $fieldBuilder->addArgument('sorting', Type::listOf(Type::nonNull($sortingType)), 'Specify multiple sorting directions');
+			} catch (NotFoundException $e) {
+				$sortingFieldsEnumBuilder = EnumBuilder::create($sortingFieldsEnumName);
+				foreach ($sortableFields as $sortableField) {
+					$sortingFieldsEnumBuilder->addValue($sortableField,
+														$sortableField,
+														NamingUtility::generateName($sortableField, false));
+				}
+
+				$sortingFieldsEnum = new EnumType($sortingFieldsEnumBuilder->build());
+
+				$sortingType = new SortingInputType($sortingTypeName, $sortingFieldsEnum);
+			}
+
+			$typeRegistry->addType($sortingFieldsEnum);
+			$typeRegistry->addType($sortingType);
+
+            $fieldBuilder->addArgument('sorting',
+                                       Type::listOf(Type::nonNull($sortingType)),
+                                       'Specify multiple sorting directions');
         }
 
         return $fieldBuilder;

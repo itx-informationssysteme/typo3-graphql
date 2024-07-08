@@ -31,16 +31,17 @@ use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 use TYPO3\CMS\Extbase\Reflection\ReflectionService;
+use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 class SchemaGenerator
 {
     protected PersistenceManager $persistenceManager;
     protected TableNameResolver $tableNameResolver;
     protected LoggerInterface $logger;
-    protected LanguageService $languageService;
     protected TCATypeMapper $typeMapper;
     protected QueryResolver $queryResolver;
     protected EventDispatcherInterface $eventDispatcher;
@@ -51,7 +52,6 @@ class SchemaGenerator
     public function __construct(PersistenceManager       $persistenceManager,
                                 TableNameResolver        $tableNameResolver,
                                 LoggerInterface          $logger,
-                                LanguageService          $languageService,
                                 TCATypeMapper            $typeMapper,
                                 QueryResolver            $queryResolver,
                                 ConfigurationService     $configurationService,
@@ -62,7 +62,6 @@ class SchemaGenerator
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
         $this->logger = $logger;
-        $this->languageService = $languageService;
         $this->typeMapper = $typeMapper;
         $this->queryResolver = $queryResolver;
         $this->eventDispatcher = $eventDispatcher;
@@ -94,15 +93,15 @@ class SchemaGenerator
             // Get the table name
             $tableName = $this->tableNameResolver->resolve($modelClassPath);
 
+            $languageService = GeneralUtility::makeInstance(LanguageServiceFactory::class)?->create('en');
             $objectName =
-                NamingUtility::generateName($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']), false);
+                NamingUtility::generateName($languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']), false);
 
             // Type configuration
             $object = ObjectBuilder::create($objectName)->setDescription("The $objectName type");
 
             // Build a ObjectType from the type configuration
             $objectType = new ObjectType($object->setFields(function() use (
-                $modelsConfiguration,
                 $typeRegistry,
                 $modelClassPath,
                 $tableName
@@ -241,9 +240,8 @@ class SchemaGenerator
                                              return $queryResult;
                                          })
                                          ->addArgument(QueryArgumentsUtility::$language,
-                                                       Type::nonNull(Type::int()),
-                                                       'Language field',
-                                                       0)
+                                                       Type::int(),
+                                                       'Language field')
                                          ->addArgument(QueryArgumentsUtility::$pageIds,
                                                        Type::listOf(Type::int()),
                                                        'List of storage page ids',
@@ -279,9 +277,8 @@ class SchemaGenerator
             })->addArgument(QueryArgumentsUtility::$uid,
                             Type::nonNull(Type::int()),
                             "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language,
-                                                                               Type::nonNull(Type::int()),
-                                                                               'Language field',
-                                                                               0);
+                                                                               Type::int(),
+                                                                               'Language field');
 
             /** @var CustomQueryArgumentEvent $event */
             $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(RootQueryType::Single,
@@ -296,8 +293,7 @@ class SchemaGenerator
 
         // Allow for custom new query fields
         /** @var CustomQueryFieldEvent $customEvent */
-        $customEvent =
-            $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($typeRegistry));
+        $customEvent = $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($typeRegistry));
 
         foreach ($customEvent->getFieldBuilders() as $field) {
             $queries[] = $field->build();

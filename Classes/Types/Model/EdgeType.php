@@ -9,7 +9,7 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class EdgeType extends ObjectType
 {
-    public $description = 'An edge in a connection';
+    public ?string $description = 'An edge in a connection';
 
     /**
      * @param $node Type

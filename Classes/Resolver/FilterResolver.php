@@ -271,7 +271,7 @@ class FilterResolver
                                         ?int        $localUid,
                                         bool        $triggerEvent): array
     {
-        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+        $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
 
         $filterPathElements = explode('.', $filterPath);
@@ -299,8 +299,10 @@ class FilterResolver
                                                                   $storagePids)));
         }
 
-        $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                                                          $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        if ($language !== null) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                        $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -361,7 +363,7 @@ class FilterResolver
         $isSelectedNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['selected']) &&
             $resolveInfo->getFieldSelection(3)['facets']['options']['selected'];
 
-        $cacheKey = md5($tableName . $filterPath . $args[QueryArgumentsUtility::$language]);
+        $cacheKey = md5($tableName . $filterPath . ($args[QueryArgumentsUtility::$language] ?? '') . implode($args[QueryArgumentsUtility::$pageIds] ?? []));
 
         if (!$this->cache->has($cacheKey)) {
             $originalFilterOptions = $this->fetchFilterOptions($tableName,
@@ -375,8 +377,22 @@ class FilterResolver
                                                                $localUid,
                                                                false);
 
-            // Cache for 1 day
-            $this->cache->set($cacheKey, $originalFilterOptions, ['filter_options'], 86400);
+            // Cache for 1 day, and apply cache tags based on $tableName and $mmTable
+            $cacheTags = [$tableName];
+            if ($mmTable !== null) {
+                $cacheTags[] = $mmTable;
+            }
+
+            $explodedFilterPath = explode('.', $filterPath);
+            array_pop($explodedFilterPath);
+            foreach (self::walkTcaRelations($explodedFilterPath, $tableName) as [$currentTable, $fieldName, $tca]) {
+                if (($tca['foreign_table'] ?? null) !== null) {
+                    $cacheTags[] = $tca['foreign_table'];
+                }
+            }
+
+
+            $this->cache->set($cacheKey, $originalFilterOptions, ['filter_options', ...$cacheTags], 86400);
         } else {
             $originalFilterOptions = $this->cache->get($cacheKey);
         }
@@ -442,7 +458,7 @@ class FilterResolver
                                  ?string     $mmTable,
                                  ?int        $localUid): Range
     {
-        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+        $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
 
         $filterPathElements = explode('.', $filterPath);
@@ -470,8 +486,10 @@ class FilterResolver
                                                                   $storagePids)));
         }
 
-        $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                                                          $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        if ($language !== null) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                        $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
