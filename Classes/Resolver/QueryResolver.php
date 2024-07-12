@@ -34,14 +34,15 @@ class QueryResolver
     protected FilterRepository $filterRepository;
     protected DataMapper $dataMapper;
 
-    public function __construct(PersistenceManager                 $persistenceManager,
-                                FileRepository                     $fileRepository,
-                                ConfigurationService               $configurationService,
-                                FilterRepository                   $filterRepository,
-                                DataMapper                         $dataMapper,
-                                protected EventDispatcherInterface $eventDispatcher,
-                                protected ConnectionPool           $connectionPool)
-    {
+    public function __construct(
+        PersistenceManager $persistenceManager,
+        FileRepository $fileRepository,
+        ConfigurationService $configurationService,
+        FilterRepository $filterRepository,
+        DataMapper $dataMapper,
+        protected EventDispatcherInterface $eventDispatcher,
+        protected ConnectionPool $connectionPool
+    ) {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
         $this->configurationService = $configurationService;
@@ -80,13 +81,14 @@ class QueryResolver
      * @throws FieldDoesNotExistException
      * @throws Exception
      */
-    public function fetchMultipleRecords($root,
-                                         array $args,
-                                         mixed $context,
-                                         ResolveInfo $resolveInfo,
-                                         string $modelClassPath,
-                                         string $tableName): PaginatedQueryResult
-    {
+    public function fetchMultipleRecords(
+        $root,
+        array $args,
+        mixed $context,
+        ResolveInfo $resolveInfo,
+        string $modelClassPath,
+        string $tableName
+    ): PaginatedQueryResult {
         $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
@@ -110,14 +112,16 @@ class QueryResolver
         $tableNameQuoted = $qb->quoteIdentifier($tableName);
 
         $qb->selectLiteral("COUNT(DISTINCT $tableNameQuoted.uid)");
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                 $tableName,
-                                                                                 $qb,
-                                                                                 $args,
-                                                                                 FilterEventSource::QUERY_COUNT));
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $tableName,
+            $qb,
+            $args,
+            FilterEventSource::QUERY_COUNT
+        ));
         $count = $qb->execute()->fetchOne();
 
-        $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName, array_map(static fn ($x) => $x['field'], $sorting));
+        $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName, array_map(static fn($x) => $x['field'], $sorting));
 
         $qb->select(...$fields)->distinct();
 
@@ -136,18 +140,22 @@ class QueryResolver
             $qb->addOrderBy($fieldPrefix . $field, $order);
         }
 
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                 $tableName,
-                                                                                 $qb,
-                                                                                 $args,
-                                                                                 FilterEventSource::QUERY));
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $tableName,
+            $qb,
+            $args,
+            FilterEventSource::QUERY
+        ));
 
-        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
-                                        $count,
-                                        $offset,
-                                        $resolveInfo,
-                                        $modelClassPath,
-                                        $this->dataMapper);
+        return new PaginatedQueryResult(
+            $qb->execute()->fetchAllAssociative(),
+            $count,
+            $offset,
+            $resolveInfo,
+            $modelClassPath,
+            $this->dataMapper
+        );
     }
 
     /**
@@ -157,13 +165,14 @@ class QueryResolver
      * @throws FieldDoesNotExistException
      * @throws NotFoundException|\Doctrine\DBAL\Exception
      */
-    public function fetchForeignRecordsWithMM(AbstractDomainObject $root,
-                                              array                $args,
-                                                                   $context,
-                                              ResolveInfo          $resolveInfo,
-                                              Context              $schemaContext,
-                                              string               $foreignTable): PaginatedQueryResult
-    {
+    public function fetchForeignRecordsWithMM(
+        AbstractDomainObject $root,
+        array $args,
+        $context,
+        ResolveInfo $resolveInfo,
+        Context $schemaContext,
+        string $foreignTable
+    ): PaginatedQueryResult {
         $tableName = $schemaContext->getTableName();
         $localUid = $root->getUid();
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
@@ -186,15 +195,17 @@ class QueryResolver
 
         $qb->selectLiteral("COUNT(DISTINCT $foreignTableQuoted.uid)")->distinct();
 
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                 $foreignTable,
-                                                                                 $qb,
-                                                                                 $args,
-                                                                                 FilterEventSource::QUERY_COUNT));
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $foreignTable,
+            $qb,
+            $args,
+            FilterEventSource::QUERY_COUNT
+        ));
 
         $count = $qb->execute()->fetchOne();
 
-        $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable, array_map(static fn ($x) => $x['field'], $sorting));
+        $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable, array_map(static fn($x) => $x['field'], $sorting));
 
         $qb->select(...$fields)->distinct();
 
@@ -213,18 +224,22 @@ class QueryResolver
             $qb->addOrderBy($fieldPrefix . $field, $order);
         }
 
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                 $foreignTable,
-                                                                                 $qb,
-                                                                                 $args,
-                                                                                 FilterEventSource::QUERY));
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $foreignTable,
+            $qb,
+            $args,
+            FilterEventSource::QUERY
+        ));
 
-        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
-                                        $count,
-                                        $offset,
-                                        $resolveInfo,
-                                        $modelClassPath,
-                                        $this->dataMapper);
+        return new PaginatedQueryResult(
+            $qb->execute()->fetchAllAssociative(),
+            $count,
+            $offset,
+            $resolveInfo,
+            $modelClassPath,
+            $this->dataMapper
+        );
     }
 
     /**
@@ -298,13 +313,17 @@ class QueryResolver
             $andExpressions = [];
 
             if (($rangeFilter['range']['min'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeFilter['range']['min']));
+                $andExpressions[] = $qb->expr()->gte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['range']['min'])
+                );
             }
 
             if (($rangeFilter['range']['max'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeFilter['range']['max']));
+                $andExpressions[] = $qb->expr()->lte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['range']['max'])
+                );
             }
 
             $qb->andWhere(...$andExpressions);

@@ -4,7 +4,7 @@ namespace Itx\Typo3GraphQL\Utility;
 
 class TcaUtility
 {
-    const TYPO3_FIELDS = [
+    public const TYPO3_FIELDS = [
         'uid',
         'pid',
         'tstamp',
@@ -38,7 +38,7 @@ class TcaUtility
         't3_origuid',
         't3_origpid',
         't3ver_editor',
-        't3ver_state'
+        't3ver_state',
     ];
 
     public static function doesFieldExist(string $tableName, string $fieldName): bool

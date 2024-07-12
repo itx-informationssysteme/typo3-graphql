@@ -16,7 +16,7 @@ class EdgeType extends ObjectType
      */
     public function __construct(mixed $node)
     {
-        $this->name = $node->name.'Edge';
+        $this->name = $node->name . 'Edge';
         $objectBuilder = ObjectBuilder::create($this->name);
 
         $fields = [];

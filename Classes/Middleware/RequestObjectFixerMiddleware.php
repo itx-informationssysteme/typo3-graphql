@@ -21,4 +21,3 @@ class RequestObjectFixerMiddleware implements MiddlewareInterface
         return $handler->handle($request);
     }
 }
-

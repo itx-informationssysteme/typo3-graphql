@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Itx\Typo3GraphQL\Types\Model;
@@ -45,7 +46,6 @@ class DateTimeType extends ScalarType implements TypeNameInterface
     }
 
     /**
-     *
      * @param Node       $valueNode
      * @param array|null $variables
      *

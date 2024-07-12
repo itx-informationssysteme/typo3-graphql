@@ -6,7 +6,6 @@ use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\UnsupportedTypeException;
 
-/** @package Itx\Typo3GraphQL\Builder */
 class FieldBuilder
 {
     private string $name;

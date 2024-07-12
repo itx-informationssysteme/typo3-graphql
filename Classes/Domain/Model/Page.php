@@ -7,16 +7,16 @@ use Itx\Typo3GraphQL\Annotation\ExposeAll;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 
 /**
- * @ExposeAll()
+ * @ExposeAll
  */
 class Page extends AbstractEntity
 {
-    /** @Expose() */
+    /** @Expose */
     protected string $title;
 
     protected string $slug;
 
-    /** @Expose() */
+    /** @Expose */
     protected bool $isSiteroot;
 
     /**

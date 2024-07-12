@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Itx\Typo3GraphQL\Middleware;
 
 /*
@@ -11,9 +12,7 @@ namespace Itx\Typo3GraphQL\Middleware;
  * of the License, or any later version.
  */
 
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Routing\PageArguments;
@@ -111,16 +110,16 @@ class ExtbaseBridge
     {
         if (version_compare($this->typo3Version, '12.4', '>=')) {
             GeneralUtility::makeInstance(Bootstrap::class)->initialize([
-               'extensionName' => 'typo3_graphql',
-               'vendorName' => 'Itx',
-               'pluginName' => 'graphql',
-           ], $request);
-        }else {
+                'extensionName' => 'typo3_graphql',
+                'vendorName' => 'Itx',
+                'pluginName' => 'graphql',
+            ], $request);
+        } else {
             GeneralUtility::makeInstance(Bootstrap::class)->initialize([
-               'extensionName' => 'typo3_graphql',
-               'vendorName' => 'Itx',
-               'pluginName' => 'graphql',
-           ], $request);
+                'extensionName' => 'typo3_graphql',
+                'vendorName' => 'Itx',
+                'pluginName' => 'graphql',
+            ], $request);
         }
     }
 }

@@ -43,9 +43,10 @@ class PaginationUtility
      * @throws NameNotFoundException
      * @throws NotFoundException
      */
-    public static function generateConnectionTypes(Type           $objectType,
-                                                   TypeRegistry   $typeRegistry): ConnectionType
-    {
+    public static function generateConnectionTypes(
+        Type $objectType,
+        TypeRegistry $typeRegistry
+    ): ConnectionType {
         $edgeType = new EdgeType($objectType);
         $connectionType = new ConnectionType($objectType, $edgeType);
 

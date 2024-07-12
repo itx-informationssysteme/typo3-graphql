@@ -171,7 +171,7 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public static function rangeFilterInput() : RangeFilterInputType
+    public static function rangeFilterInput(): RangeFilterInputType
     {
         /** @var RangeFilterInputType $type */
         $type = self::getOrCreateCustomType(RangeFilterInputType::class);
@@ -263,7 +263,6 @@ class TypeRegistry
         $type = self::getOrCreateCustomType(FacetsType::class);
 
         return $type;
-
     }
 
     /**

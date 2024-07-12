@@ -21,9 +21,9 @@ class SortingInputType extends \GraphQL\Type\Definition\InputObjectType
         $this->name = $name;
         $sortingObject = InputObjectBuilder::create($this->name);
         $sortingObject->setFields([
-                                      InputFieldBuilder::create('field', Type::nonNull($sortingFieldType))->setDescription('Sort by field')->build(),
-                                      InputFieldBuilder::create('order', Type::nonNull(TypeRegistry::sortingOrder()))->setDescription('Sort order')->build()
-                                  ]);
+            InputFieldBuilder::create('field', Type::nonNull($sortingFieldType))->setDescription('Sort by field')->build(),
+            InputFieldBuilder::create('order', Type::nonNull(TypeRegistry::sortingOrder()))->setDescription('Sort order')->build(),
+        ]);
 
         parent::__construct($sortingObject->build());
     }

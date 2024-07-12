@@ -39,15 +39,16 @@ class TCATypeMapper
 
     protected static array $translationFields = [
         'l10n_parent',
-        'l18n_parent'
+        'l18n_parent',
     ];
 
-    public function __construct(TableNameResolver              $tableNameResolver,
-                                QueryResolver                  $queryResolver,
-                                ResolverBuffer                 $resolverBuffer,
-                                FilterResolver                 $filterResolver,
-                                protected ConfigurationService $configurationService)
-    {
+    public function __construct(
+        TableNameResolver $tableNameResolver,
+        QueryResolver $queryResolver,
+        ResolverBuffer $resolverBuffer,
+        FilterResolver $filterResolver,
+        protected ConfigurationService $configurationService
+    ) {
         $this->languageService = GeneralUtility::makeInstance(LanguageServiceFactory::class)?->create('en');
         $this->tableNameResolver = $tableNameResolver;
         $this->queryResolver = $queryResolver;
@@ -120,14 +121,18 @@ class TCATypeMapper
             }
 
             if ($isLazy) {
-                $paginationConnection = PaginationUtility::generateConnectionTypes($fieldBuilder->getType(),
-                                                                                   $context->getTypeRegistry());
+                $paginationConnection = PaginationUtility::generateConnectionTypes(
+                    $fieldBuilder->getType(),
+                    $context->getTypeRegistry()
+                );
 
                 $fieldBuilder->setType(Type::nonNull($paginationConnection));
 
-                $this->addPaginationArgumentsToFieldBuilder($fieldBuilder,
-                                                            $context->getModelClassPath(),
-                                                            $context->getTypeRegistry());
+                $this->addPaginationArgumentsToFieldBuilder(
+                    $fieldBuilder,
+                    $context->getModelClassPath(),
+                    $context->getTypeRegistry()
+                );
             } else {
                 $fieldBuilder->setType(Type::nonNull(Type::listOf(Type::nonNull($fieldBuilder->getType()))));
             }
@@ -178,7 +183,6 @@ class TCATypeMapper
     {
         // Link
         $fieldBuilder->setType(TypeRegistry::link());
-
     }
 
     protected function handleNumberType(Context $context, FieldBuilder $fieldBuilder, array $columnConfiguration): void
@@ -208,9 +212,11 @@ class TCATypeMapper
             ?? '';
 
         // Fetch available crop variants
-        $cropVariants = implode(', ',
-                                array_keys($columnConfiguration['config']['overrideChildTca']['columns']['crop']['config']['cropVariants']
-                                               ?? []));
+        $cropVariants = implode(
+            ', ',
+            array_keys($columnConfiguration['config']['overrideChildTca']['columns']['crop']['config']['cropVariants']
+                           ?? [])
+        );
 
         $description = $this->languageService->sL($columnConfiguration['label'] ?? '');
 
@@ -235,15 +241,19 @@ class TCATypeMapper
 
         if (!empty($columnConfiguration['config']['items'])) {
             // If all values are integers or floats, we don't need an enum
-            if (count(array_filter($columnConfiguration['config']['items'],
-                    static fn($x) => !MathUtility::canBeInterpretedAsInteger($x['value']))) === 0) {
+            if (count(array_filter(
+                $columnConfiguration['config']['items'],
+                static fn($x) => !MathUtility::canBeInterpretedAsInteger($x['value'])
+            )) === 0) {
                 $fieldBuilder->setType(Type::int());
 
                 return;
             }
 
-            if (count(array_filter($columnConfiguration['config']['items'],
-                    static fn($x) => !MathUtility::canBeInterpretedAsFloat($x['value']))) === 0) {
+            if (count(array_filter(
+                $columnConfiguration['config']['items'],
+                static fn($x) => !MathUtility::canBeInterpretedAsFloat($x['value'])
+            )) === 0) {
                 $fieldBuilder->setType(Type::float());
 
                 return;
@@ -252,7 +262,7 @@ class TCATypeMapper
             $name = NamingUtility::generateName($this->languageService->sL($columnConfiguration['label']), false);
 
             if ($name === '') {
-                throw new UnsupportedTypeException("Could not find a name for enum");
+                throw new UnsupportedTypeException('Could not find a name for enum');
             }
 
             if ($context->getTypeRegistry()->hasType($name)) {
@@ -274,8 +284,7 @@ class TCATypeMapper
 
                 try {
                     $builder->addValue($item, $item, $this->languageService->sL($label));
-                }
-                catch (InvalidArgument $e) {
+                } catch (InvalidArgument $e) {
                     $fieldBuilder->setType(Type::string());
 
                     return;
@@ -289,7 +298,7 @@ class TCATypeMapper
             // Check if this is a multi select field
             if ($columnConfiguration['config']['renderType'] === 'selectMultipleSideBySide') {
                 $fieldBuilder->setType(Type::nonNull(Type::listOf(Type::nonNull($enumType))));
-                $fieldBuilder->setResolver(static function($value, $args, $context, ResolveInfo $info) {
+                $fieldBuilder->setResolver(static function ($value, $args, $context, ResolveInfo $info) {
                     // Access getter function with field name
                     $fieldValue = DefaultFieldResolver::defaultFieldResolver($value, $args, $context, $info);
                     if ($fieldValue === null) {
@@ -320,8 +329,7 @@ class TCATypeMapper
             try {
                 $type = $context->getTypeRegistry()->getTypeByTableName($foreignTable);
                 $fieldBuilder->setType($type);
-            }
-            catch (NotFoundException $e) {
+            } catch (NotFoundException $e) {
                 // We do nothing here, because, the type should be configured in the YAML file
             }
         }
@@ -346,7 +354,7 @@ class TCATypeMapper
                 }
 
                 /** @var ObjectStorage $root */
-                $fieldBuilder->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                $fieldBuilder->setResolver(function ($root, array $args, $context, ResolveInfo $resolveInfo) use (
                     $foreignTable,
                     $schemaContext
                 ) {
@@ -356,22 +364,26 @@ class TCATypeMapper
                         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
                         $mmTable = $schemaContext->getColumnConfiguration()['config']['MM'];
 
-                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets($root,
-                                                                                                           $args,
-                                                                                                           $context,
-                                                                                                           $resolveInfo,
-                                                                                                           $foreignTable,
-                                                                                                           $modelClassPath,
-                                                                                                           $mmTable,
-                                                                                                           $root->getUid());
+                        $facets = $this->filterResolver->fetchFiltersWithRelationConstraintIncludingFacets(
+                            $root,
+                            $args,
+                            $context,
+                            $resolveInfo,
+                            $foreignTable,
+                            $modelClassPath,
+                            $mmTable,
+                            $root->getUid()
+                        );
                     }
 
-                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM($root,
-                                                                                   $args,
-                                                                                   $context,
-                                                                                   $resolveInfo,
-                                                                                   $schemaContext,
-                                                                                   $schemaContext->getColumnConfiguration()['config']['foreign_table']);
+                    $queryResult = $this->queryResolver->fetchForeignRecordsWithMM(
+                        $root,
+                        $args,
+                        $context,
+                        $resolveInfo,
+                        $schemaContext,
+                        $schemaContext->getColumnConfiguration()['config']['foreign_table']
+                    );
                     $queryResult->setFacets($facets);
 
                     return $queryResult;
@@ -385,7 +397,6 @@ class TCATypeMapper
      */
     public function handleCategoryType(Context $context, FieldBuilder $fieldBuilder): void
     {
-
         $type = $context->getTypeRegistry()->getTypeByTableName('sys_category');
 
         $fieldBuilder->setType($type);
@@ -395,49 +406,55 @@ class TCATypeMapper
      * @throws NameNotFoundException
      * @throws InvalidArgument
      */
-    public function addPaginationArgumentsToFieldBuilder(FieldBuilder $fieldBuilder,
-                                                         string       $modelClassPath,
-                                                         TypeRegistry $typeRegistry): FieldBuilder
-    {
+    public function addPaginationArgumentsToFieldBuilder(
+        FieldBuilder $fieldBuilder,
+        string $modelClassPath,
+        TypeRegistry $typeRegistry
+    ): FieldBuilder {
         $sortableFields = $this->configurationService->getModels()[$modelClassPath]['sortableFields'] ?? [];
 
         $fieldBuilder->addArgument(QueryArgumentsUtility::$paginationFirst, Type::int(), 'Limit object count (page size)', 10)
                      ->addArgument(QueryArgumentsUtility::$paginationAfter, Type::string(), 'Cursor for pagination')
                      ->addArgument(QueryArgumentsUtility::$offset, Type::int(), 'Offset for pagination, overrides cursor')
-                     ->addArgument(QueryArgumentsUtility::$filters,
-                                   TypeRegistry::filterCollectionInput(),
-                                   'Apply predefined filters to this query.',
-                                   []);
+                     ->addArgument(
+                         QueryArgumentsUtility::$filters,
+                         TypeRegistry::filterCollectionInput(),
+                         'Apply predefined filters to this query.',
+                         []
+                     );
 
         if (count($sortableFields) > 0) {
-			$sortingFieldsEnumName = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'SortingField');
+            $sortingFieldsEnumName = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'SortingField');
 
-			$sortingTypeName = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'Sorting');
+            $sortingTypeName = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'Sorting');
 
-			try {
-				$sortingFieldsEnum = $typeRegistry->getType($sortingFieldsEnumName);
+            try {
+                $sortingFieldsEnum = $typeRegistry->getType($sortingFieldsEnumName);
 
-				$sortingType = $typeRegistry->getType($sortingTypeName);
+                $sortingType = $typeRegistry->getType($sortingTypeName);
+            } catch (NotFoundException $e) {
+                $sortingFieldsEnumBuilder = EnumBuilder::create($sortingFieldsEnumName);
+                foreach ($sortableFields as $sortableField) {
+                    $sortingFieldsEnumBuilder->addValue(
+                        $sortableField,
+                        $sortableField,
+                        NamingUtility::generateName($sortableField, false)
+                    );
+                }
 
-			} catch (NotFoundException $e) {
-				$sortingFieldsEnumBuilder = EnumBuilder::create($sortingFieldsEnumName);
-				foreach ($sortableFields as $sortableField) {
-					$sortingFieldsEnumBuilder->addValue($sortableField,
-														$sortableField,
-														NamingUtility::generateName($sortableField, false));
-				}
+                $sortingFieldsEnum = new EnumType($sortingFieldsEnumBuilder->build());
 
-				$sortingFieldsEnum = new EnumType($sortingFieldsEnumBuilder->build());
+                $sortingType = new SortingInputType($sortingTypeName, $sortingFieldsEnum);
+            }
 
-				$sortingType = new SortingInputType($sortingTypeName, $sortingFieldsEnum);
-			}
+            $typeRegistry->addType($sortingFieldsEnum);
+            $typeRegistry->addType($sortingType);
 
-			$typeRegistry->addType($sortingFieldsEnum);
-			$typeRegistry->addType($sortingType);
-
-            $fieldBuilder->addArgument('sorting',
-                                       Type::listOf(Type::nonNull($sortingType)),
-                                       'Specify multiple sorting directions');
+            $fieldBuilder->addArgument(
+                'sorting',
+                Type::listOf(Type::nonNull($sortingType)),
+                'Specify multiple sorting directions'
+            );
         }
 
         return $fieldBuilder;

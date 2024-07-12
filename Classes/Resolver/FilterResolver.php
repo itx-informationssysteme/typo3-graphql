@@ -32,12 +32,13 @@ class FilterResolver
     protected PersistenceManager $persistenceManager;
     protected FilterRepository $filterRepository;
 
-    public function __construct(PersistenceManager                 $persistenceManager,
-                                FilterRepository                   $filterRepository,
-                                protected EventDispatcherInterface $eventDispatcher,
-                                protected FrontendInterface        $cache,
-                                protected ConfigurationService $configurationService)
-    {
+    public function __construct(
+        PersistenceManager $persistenceManager,
+        FilterRepository $filterRepository,
+        protected EventDispatcherInterface $eventDispatcher,
+        protected FrontendInterface $cache,
+        protected ConfigurationService $configurationService
+    ) {
         $this->persistenceManager = $persistenceManager;
         $this->filterRepository = $filterRepository;
     }
@@ -58,13 +59,14 @@ class FilterResolver
      * @throws FieldDoesNotExistException
      * @throws InvalidQueryException
      */
-    public function fetchFiltersIncludingFacets($root,
-                                                array $args,
+    public function fetchFiltersIncludingFacets(
+        $root,
+        array $args,
         $context,
-                                                ResolveInfo $resolveInfo,
-                                                string $tableName,
-                                                string $modelClassPath): array
-    {
+        ResolveInfo $resolveInfo,
+        string $tableName,
+        string $modelClassPath
+    ): array {
         return $this->computeFilterOptions($root, $args, $context, $resolveInfo, $tableName, $modelClassPath);
     }
 
@@ -86,23 +88,26 @@ class FilterResolver
      * @throws FieldDoesNotExistException
      * @throws InvalidQueryException
      */
-    public function fetchFiltersWithRelationConstraintIncludingFacets($root,
-                                                                      array $args,
+    public function fetchFiltersWithRelationConstraintIncludingFacets(
+        $root,
+        array $args,
         $context,
-                                                                      ResolveInfo $resolveInfo,
-                                                                      string $tableName,
-                                                                      string $modelClassPath,
-                                                                      string $mmTable,
-                                                                      int $localUid): array
-    {
-        return $this->computeFilterOptions($root,
-                                           $args,
-                                           $context,
-                                           $resolveInfo,
-                                           $tableName,
-                                           $modelClassPath,
-                                           $mmTable,
-                                           $localUid);
+        ResolveInfo $resolveInfo,
+        string $tableName,
+        string $modelClassPath,
+        string $mmTable,
+        int $localUid
+    ): array {
+        return $this->computeFilterOptions(
+            $root,
+            $args,
+            $context,
+            $resolveInfo,
+            $tableName,
+            $modelClassPath,
+            $mmTable,
+            $localUid
+        );
     }
 
     /**
@@ -111,15 +116,16 @@ class FilterResolver
      * @throws InvalidQueryException
      * @throws FieldDoesNotExistException
      */
-    private function computeFilterOptions($root,
-                                          array $args,
+    private function computeFilterOptions(
+        $root,
+        array $args,
         $context,
-                                          ResolveInfo $resolveInfo,
-                                          string $tableName,
-                                          string $modelClassPath,
-                                          ?string $mmTable = null,
-                                          ?int $localUid = null): array
-    {
+        ResolveInfo $resolveInfo,
+        string $tableName,
+        string $modelClassPath,
+        ?string $mmTable = null,
+        ?int $localUid = null
+    ): array {
         $facets = [];
 
         $discreteFilterArguments = $this->extractDiscreteFilterOptionsMap($args);
@@ -129,7 +135,6 @@ class FilterResolver
         $rangeFilterPaths = map($rangefilterArguments)->map(fn(RangeFilterInput $filter) => $filter->path)->toArray();
 
         if (array_key_exists('discreteFilters', $args['filters'])) {
-
             // Switch keys and values for $discreteFilterPaths
             $filters = array_flip($discreteFilterPaths);
 
@@ -154,15 +159,17 @@ class FilterResolver
                 $facet['path'] = $filter->getFilterPath();
                 $facet['type'] = FacetType::DISCRETE;
 
-                $options = $this->fetchAndProcessFilterOptions($tableName,
-                                                               $filter->getFilterPath(),
-                                                               $args,
-                                                               $discreteFilterArguments,
-                                                               $rangefilterArguments,
-                                                               $resolveInfo,
-                                                               $modelClassPath,
-                                                               $mmTable,
-                                                               $localUid);
+                $options = $this->fetchAndProcessFilterOptions(
+                    $tableName,
+                    $filter->getFilterPath(),
+                    $args,
+                    $discreteFilterArguments,
+                    $rangefilterArguments,
+                    $resolveInfo,
+                    $modelClassPath,
+                    $mmTable,
+                    $localUid
+                );
 
                 $facet['options'] = $options;
 
@@ -191,15 +198,17 @@ class FilterResolver
                 $facet['type'] = FacetType::RANGE;
                 $facet['unit'] = $filter->getUnit();
 
-                $facet['range'] = $this->fetchRanges($tableName,
-                                                     $filter->getFilterPath(),
-                                                     $args,
-                                                     $discreteFilterArguments,
-                                                     $rangefilterArguments,
-                                                     $resolveInfo,
-                                                     $modelClassPath,
-                                                     $mmTable,
-                                                     $localUid);
+                $facet['range'] = $this->fetchRanges(
+                    $tableName,
+                    $filter->getFilterPath(),
+                    $args,
+                    $discreteFilterArguments,
+                    $rangefilterArguments,
+                    $resolveInfo,
+                    $modelClassPath,
+                    $mmTable,
+                    $localUid
+                );
 
                 $facets[] = $facet;
             }
@@ -241,9 +250,13 @@ class FilterResolver
 
         // Set key path from range filter array as key
         foreach ($rangeFilterArguments as $key => $filter) {
-            $rangeFilterArguments[$filter['path']] = new RangeFilterInput($filter['path'],
-                                                                          new Range($filter['range']['min'] ?? null,
-                                                                                    $filter['range']['max'] ?? null));
+            $rangeFilterArguments[$filter['path']] = new RangeFilterInput(
+                $filter['path'],
+                new Range(
+                    $filter['range']['min'] ?? null,
+                    $filter['range']['max'] ?? null
+                )
+            );
             unset($rangeFilterArguments[$key]);
         }
 
@@ -266,17 +279,18 @@ class FilterResolver
      * @throws Exception
      * @throws FieldDoesNotExistException
      */
-    private function fetchFilterOptions(string      $tableName,
-                                        string      $filterPath,
-                                        array       $args,
-                                        array       $discreteFilterArguments,
-                                        array       $rangeFilterArguments,
-                                        ResolveInfo $resolveInfo,
-                                        string      $modelClassPath,
-                                        ?string     $mmTable,
-                                        ?int        $localUid,
-                                        bool        $triggerEvent): array
-    {
+    private function fetchFilterOptions(
+        string $tableName,
+        string $filterPath,
+        array $args,
+        array $discreteFilterArguments,
+        array $rangeFilterArguments,
+        ResolveInfo $resolveInfo,
+        string $modelClassPath,
+        ?string $mmTable,
+        ?int $localUid,
+        bool $triggerEvent
+    ): array {
         $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
 
@@ -290,24 +304,34 @@ class FilterResolver
 
         // If we have a relation constraint, we need to add the constraint to the query
         if ($mmTable !== null && $localUid !== null) {
-            $queryBuilder->leftJoin($tableName,
-                                    $mmTable,
-                                    'mm',
-                                    $queryBuilder->expr()
-                                                 ->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid')));
+            $queryBuilder->leftJoin(
+                $tableName,
+                $mmTable,
+                'mm',
+                $queryBuilder->expr()
+                             ->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid'))
+            );
             $queryBuilder->andWhere($queryBuilder->expr()->eq('mm.uid_local', $queryBuilder->createNamedParameter($localUid)));
         }
 
         if (count($storagePids) > 0) {
-            $queryBuilder->andWhere($queryBuilder->expr()->in($tableName . '.pid',
-                                                              array_map(static fn($a) => $queryBuilder->createNamedParameter($a,
-                                                                                                                             \PDO::PARAM_INT),
-                                                                  $storagePids)));
+            $queryBuilder->andWhere($queryBuilder->expr()->in(
+                $tableName . '.pid',
+                array_map(
+                    static fn($a) => $queryBuilder->createNamedParameter(
+                        $a,
+                        \PDO::PARAM_INT
+                    ),
+                    $storagePids
+                )
+            ));
         }
 
         if ($language !== null) {
-            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                        $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+            $queryBuilder->andWhere($queryBuilder->expr()->eq(
+                $tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
+            ));
         }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -315,12 +339,14 @@ class FilterResolver
 
         if ($triggerEvent) {
             /** @var ModifyQueryBuilderForFilteringEvent $event */
-            $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                              $tableName,
-                                                                                              $queryBuilder,
-                                                                                              $args,
-                                                                                              FilterEventSource::FILTER,
-                                                                                              'discrete'));
+            $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+                $modelClassPath,
+                $tableName,
+                $queryBuilder,
+                $args,
+                FilterEventSource::FILTER,
+                'discrete'
+            ));
             $queryBuilder = $event->getQueryBuilder();
         }
 
@@ -356,32 +382,35 @@ class FilterResolver
      * @throws Exception
      * @throws FieldDoesNotExistException
      */
-    private function fetchAndProcessFilterOptions(string      $tableName,
-                                                  string      $filterPath,
-                                                  array       $args,
-                                                  array       $discreteFilterArguments,
-                                                  array       $rangeFilterArguments,
-                                                  ResolveInfo $resolveInfo,
-                                                  string      $modelClassPath,
-                                                  ?string     $mmTable,
-                                                  ?int        $localUid): array
-    {
+    private function fetchAndProcessFilterOptions(
+        string $tableName,
+        string $filterPath,
+        array $args,
+        array $discreteFilterArguments,
+        array $rangeFilterArguments,
+        ResolveInfo $resolveInfo,
+        string $modelClassPath,
+        ?string $mmTable,
+        ?int $localUid
+    ): array {
         $isSelectedNeeded = isset($resolveInfo->getFieldSelection(3)['facets']['options']['selected']) &&
             $resolveInfo->getFieldSelection(3)['facets']['options']['selected'];
 
         $cacheKey = md5($tableName . $filterPath . ($args[QueryArgumentsUtility::$language] ?? '') . implode($args[QueryArgumentsUtility::$pageIds] ?? []));
 
         if (!$this->cache->has($cacheKey)) {
-            $originalFilterOptions = $this->fetchFilterOptions($tableName,
-                                                               $filterPath,
-                                                               $args,
-                                                               [],
-                                                               [],
-                                                               $resolveInfo,
-                                                               $modelClassPath,
-                                                               $mmTable,
-                                                               $localUid,
-                                                               false);
+            $originalFilterOptions = $this->fetchFilterOptions(
+                $tableName,
+                $filterPath,
+                $args,
+                [],
+                [],
+                $resolveInfo,
+                $modelClassPath,
+                $mmTable,
+                $localUid,
+                false
+            );
 
             // Cache for 1 day, and apply cache tags based on $tableName and $mmTable
             $cacheTags = [$tableName];
@@ -397,23 +426,24 @@ class FilterResolver
                 }
             }
 
-
             $this->cache->set($cacheKey, $originalFilterOptions, ['filter_options', ...$cacheTags], 86400);
         } else {
             $originalFilterOptions = $this->cache->get($cacheKey);
         }
 
         // Index array with value as key
-        $actualFilterOptions = $this->fetchFilterOptions($tableName,
-                                                         $filterPath,
-                                                         $args,
-                                                         $discreteFilterArguments,
-                                                         $rangeFilterArguments,
-                                                         $resolveInfo,
-                                                         $modelClassPath,
-                                                         $mmTable,
-                                                         $localUid,
-                                                         true);
+        $actualFilterOptions = $this->fetchFilterOptions(
+            $tableName,
+            $filterPath,
+            $args,
+            $discreteFilterArguments,
+            $rangeFilterArguments,
+            $resolveInfo,
+            $modelClassPath,
+            $mmTable,
+            $localUid,
+            true
+        );
 
         // Set selected to true for all options that are selected and disabled to true for all options that are not in actualFilterOptions anymore
         foreach ($originalFilterOptions as $originalFilterOption) {
@@ -454,16 +484,17 @@ class FilterResolver
      * @throws Exception
      * @throws FieldDoesNotExistException
      */
-    private function fetchRanges(string      $tableName,
-                                 string      $filterPath,
-                                 array       $args,
-                                 array       $discreteFilterArguments,
-                                 array       $rangeFilterArguments,
-                                 ResolveInfo $resolveInfo,
-                                 string      $modelClassPath,
-                                 ?string     $mmTable,
-                                 ?int        $localUid): Range
-    {
+    private function fetchRanges(
+        string $tableName,
+        string $filterPath,
+        array $args,
+        array $discreteFilterArguments,
+        array $rangeFilterArguments,
+        ResolveInfo $resolveInfo,
+        string $modelClassPath,
+        ?string $mmTable,
+        ?int $localUid
+    ): Range {
         $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
 
@@ -477,36 +508,48 @@ class FilterResolver
 
         // If we have a relation constraint, we need to add the constraint to the query
         if ($mmTable !== null && $localUid !== null) {
-            $queryBuilder->leftJoin($tableName,
-                                    $mmTable,
-                                    'mm',
-                                    $queryBuilder->expr()
-                                                 ->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid')));
+            $queryBuilder->leftJoin(
+                $tableName,
+                $mmTable,
+                'mm',
+                $queryBuilder->expr()
+                             ->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid'))
+            );
             $queryBuilder->andWhere($queryBuilder->expr()->eq('mm.uid_local', $queryBuilder->createNamedParameter($localUid)));
         }
 
         if (count($storagePids) > 0) {
-            $queryBuilder->andWhere($queryBuilder->expr()->in($tableName . '.pid',
-                                                              array_map(static fn($a) => $queryBuilder->createNamedParameter($a,
-                                                                                                                             \PDO::PARAM_INT),
-                                                                  $storagePids)));
+            $queryBuilder->andWhere($queryBuilder->expr()->in(
+                $tableName . '.pid',
+                array_map(
+                    static fn($a) => $queryBuilder->createNamedParameter(
+                        $a,
+                        \PDO::PARAM_INT
+                    ),
+                    $storagePids
+                )
+            ));
         }
 
         if ($language !== null) {
-            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                        $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+            $queryBuilder->andWhere($queryBuilder->expr()->eq(
+                $tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
+            ));
         }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
 
         /** @var ModifyQueryBuilderForFilteringEvent $event */
-        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                          $tableName,
-                                                                                          $queryBuilder,
-                                                                                          $args,
-                                                                                          FilterEventSource::FILTER,
-                                                                                          'range'));
+        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $tableName,
+            $queryBuilder,
+            $args,
+            FilterEventSource::FILTER,
+            'range'
+        ));
         $queryBuilder = $event->getQueryBuilder();
 
         $fieldPrefix = "$lastElementTable.";
@@ -533,10 +576,12 @@ class FilterResolver
     private function applyDiscreteFilters(array $filterInputs, $tableName, QueryBuilder $queryBuilder, string $filterPath): void
     {
         // Filter out filter arguments that are not part of the current filter path
-        $otherFilters = array_filter($filterInputs,
-            static function(DiscreteFilterInput $filterInput) use ($filterPath) {
+        $otherFilters = array_filter(
+            $filterInputs,
+            static function (DiscreteFilterInput $filterInput) use ($filterPath) {
                 return $filterInput->path !== $filterPath && count($filterInput->options) > 0;
-            });
+            }
+        );
 
         /** @var DiscreteFilterInput $whereFilter */
         foreach ($otherFilters as $whereFilter) {
@@ -548,8 +593,10 @@ class FilterResolver
             $inSetExpressions = [];
 
             foreach ($whereFilter->options as $option) {
-                $inSetExpressions[] = $queryBuilder->expr()->inSet($whereFilterTable . '.' . $whereFilterLastElement,
-                                                                   $queryBuilder->createNamedParameter($option));
+                $inSetExpressions[] = $queryBuilder->expr()->inSet(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $queryBuilder->createNamedParameter($option)
+                );
             }
 
             $queryBuilder->andWhere($queryBuilder->expr()->orX(...$inSetExpressions));
@@ -564,17 +611,20 @@ class FilterResolver
      *
      * @throws FieldDoesNotExistException
      */
-    private function applyRangeFilters(array        $filterInputs,
-                                       string       $tableName,
-                                       QueryBuilder $queryBuilder,
-                                       string       $filterPath): void
-    {
+    private function applyRangeFilters(
+        array $filterInputs,
+        string $tableName,
+        QueryBuilder $queryBuilder,
+        string $filterPath
+    ): void {
         // Filter out filter arguments that are not part of the current filter path
-        $otherFilters = array_filter($filterInputs,
-            static function(RangeFilterInput $filterInput) use ($filterPath) {
+        $otherFilters = array_filter(
+            $filterInputs,
+            static function (RangeFilterInput $filterInput) use ($filterPath) {
                 return $filterInput->path !== $filterPath &&
                     ($filterInput->range->min !== null || $filterInput->range->max !== null);
-            });
+            }
+        );
 
         /** @var RangeFilterInput $whereFilter */
         foreach ($otherFilters as $whereFilter) {
@@ -586,13 +636,17 @@ class FilterResolver
             $andExpressions = [];
 
             if ($whereFilter->range->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                               $queryBuilder->createNamedParameter($whereFilter->range->min));
+                $andExpressions[] = $queryBuilder->expr()->gte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $queryBuilder->createNamedParameter($whereFilter->range->min)
+                );
             }
 
             if ($whereFilter->range->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                               $queryBuilder->createNamedParameter($whereFilter->range->max));
+                $andExpressions[] = $queryBuilder->expr()->lte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $queryBuilder->createNamedParameter($whereFilter->range->max)
+                );
             }
 
             $queryBuilder->andWhere(...$andExpressions);
@@ -609,7 +663,7 @@ class FilterResolver
         $options = [];
 
         foreach ($rawFilterOptions as $rawFilterOption) {
-            foreach (explode(",", trim($rawFilterOption['value'])) as $value) {
+            foreach (explode(',', trim($rawFilterOption['value'])) as $value) {
                 $value = trim($value);
 
                 if (!isset($options[$value])) {
@@ -628,10 +682,11 @@ class FilterResolver
     /**
      * @throws FieldDoesNotExistException
      */
-    public static function buildJoinsByWalkingPath(array        $filterPathElements,
-                                                   string       $tableName,
-                                                   QueryBuilder $queryBuilder): string
-    {
+    public static function buildJoinsByWalkingPath(
+        array $filterPathElements,
+        string $tableName,
+        QueryBuilder $queryBuilder
+    ): string {
         $lastElementTable = $tableName;
 
         // Go through the filter path and join the tables by using the TCA MM relations
@@ -651,30 +706,44 @@ class FilterResolver
                 $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
 
                 // Join with MM and foreign table
-                $queryBuilder->join($currentTable,
-                                    $tca['MM'],
-                                    $tca['MM'],
-                                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableLocalField",
-                                                              $queryBuilder->quoteIdentifier($currentTable . '.uid')));
+                $queryBuilder->join(
+                    $currentTable,
+                    $tca['MM'],
+                    $tca['MM'],
+                    $queryBuilder->expr()->eq(
+                        $tca['MM'] . ".$mmTableLocalField",
+                        $queryBuilder->quoteIdentifier($currentTable . '.uid')
+                    )
+                );
                 foreach ($tca['MM_match_fields'] ?? [] as $key => $value) {
-                    $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.' . $key,
-                                                                      $queryBuilder->createNamedParameter($value)));
+                    $queryBuilder->andWhere($queryBuilder->expr()->eq(
+                        $tca['MM'] . '.' . $key,
+                        $queryBuilder->createNamedParameter($value)
+                    ));
                 }
 
-                $queryBuilder->join($tca['MM'],
-                                    $tca['foreign_table'],
-                                    $tca['foreign_table'],
-                                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
-                                                              $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
+                $queryBuilder->join(
+                    $tca['MM'],
+                    $tca['foreign_table'],
+                    $tca['foreign_table'],
+                    $queryBuilder->expr()->eq(
+                        $tca['MM'] . ".$mmTableForeignField",
+                        $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
+                    )
+                );
                 continue;
             }
 
             // Join with foreign table
-            $queryBuilder->join($currentTable,
-                                $tca['foreign_table'],
-                                $tca['foreign_table'],
-                                $queryBuilder->expr()->eq($currentTable . '.' . $fieldName,
-                                                          $queryBuilder->quoteIdentifier($tca['foreign_table'] . ".uid")));
+            $queryBuilder->join(
+                $currentTable,
+                $tca['foreign_table'],
+                $tca['foreign_table'],
+                $queryBuilder->expr()->eq(
+                    $currentTable . '.' . $fieldName,
+                    $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
+                )
+            );
         }
 
         return $lastElementTable;

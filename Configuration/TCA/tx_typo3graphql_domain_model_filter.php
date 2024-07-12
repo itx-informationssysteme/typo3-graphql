@@ -46,14 +46,14 @@ return [
                 'items' => [
                     [
                         'label' => 'Discrete Filter',
-                        'value' => 'discrete'
+                        'value' => 'discrete',
                     ],
                     [
                         'label' => 'Range Filter',
-                        'value' => 'range'
+                        'value' => 'range',
                     ],
-                ]
-            ]
+                ],
+            ],
         ],
         'filter_path' => [
             'label' => 'LLL:EXT:typo3_graphql/Resources/Private/Language/locallang_db.xlf:tx_typo3graphql_domain_model_filter.filterPath',
@@ -76,8 +76,8 @@ return [
         ],
         'categories' => [
             'config' => [
-                'type' => 'category'
-            ]
+                'type' => 'category',
+            ],
         ],
         'sys_language_uid' => [
             'exclude' => true,
