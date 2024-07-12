@@ -1,6 +1,6 @@
 # GraphQL TYPO3 Extension
 
-This extension provides a [https://graphql.org/](GraphQL) API for TYPO3. It does that by exposing the TYPO3 data models as a GraphQL schema.
+This extension provides a [GraphQL](https://graphql.org/) API for TYPO3. It does that by exposing the TYPO3 data models as a GraphQL schema.
 
 Any table can be configured to be available in the API. The schema is fully configurable.
 The GraphQL API can be accessed via the `/graphql` endpoint.
