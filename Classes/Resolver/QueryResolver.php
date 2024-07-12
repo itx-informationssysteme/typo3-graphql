@@ -257,8 +257,13 @@ class QueryResolver
 
         $discreteFilterConfigurations =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($discreteFilters), 'discrete');
+        $staticDiscreteFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($discreteFilters), 'discrete');
+        $discreteFilterConfigurations = array_merge($discreteFilterConfigurations, $staticDiscreteFilters);
+
         $rangeFilterConfiguration =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($rangeFilters), 'range');
+        $staticRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($rangeFilters), 'range');
+        $discreteFilterConfigurations = array_merge($rangeFilterConfiguration, $staticRangeFilters);
 
         foreach ($discreteFilterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];

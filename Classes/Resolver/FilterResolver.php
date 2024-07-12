@@ -12,6 +12,7 @@ use Itx\Typo3GraphQL\Enum\FacetType;
 use Itx\Typo3GraphQL\Enum\FilterEventSource;
 use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
+use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Types\Skeleton\Range;
@@ -34,7 +35,8 @@ class FilterResolver
     public function __construct(PersistenceManager                 $persistenceManager,
                                 FilterRepository                   $filterRepository,
                                 protected EventDispatcherInterface $eventDispatcher,
-                                protected FrontendInterface        $cache)
+                                protected FrontendInterface        $cache,
+                                protected ConfigurationService $configurationService)
     {
         $this->persistenceManager = $persistenceManager;
         $this->filterRepository = $filterRepository;
@@ -134,6 +136,8 @@ class FilterResolver
             // Reorder to the same order as the discrete filter paths
             $filterResult =
                 $this->filterRepository->findByModelAndPathsAndType($modelClassPath, $discreteFilterPaths, 'discrete');
+            $staticFilters = $this->configurationService->getFiltersForModel($modelClassPath, $discreteFilterPaths, 'discrete');
+            $filterResult = array_merge($filterResult, $staticFilters);
 
             // Sort them as we received them
             foreach ($filterResult as $filter) {
@@ -169,6 +173,8 @@ class FilterResolver
         if (array_key_exists('rangeFilters', $args['filters'])) {
             $filters = array_flip($rangeFilterPaths);
             $filterResult = $this->filterRepository->findByModelAndPathsAndType($modelClassPath, $rangeFilterPaths, 'range');
+            $staticFilters = $this->configurationService->getFiltersForModel($modelClassPath, $rangeFilterPaths, 'range');
+            $filterResult = array_merge($filterResult, $staticFilters);
 
             foreach ($filterResult as $filter) {
                 $filters[$filter->getFilterPath()] = $filter;

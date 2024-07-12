@@ -2,6 +2,8 @@
 
 namespace Itx\Typo3GraphQL\Service;
 
+use Itx\Typo3GraphQL\Domain\Model\Filter;
+use RuntimeException;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Configuration\Loader\YamlFileLoader;
 use TYPO3\CMS\Core\Core\Environment;
@@ -87,6 +89,41 @@ class ConfigurationService
     public function getModels(): array
     {
         return $this->configuration['models'] ?? [];
+    }
+
+    /**
+     * @param string $modelClassPath
+     * @param string $filterType
+     * @return array<Filter>
+     * @throws RuntimeException
+     */
+    public function getFiltersForModel(string $modelClassPath, array $filterPaths, string $filterType): array
+    {
+        $filters = $this->configuration['models'][$modelClassPath]['filters'] ?? [];
+
+        $filters = array_filter($filters, static fn(array $filter) => ($filter['type'] ?? '') === $filterType &&
+            in_array(($filter['path'] ?? ''), $filterPaths, true));
+
+        $result = [];
+        foreach ($filters as $filter) {
+            $filterModel = new Filter();
+            $filterModel->setName($filter['name'] ?? '');
+            if ($filter['type'] !== 'discrete' && $filter['type'] !== 'range') {
+                throw new \RuntimeException("Filter type '$filterType' not supported");
+            }
+
+            if ($filter['path'] === '') {
+                throw new \RuntimeException('Filer path is required');
+            }
+
+            $filterModel->setFilterPath($filter['path'] ?? '');
+            $filterModel->setUnit($filter['unit'] ?? '');
+            $filterModel->setModel($modelClassPath);
+
+            $result[] = $filterModel;
+        }
+
+        return $result;
     }
 
     public function getSettings(): array

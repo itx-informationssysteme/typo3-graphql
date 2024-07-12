@@ -1,11 +1,11 @@
 # GraphQL TYPO3 Extension
 
-This extension provides a GraphQL API for TYPO3. It does that by exposing the TYPO3 data models as a GraphQL schema.
+This extension provides a [https://graphql.org/](GraphQL) API for TYPO3. It does that by exposing the TYPO3 data models as a GraphQL schema.
 
 Any table can be configured to be available in the API. The schema is fully configurable.
 The GraphQL API can be accessed via the `/graphql` endpoint.
 
-> :warning: This extension is still in development. Expect breaking changes and things to be broken or not implemented yet.
+> :warning: This extension is not fully feature complete yet. Expect things to be broken or not implemented yet.
 
 ## ✨ Features
 * Automatic resolving of relations
@@ -18,7 +18,7 @@ The GraphQL API can be accessed via the `/graphql` endpoint.
 ## What does not work yet?
 * Not every TCA field is supported yet.
 * Language overlays don't work yet.
-* There are probably other problems, please create an issue if you find one.
+* There are probably other problems: Please create an issue if you find one or create a pull request.
 
 ## 🔨 Installation
 
@@ -60,12 +60,26 @@ GraphQL Introspection is enabled by default in development mode and disabled in 
 
 The extension also comes with an extensive filter and facet system. Right now, it supports discrete filters and range filters.
 
+There are two ways to configure filters:
+* Via the backend in the TYPO3 backend
+* Via the yaml configuration file
+The backend configuration could be useful if you need to assign some logic to
+the filters and need data to be editable in the backend.
+The yaml configuration file is static and can be used to configure filters that
+you know won't change.
+Both ways will be merged together at runtime.
+
+#### Via the backend
 You can add filter records anywhere in the page tree. Each filter defines a name, the model it applies to, and the filter path to the
 field it applies to.
 The filter path is a dot separated list of field names. This means it is possible to use the Extbase Repository field path syntax
 to filter on model relations.
 
-When you have configured the filter in the backend, you can use it in your GraphQL query.
+#### Via the yaml configuration file
+You can also configure filters via the yaml configuration file. See the [example configuration](Configuration/GraphQL.example.yaml) for more details.
+The fields are the same as in the backend.
+
+When you have configured the filters, you can use it in your GraphQL query like this:
 
 Example query to query filter options without filtering:
 
@@ -113,6 +127,10 @@ postings(filters: { discreteFilters: [{ path: "locations.name", options: ["Testl
     }
 }
 ```
+
+This will return the postings that have a location with the name `Testlocation`.
+You will also be able to notice that the filter options of other filters are filtered as well in order to be able to disable options that are not available to
+prevent impossible filter option combinations (e.g combinations that would return no results).
 
 Currently there are two types of filters available:
 * `DiscreteFilter` - This filter type allows you to select one or more options from a list of options.
