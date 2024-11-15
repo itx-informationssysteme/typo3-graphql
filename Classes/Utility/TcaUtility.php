@@ -41,11 +41,25 @@ class TcaUtility
         't3ver_state',
     ];
 
-    public static function doesFieldExist(string $tableName, string $fieldName): bool
+    /**
+    * Does the given field exist in the TCA? and is it not a TYPO3 field?
+    */
+    public static function fieldExistsAndIsCustom(string $tableName, string $fieldName): bool
     {
         // Check if the field exists in the TCA as an entry or if it has type none
         $tca = $GLOBALS['TCA'][$tableName]['columns'][$fieldName] ?? null;
 
         return ($tca !== null && $tca['config']['type'] !== 'none') || in_array($fieldName, self::TYPO3_FIELDS);
+    }
+
+    /**
+    * Does the given field exist in the TCA?
+    */
+    public static function fieldExists(string $tableName, string $fieldName): bool
+    {
+        // Check if the field exists in the TCA as an entry or if it has type none
+        $tca = $GLOBALS['TCA'][$tableName]['columns'][$fieldName] ?? null;
+
+        return $tca !== null && $tca['config']['type'] !== 'none';
     }
 }

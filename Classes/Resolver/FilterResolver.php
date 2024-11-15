@@ -351,7 +351,7 @@ class FilterResolver
         }
 
         $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::doesFieldExist($lastElementTable, $lastElement)) {
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
             $fieldPrefix = '';
         }
 
@@ -553,7 +553,7 @@ class FilterResolver
         $queryBuilder = $event->getQueryBuilder();
 
         $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::doesFieldExist($lastElementTable, $lastElement)) {
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
             $fieldPrefix = '';
         }
 

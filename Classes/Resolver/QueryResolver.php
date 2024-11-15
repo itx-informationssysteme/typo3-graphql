@@ -22,6 +22,7 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Extbase\DomainObject\AbstractDomainObject;
+use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
@@ -53,7 +54,7 @@ class QueryResolver
     /**
      * @throws NotFoundException
      */
-    public function fetchSingleRecord($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
+    public function fetchSingleRecord($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): AbstractEntity | null
     {
         $uid = (int)$args[QueryArgumentsUtility::$uid];
         $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
@@ -68,6 +69,7 @@ class QueryResolver
 
         $query->matching($query->equals('uid', $uid));
 
+        /** @var AbstractEntity $result */
         $result = $query->execute()[0] ?? null;
         if ($result === null) {
             throw new NotFoundException("No result for $modelClassPath with uid $uid found");
@@ -99,7 +101,7 @@ class QueryResolver
         $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
 
         $qb->from($tableName);
-        if ($language !== null) {
+        if ($language !== null && TcaUtility::fieldExists($tableName, 'sys_language_uid')) {
             $qb->andWhere($qb->expr()->eq('sys_language_uid', $language));
         }
 
@@ -133,7 +135,7 @@ class QueryResolver
             $order = $item['order'];
 
             $fieldPrefix = "$tableName.";
-            if (!TcaUtility::doesFieldExist($tableName, $field)) {
+            if (!TcaUtility::fieldExistsAndIsCustom($tableName, $field)) {
                 $fieldPrefix = '';
             }
 
@@ -217,7 +219,7 @@ class QueryResolver
             $order = $item['order'];
 
             $fieldPrefix = "$tableName.";
-            if (!TcaUtility::doesFieldExist($tableName, $field)) {
+            if (!TcaUtility::fieldExistsAndIsCustom($tableName, $field)) {
                 $fieldPrefix = '';
             }
 
