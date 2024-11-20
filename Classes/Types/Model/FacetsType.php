@@ -13,9 +13,8 @@ class FacetsType extends \GraphQL\Type\Definition\UnionType implements TypeNameI
      */
     public function __construct()
     {
-        $builder = UnionBuilder::create(self::getTypeName())
-                               ->setTypes([TypeRegistry::rangeFacet(), TypeRegistry::discreteFacet()])
-                               ->setResolveType(function($value) {
+        $builder = UnionBuilder::create(self::getTypeName(), [TypeRegistry::rangeFacet(), TypeRegistry::discreteFacet()])
+                               ->setResolveType(function ($value) {
                                    return match ($value['type']) {
                                        \Itx\Typo3GraphQL\Enum\FacetType::RANGE => TypeRegistry::rangeFacet(),
                                        \Itx\Typo3GraphQL\Enum\FacetType::DISCRETE => TypeRegistry::discreteFacet(),

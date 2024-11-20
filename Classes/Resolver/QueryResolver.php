@@ -2,7 +2,6 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
-use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Model\Filter;
@@ -18,12 +17,14 @@ use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\Restriction\FrontendRestrictionContainer;
 use TYPO3\CMS\Core\Resource\FileRepository;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\DomainObject\AbstractDomainObject;
+use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
@@ -36,14 +37,15 @@ class QueryResolver
     protected FilterRepository $filterRepository;
     protected DataMapper $dataMapper;
 
-    public function __construct(PersistenceManager                 $persistenceManager,
-                                FileRepository                     $fileRepository,
-                                ConfigurationService               $configurationService,
-                                FilterRepository                   $filterRepository,
-                                DataMapper                         $dataMapper,
-                                protected EventDispatcherInterface $eventDispatcher,
-                                protected ConnectionPool           $connectionPool)
-    {
+    public function __construct(
+        PersistenceManager $persistenceManager,
+        FileRepository $fileRepository,
+        ConfigurationService $configurationService,
+        FilterRepository $filterRepository,
+        DataMapper $dataMapper,
+        protected EventDispatcherInterface $eventDispatcher,
+        protected ConnectionPool $connectionPool
+    ) {
         $this->persistenceManager = $persistenceManager;
         $this->fileRepository = $fileRepository;
         $this->configurationService = $configurationService;
@@ -54,7 +56,7 @@ class QueryResolver
     /**
      * @throws NotFoundException
      */
-    public function fetchSingleRecord($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): array
+    public function fetchSingleRecord($root, array $args, $context, ResolveInfo $resolveInfo, string $modelClassPath): AbstractEntity | null
     {
         $uid = (int)$args[QueryArgumentsUtility::$uid];
         $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
@@ -65,11 +67,11 @@ class QueryResolver
         $query->getQuerySettings()
               ->setRespectStoragePage(false)
               ->setRespectSysLanguage(true)
-              ->setLanguageUid($language)
-              ->setLanguageOverlayMode($languageOverlayMode);
+              ->setLanguageAspect(new LanguageAspect($language));
 
         $query->matching($query->equals('uid', $uid));
 
+        /** @var AbstractEntity $result */
         $result = $query->execute()[0] ?? null;
         if ($result === null) {
             throw new NotFoundException("No result for $modelClassPath with uid $uid found");
@@ -80,18 +82,18 @@ class QueryResolver
 
     /**
      * @throws BadInputException|InvalidQueryException
-     * @throws DBALException
      * @throws FieldDoesNotExistException
      * @throws Exception
      */
-    public function fetchMultipleRecords($root,
-                                         array $args,
-                                         mixed $context,
-                                         ResolveInfo $resolveInfo,
-                                         string $modelClassPath,
-                                         string $tableName): PaginatedQueryResult
-    {
-        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+    public function fetchMultipleRecords(
+        $root,
+        array $args,
+        mixed $context,
+        ResolveInfo $resolveInfo,
+        string $modelClassPath,
+        string $tableName
+    ): PaginatedQueryResult {
+        $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
         $offset = $args[QueryArgumentsUtility::$offset] ?? PaginationUtility::offsetFromCursor($args['after'] ?? '');
@@ -116,14 +118,16 @@ class QueryResolver
         $tableNameQuoted = $qb->quoteIdentifier($tableName);
 
         $qb->selectLiteral("COUNT(DISTINCT $tableNameQuoted.uid)");
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                 $tableName,
-                                                                                 $qb,
-                                                                                 $args,
-                                                                                 FilterEventSource::QUERY_COUNT));
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $tableName,
+            $qb,
+            $args,
+            FilterEventSource::QUERY_COUNT
+        ));
         $count = $qb->execute()->fetchOne();
 
-        $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName, array_map(static fn ($x) => $x['field'], $sorting));
+        $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName, array_map(static fn($x) => $x['field'], $sorting));
 
         $qb->select(...$fields)->distinct();
 
@@ -135,43 +139,46 @@ class QueryResolver
             $order = $item['order'];
 
             $fieldPrefix = "$tableName.";
-            if (!TcaUtility::doesFieldExist($tableName, $field)) {
+            if (!TcaUtility::fieldExistsAndIsCustom($tableName, $field)) {
                 $fieldPrefix = '';
             }
 
             $qb->addOrderBy($fieldPrefix . $field, $order);
         }
 
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                 $tableName,
-                                                                                 $qb,
-                                                                                 $args,
-                                                                                 FilterEventSource::QUERY));
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $tableName,
+            $qb,
+            $args,
+            FilterEventSource::QUERY
+        ));
 
-        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
-                                        $count,
-                                        $offset,
-                                        $limit,
-                                        $resolveInfo,
-                                        $modelClassPath,
-                                        $this->dataMapper);
+        return new PaginatedQueryResult(
+            $qb->execute()->fetchAllAssociative(),
+            $count,
+            $offset,
+            $resolveInfo,
+            $modelClassPath,
+            $this->dataMapper
+        );
     }
 
     /**
      * @throws Exception
-     * @throws DBALException
      * @throws BadInputException
      * @throws InvalidQueryException
      * @throws FieldDoesNotExistException
-     * @throws NotFoundException
+     * @throws NotFoundException|\Doctrine\DBAL\Exception
      */
-    public function fetchForeignRecordsWithMM(AbstractDomainObject $root,
-                                              array                $args,
-                                                                   $context,
-                                              ResolveInfo          $resolveInfo,
-                                              Context              $schemaContext,
-                                              string               $foreignTable): PaginatedQueryResult
-    {
+    public function fetchForeignRecordsWithMM(
+        AbstractDomainObject $root,
+        array $args,
+        $context,
+        ResolveInfo $resolveInfo,
+        Context $schemaContext,
+        string $foreignTable
+    ): PaginatedQueryResult {
         $tableName = $schemaContext->getTableName();
         $localUid = $root->getUid();
         $limit = (int)($args[QueryArgumentsUtility::$paginationFirst] ?? 10);
@@ -196,15 +203,17 @@ class QueryResolver
 
         $qb->selectLiteral("COUNT(DISTINCT $foreignTableQuoted.uid)")->distinct();
 
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                 $foreignTable,
-                                                                                 $qb,
-                                                                                 $args,
-                                                                                 FilterEventSource::QUERY_COUNT));
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $foreignTable,
+            $qb,
+            $args,
+            FilterEventSource::QUERY_COUNT
+        ));
 
         $count = $qb->execute()->fetchOne();
 
-        $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable, array_map(static fn ($x) => $x['field'], $sorting));
+        $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable, array_map(static fn($x) => $x['field'], $sorting));
 
         $qb->select(...$fields)->distinct();
 
@@ -216,26 +225,29 @@ class QueryResolver
             $order = $item['order'];
 
             $fieldPrefix = "$tableName.";
-            if (!TcaUtility::doesFieldExist($tableName, $field)) {
+            if (!TcaUtility::fieldExistsAndIsCustom($tableName, $field)) {
                 $fieldPrefix = '';
             }
 
             $qb->addOrderBy($fieldPrefix . $field, $order);
         }
 
-        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                 $foreignTable,
-                                                                                 $qb,
-                                                                                 $args,
-                                                                                 FilterEventSource::QUERY));
+        $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $foreignTable,
+            $qb,
+            $args,
+            FilterEventSource::QUERY
+        ));
 
-        return new PaginatedQueryResult($qb->execute()->fetchAllAssociative(),
-                                        $count,
-                                        $offset,
-                                        $limit,
-                                        $resolveInfo,
-                                        $modelClassPath,
-                                        $this->dataMapper);
+        return new PaginatedQueryResult(
+            $qb->execute()->fetchAllAssociative(),
+            $count,
+            $offset,
+            $resolveInfo,
+            $modelClassPath,
+            $this->dataMapper
+        );
     }
 
     /**
@@ -271,8 +283,13 @@ class QueryResolver
 
         $discreteFilterConfigurations =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($discreteFilters), 'discrete');
+        $staticDiscreteFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($discreteFilters), 'discrete');
+        $discreteFilterConfigurations = array_merge($discreteFilterConfigurations, $staticDiscreteFilters);
+
         $rangeFilterConfiguration =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($rangeFilters), 'range');
+        $staticRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($rangeFilters), 'range');
+        $rangeFilterConfiguration = array_merge($rangeFilterConfiguration, $staticRangeFilters);
 
         foreach ($discreteFilterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
@@ -307,13 +324,17 @@ class QueryResolver
             $andExpressions = [];
 
             if (($rangeFilter['range']['min'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeFilter['range']['min']));
+                $andExpressions[] = $qb->expr()->gte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['range']['min'])
+                );
             }
 
             if (($rangeFilter['range']['max'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeFilter['range']['max']));
+                $andExpressions[] = $qb->expr()->lte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['range']['max'])
+                );
             }
 
             $qb->andWhere(...$andExpressions);

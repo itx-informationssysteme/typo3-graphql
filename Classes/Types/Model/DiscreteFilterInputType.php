@@ -9,7 +9,7 @@ use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
 
 class DiscreteFilterInputType extends InputObjectType implements TypeNameInterface
 {
-    public $description = 'A discrete filter.';
+    public ?string $description = 'A discrete filter.';
 
     public function __construct()
     {

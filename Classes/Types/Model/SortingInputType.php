@@ -6,25 +6,24 @@ use GraphQL\Type\Definition\NullableType;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
-use Itx\Typo3GraphQL\Utility\NamingUtility;
 use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
 use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
 
 class SortingInputType extends \GraphQL\Type\Definition\InputObjectType
 {
-    public $description = 'Sorting';
+    public ?string $description = 'Sorting';
 
     /**
      * @throws NameNotFoundException
      */
-    public function __construct(string $modelClassPath, NullableType $sortingFieldType)
+    public function __construct(string $name, NullableType $sortingFieldType)
     {
-        $this->name = ucfirst(NamingUtility::generateNameFromClassPath($modelClassPath, false) . 'Sorting');
+        $this->name = $name;
         $sortingObject = InputObjectBuilder::create($this->name);
         $sortingObject->setFields([
-                                      InputFieldBuilder::create('field', Type::nonNull($sortingFieldType))->setDescription('Sort by field')->build(),
-                                      InputFieldBuilder::create('order', Type::nonNull(TypeRegistry::sortingOrder()))->setDescription('Sort order')->build()
-                                  ]);
+            InputFieldBuilder::create('field', Type::nonNull($sortingFieldType))->setDescription('Sort by field')->build(),
+            InputFieldBuilder::create('order', Type::nonNull(TypeRegistry::sortingOrder()))->setDescription('Sort order')->build(),
+        ]);
 
         parent::__construct($sortingObject->build());
     }

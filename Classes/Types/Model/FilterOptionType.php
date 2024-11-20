@@ -8,7 +8,7 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class FilterOptionType extends \GraphQL\Type\Definition\ObjectType implements TypeNameInterface
 {
-    public $description = 'A filter option object';
+    public ?string $description = 'A filter option object';
 
     public function __construct()
     {

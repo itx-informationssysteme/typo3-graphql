@@ -14,14 +14,14 @@ class PaginatedQueryResult
     public array $items = [];
     public array $facets = [];
 
-    public function __construct(array       $items,
-                                int         $totalCount,
-                                int         $offset,
-                                int         $limit,
-                                ResolveInfo $resolveInfo,
-                                string      $modelClassPath,
-                                ?DataMapper $dataMapper = null)
-    {
+    public function __construct(
+        array $items,
+        int $totalCount,
+        int $offset,
+        ResolveInfo $resolveInfo,
+        string $modelClassPath,
+        ?DataMapper $dataMapper = null
+    ) {
         $previousCursor = $offset;
 
         if ($dataMapper) {

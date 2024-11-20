@@ -26,7 +26,7 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
     public const ARGUMENT_CROP = 'crop';
     public const FILE_EXTENSION = 'fileExtension';
 
-    public $description = 'A file object with some additional information including a publicly accessible URL';
+    public ?string $description = 'A file object with some additional information including a publicly accessible URL';
 
     /**
      * @throws NameNotFoundException
@@ -47,11 +47,12 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
                                 ->setResolver(fn(FileReference $root) => $root->getOriginalResource()?->getExtension() ?? '')
                                 ->setDescription('File extension')
                                 ->build();
-        $fields[] = FieldBuilder::create('url', Type::nonNull(Type::string()))->setResolver(function(FileReference $root,
-                                                                                                     array         $args,
-                                                                                                                   $context,
-                                                                                                     ResolveInfo   $resolveInfo) use
-        (
+        $fields[] = FieldBuilder::create('url', Type::nonNull(Type::string()))->setResolver(function (
+            FileReference $root,
+            array $args,
+            $context,
+            ResolveInfo $resolveInfo
+        ) use (
             $imageService
         ) {
             if ($root->getOriginalResource() === null) {
@@ -76,10 +77,12 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
                                 ->addArgument(self::ARGUMENT_CROP, Type::string())
                                 ->addArgument(self::FILE_EXTENSION, TypeRegistry::fileExtensions())
                                 ->setDescription('Derivative of the file. Returns the absolute URL to the processed file.')
-                                ->setResolver(function(FileReference   $root,
-                                                       array           $args,
-                                                       ResolverContext $context,
-                                                       ResolveInfo     $resolveInfo) use ($imageService) {
+                                ->setResolver(function (
+                                    FileReference $root,
+                                    array $args,
+                                    ResolverContext $context,
+                                    ResolveInfo $resolveInfo
+                                ) use ($imageService) {
                                     if ($root->getOriginalResource() === null) {
                                         return '';
                                     }
@@ -94,14 +97,22 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
                                     $processingInstructions = [
                                         'width' => $this->checkIfSizeIsAllowed($args[self::ARGUMENT_WIDTH] ?? null, $context),
                                         'height' => $this->checkIfSizeIsAllowed($args[self::ARGUMENT_HEIGHT] ?? null, $context),
-                                        'minWidth' => $this->checkIfSizeIsAllowed($args[self::ARGUMENT_MIN_WIDTH] ?? null,
-                                                                                  $context),
-                                        'minHeight' => $this->checkIfSizeIsAllowed($args[self::ARGUMENT_MIN_HEIGHT] ?? null,
-                                                                                   $context),
-                                        'maxWidth' => $this->checkIfSizeIsAllowed($args[self::ARGUMENT_MAX_WIDTH] ?? null,
-                                                                                  $context),
-                                        'maxHeight' => $this->checkIfSizeIsAllowed($args[self::ARGUMENT_MAX_HEIGHT] ?? null,
-                                                                                   $context),
+                                        'minWidth' => $this->checkIfSizeIsAllowed(
+                                            $args[self::ARGUMENT_MIN_WIDTH] ?? null,
+                                            $context
+                                        ),
+                                        'minHeight' => $this->checkIfSizeIsAllowed(
+                                            $args[self::ARGUMENT_MIN_HEIGHT] ?? null,
+                                            $context
+                                        ),
+                                        'maxWidth' => $this->checkIfSizeIsAllowed(
+                                            $args[self::ARGUMENT_MAX_WIDTH] ?? null,
+                                            $context
+                                        ),
+                                        'maxHeight' => $this->checkIfSizeIsAllowed(
+                                            $args[self::ARGUMENT_MAX_HEIGHT] ?? null,
+                                            $context
+                                        ),
                                         'crop' => $cropArea->isEmpty() ? null : $cropArea->makeAbsoluteBasedOnFile($image),
                                     ];
 
@@ -118,10 +129,12 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
 
         $fields[] = FieldBuilder::create('alternative', Type::string())
                                 ->setDescription('Returns the alternative text for this file')
-                                ->setResolver(function(FileReference   $root,
-                                                       array           $args,
-                                                       ResolverContext $context,
-                                                       ResolveInfo     $resolveInfo) {
+                                ->setResolver(function (
+                                    FileReference $root,
+                                    array $args,
+                                    ResolverContext $context,
+                                    ResolveInfo $resolveInfo
+                                ) {
                                     if ($root->getOriginalResource() === null) {
                                         return '';
                                     }
@@ -132,10 +145,12 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
 
         $fields[] = FieldBuilder::create('link', Type::string())
                                 ->setDescription('Returns the link for this file reference. This is the link that can be edited in the background. Not the link to the file.')
-                                ->setResolver(function(FileReference   $root,
-                                                       array           $args,
-                                                       ResolverContext $context,
-                                                       ResolveInfo     $resolveInfo) {
+                                ->setResolver(function (
+                                    FileReference $root,
+                                    array $args,
+                                    ResolverContext $context,
+                                    ResolveInfo $resolveInfo
+                                ) {
                                     if ($root->getOriginalResource() === null) {
                                         return '';
                                     }
@@ -158,10 +173,12 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
             return null;
         }
 
-        $result = in_array($fileExtension,
-                           $resolverContext->getConfigurationService()->getSettings()['imageManipulation']['allowedImageTypes'] ??
-                               [],
-                           true);
+        $result = in_array(
+            $fileExtension,
+            $resolverContext->getConfigurationService()->getSettings()['imageManipulation']['allowedImageTypes'] ??
+                [],
+            true
+        );
 
         if (!$result) {
             throw new BadInputException("File type '$fileExtension' not allowed", 1610612736);
@@ -179,10 +196,12 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
             return null;
         }
 
-        $result = in_array($size,
-                           $resolverContext->getConfigurationService()->getSettings()['imageManipulation']['allowedImageSizes'] ??
-                               [],
-                           true);
+        $result = in_array(
+            $size,
+            $resolverContext->getConfigurationService()->getSettings()['imageManipulation']['allowedImageSizes'] ??
+                [],
+            true
+        );
 
         if (!$result) {
             throw new BadInputException("Image size '$size' not allowed", 1610612737);

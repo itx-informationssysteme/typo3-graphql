@@ -9,14 +9,14 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class EdgeType extends ObjectType
 {
-    public $description = 'An edge in a connection';
+    public ?string $description = 'An edge in a connection';
 
     /**
      * @param $node Type
      */
     public function __construct(mixed $node)
     {
-        $this->name = $node->name.'Edge';
+        $this->name = $node->name . 'Edge';
         $objectBuilder = ObjectBuilder::create($this->name);
 
         $fields = [];

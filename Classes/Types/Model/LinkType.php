@@ -9,7 +9,7 @@ use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 
 class LinkType extends \GraphQL\Type\Definition\ScalarType implements TypeNameInterface
 {
-    public $description = 'The `Link` scalar type represents a link to a page, image or an external URL. It is a TypoLink internally, but it is exposed through this GraphQL API as an absolute HTTP Link.';
+    public ?string $description = 'The `Link` scalar type represents a link to a page, image or an external URL. It is a TypoLink internally, but it is exposed through this GraphQL API as an absolute HTTP Link.';
 
     public function __construct(array $config = [])
     {
@@ -25,7 +25,8 @@ class LinkType extends \GraphQL\Type\Definition\ScalarType implements TypeNameIn
         $instructions = [
             'parameter' => $value,
             'forceAbsoluteUrl' => true,
-            'language' => $args['language'] ?? 0,
+            // TODO: Language should be passed as argument
+            'language' => 0,
         ];
 
         return GeneralUtility::makeInstance(ContentObjectRenderer::class)->typoLink_URL($instructions);

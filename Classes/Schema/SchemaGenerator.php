@@ -30,7 +30,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 use SimPod\GraphQLUtils\Exception\InvalidArgument;
-use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 use TYPO3\CMS\Extbase\Reflection\ReflectionService;
@@ -40,7 +40,6 @@ class SchemaGenerator
     protected PersistenceManager $persistenceManager;
     protected TableNameResolver $tableNameResolver;
     protected LoggerInterface $logger;
-    protected LanguageService $languageService;
     protected TCATypeMapper $typeMapper;
     protected QueryResolver $queryResolver;
     protected EventDispatcherInterface $eventDispatcher;
@@ -48,21 +47,20 @@ class SchemaGenerator
     protected ConfigurationService $configurationService;
     protected ReflectionService $reflectionService;
 
-    public function __construct(PersistenceManager       $persistenceManager,
-                                TableNameResolver        $tableNameResolver,
-                                LoggerInterface          $logger,
-                                LanguageService          $languageService,
-                                TCATypeMapper            $typeMapper,
-                                QueryResolver            $queryResolver,
-                                ConfigurationService     $configurationService,
-                                EventDispatcherInterface $eventDispatcher,
-                                FilterResolver           $filterResolver,
-                                ReflectionService        $reflectionService)
-    {
+    public function __construct(
+        PersistenceManager $persistenceManager,
+        TableNameResolver $tableNameResolver,
+        LoggerInterface $logger,
+        TCATypeMapper $typeMapper,
+        QueryResolver $queryResolver,
+        ConfigurationService $configurationService,
+        EventDispatcherInterface $eventDispatcher,
+        FilterResolver $filterResolver,
+        ReflectionService $reflectionService
+    ) {
         $this->persistenceManager = $persistenceManager;
         $this->tableNameResolver = $tableNameResolver;
         $this->logger = $logger;
-        $this->languageService = $languageService;
         $this->typeMapper = $typeMapper;
         $this->queryResolver = $queryResolver;
         $this->eventDispatcher = $eventDispatcher;
@@ -94,15 +92,15 @@ class SchemaGenerator
             // Get the table name
             $tableName = $this->tableNameResolver->resolve($modelClassPath);
 
+            $languageService = GeneralUtility::makeInstance(LanguageServiceFactory::class)?->create('en');
             $objectName =
-                NamingUtility::generateName($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']), false);
+                NamingUtility::generateName($languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']), false);
 
             // Type configuration
             $object = ObjectBuilder::create($objectName)->setDescription("The $objectName type");
 
             // Build a ObjectType from the type configuration
-            $objectType = new ObjectType($object->setFields(function() use (
-                $modelsConfiguration,
+            $objectType = new ObjectType($object->setFields(function () use (
                 $typeRegistry,
                 $modelClassPath,
                 $tableName
@@ -153,17 +151,18 @@ class SchemaGenerator
                     $fieldAnnotations = $annotationReader->getPropertyAnnotations($schema->getProperty($fieldName));
 
                     try {
-                        $context = new Context($modelClassPath,
-                                               $tableName,
-                                               $fieldName,
-                                               $columnConfiguration,
-                                               $typeRegistry,
-                                               $fieldAnnotations);
+                        $context = new Context(
+                            $modelClassPath,
+                            $tableName,
+                            $fieldName,
+                            $columnConfiguration,
+                            $typeRegistry,
+                            $fieldAnnotations
+                        );
                         $field = $this->typeMapper->buildField($context);
 
                         $fields[] = $field->build();
-                    }
-                    catch (UnsupportedTypeException $e) {
+                    } catch (UnsupportedTypeException $e) {
                         $this->logger->debug($e->getMessage());
                     }
                 }
@@ -192,7 +191,7 @@ class SchemaGenerator
             // Add a query to fetch multiple records
             $multipleQuery = FieldBuilder::create(NamingUtility::generateNameFromClassPath($modelClassPath, true))
                                          ->setType(Type::nonNull($connectionType))
-                                         ->setResolver(function($root, array $args, $context, ResolveInfo $resolveInfo) use (
+                                         ->setResolver(function ($root, array $args, $context, ResolveInfo $resolveInfo) use (
                                              $modelClassPath,
                                              $tableName
                                          ) {
@@ -208,9 +207,13 @@ class SchemaGenerator
                                                  $invalidMountPoints = array_diff($requestedMountPoints, $allowedMountPoints);
 
                                                  if (count($invalidMountPoints) > 0) {
-                                                     throw new \InvalidArgumentException(sprintf('Requested mount points "%s" are not allowed',
-                                                                                                 implode(', ',
-                                                                                                         $invalidMountPoints)));
+                                                     throw new \InvalidArgumentException(sprintf(
+                                                         'Requested mount points "%s" are not allowed',
+                                                         implode(
+                                                             ', ',
+                                                             $invalidMountPoints
+                                                         )
+                                                     ));
                                                  }
 
                                                  // If no mount points are requested, we use the allowed mount points
@@ -221,40 +224,49 @@ class SchemaGenerator
 
                                              // Query facets if requested
                                              if ($resolveInfo->getFieldSelection()['facets'] ?? false) {
-                                                 $facets = $this->filterResolver->fetchFiltersIncludingFacets($root,
-                                                                                                              $args,
-                                                                                                              $context,
-                                                                                                              $resolveInfo,
-                                                                                                              $tableName,
-                                                                                                              $modelClassPath);
+                                                 $facets = $this->filterResolver->fetchFiltersIncludingFacets(
+                                                     $root,
+                                                     $args,
+                                                     $context,
+                                                     $resolveInfo,
+                                                     $tableName,
+                                                     $modelClassPath
+                                                 );
                                              }
 
                                              // Query actual records
-                                             $queryResult = $this->queryResolver->fetchMultipleRecords($root,
-                                                                                                       $args,
-                                                                                                       $context,
-                                                                                                       $resolveInfo,
-                                                                                                       $modelClassPath,
-                                                                                                       $tableName);
+                                             $queryResult = $this->queryResolver->fetchMultipleRecords(
+                                                 $root,
+                                                 $args,
+                                                 $context,
+                                                 $resolveInfo,
+                                                 $modelClassPath,
+                                                 $tableName
+                                             );
                                              $queryResult->setFacets($facets);
 
                                              return $queryResult;
                                          })
-                                         ->addArgument(QueryArgumentsUtility::$language,
-                                                       Type::nonNull(Type::int()),
-                                                       'Language field',
-                                                       0)
-                                         ->addArgument(QueryArgumentsUtility::$pageIds,
-                                                       Type::listOf(Type::int()),
-                                                       'List of storage page ids',
-                                                       []);
+                                         ->addArgument(
+                                             QueryArgumentsUtility::$language,
+                                             Type::int(),
+                                             'Language field'
+                                         )
+                                         ->addArgument(
+                                             QueryArgumentsUtility::$pageIds,
+                                             Type::listOf(Type::int()),
+                                             'List of storage page ids',
+                                             []
+                                         );
 
             /** @var CustomQueryArgumentEvent $event */
-            $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(RootQueryType::Multiple,
-                                                                                   $multipleQuery,
-                                                                                   $modelClassPath,
-                                                                                   $tableName,
-                                                                                   $typeRegistry));
+            $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(
+                RootQueryType::Multiple,
+                $multipleQuery,
+                $modelClassPath,
+                $tableName,
+                $typeRegistry
+            ));
             $multipleQuery = $event->getFieldBuilder();
 
             $queries[] =
@@ -264,31 +276,39 @@ class SchemaGenerator
             $singleQueryName = NamingUtility::generateNameFromClassPath($modelClassPath, false);
 
             // Add a query to fetch a single record
-            $singleQuery = FieldBuilder::create($singleQueryName)->setType($objectType)->setResolver(function($root,
+            $singleQuery = FieldBuilder::create($singleQueryName)->setType($objectType)->setResolver(function (
+                $root,
                 $args,
                 $context,
-                                                                                                              ResolveInfo $resolveInfo) use
-            (
+                ResolveInfo $resolveInfo
+            ) use (
                 $modelClassPath
             ) {
-                return $this->queryResolver->fetchSingleRecord($root,
-                                                               $args,
-                                                               $context,
-                                                               $resolveInfo,
-                                                               $modelClassPath);
-            })->addArgument(QueryArgumentsUtility::$uid,
-                            Type::nonNull(Type::int()),
-                            "Get a $singleQueryName by it's uid")->addArgument(QueryArgumentsUtility::$language,
-                                                                               Type::nonNull(Type::int()),
-                                                                               'Language field',
-                                                                               0);
+                return $this->queryResolver->fetchSingleRecord(
+                    $root,
+                    $args,
+                    $context,
+                    $resolveInfo,
+                    $modelClassPath
+                );
+            })->addArgument(
+                QueryArgumentsUtility::$uid,
+                Type::nonNull(Type::int()),
+                "Get a $singleQueryName by it's uid"
+            )->addArgument(
+                QueryArgumentsUtility::$language,
+                Type::int(),
+                'Language field'
+            );
 
             /** @var CustomQueryArgumentEvent $event */
-            $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(RootQueryType::Single,
-                                                                                   $singleQuery,
-                                                                                   $modelClassPath,
-                                                                                   $tableName,
-                                                                                   $typeRegistry));
+            $event = $this->eventDispatcher->dispatch(new CustomQueryArgumentEvent(
+                RootQueryType::Single,
+                $singleQuery,
+                $modelClassPath,
+                $tableName,
+                $typeRegistry
+            ));
             $singleQuery = $event->getFieldBuilder();
 
             $queries[] = $singleQuery->build();
@@ -296,8 +316,7 @@ class SchemaGenerator
 
         // Allow for custom new query fields
         /** @var CustomQueryFieldEvent $customEvent */
-        $customEvent =
-            $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($typeRegistry));
+        $customEvent = $this->eventDispatcher->dispatch(new CustomQueryFieldEvent($typeRegistry));
 
         foreach ($customEvent->getFieldBuilders() as $field) {
             $queries[] = $field->build();

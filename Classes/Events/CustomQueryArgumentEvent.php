@@ -8,14 +8,13 @@ use Itx\Typo3GraphQL\Types\TypeRegistry;
 
 class CustomQueryArgumentEvent
 {
-
-    public function __construct(protected RootQueryType $queryType,
-                                protected FieldBuilder  $fieldBuilder,
-                                protected string        $modelClassPath,
-                                protected string        $tableName,
-                                protected TypeRegistry  $typeRegistry)
-    {
-    }
+    public function __construct(
+        protected RootQueryType $queryType,
+        protected FieldBuilder $fieldBuilder,
+        protected string $modelClassPath,
+        protected string $tableName,
+        protected TypeRegistry $typeRegistry
+    ) {}
 
     /**
      * @return RootQueryType

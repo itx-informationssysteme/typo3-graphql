@@ -20,9 +20,8 @@ class CorsMiddleware implements MiddlewareInterface
 
     protected array $allowedOrigins = [];
 
-    /**
-     */
-    public function __construct(ConfigurationService $configurationService) {
+    public function __construct(ConfigurationService $configurationService)
+    {
         $this->configurationService = $configurationService;
 
         $settings = $this->configurationService->getSettings();
@@ -32,7 +31,7 @@ class CorsMiddleware implements MiddlewareInterface
         $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
         $sites = $siteFinder->getAllSites();
 
-        $hosts = array_map(static function($site) {
+        $hosts = array_map(static function ($site) {
             return $site->getBase()->__toString();
         }, $sites);
 

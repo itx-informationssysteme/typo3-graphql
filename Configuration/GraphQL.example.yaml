@@ -11,6 +11,12 @@ models:
         mountPoints:
             - 1
 
+        filters:
+            - path: 'title' # required: Path to the field. This supports relations, e.g. categories.title
+              type: discrete # required: discrecte OR range
+              name: Title
+              unit: kg # Could be used when type is range
+
     TYPO3\CMS\Extbase\Domain\Model\Category:
         enabled: true
         queryable: true

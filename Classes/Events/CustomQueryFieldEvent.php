@@ -18,7 +18,7 @@ class CustomQueryFieldEvent
     {
         $this->typeRegistry = $typeRegistry;
     }
-    
+
     public function getTypeRegistry(): TypeRegistry
     {
         return $this->typeRegistry;

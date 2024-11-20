@@ -46,7 +46,7 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
      * @return Filter[]|QueryResultInterface
      * @throws InvalidQueryException
      */
-    public function findByModelAndPathsAndType($model, array $paths, string $type): QueryResultInterface|array
+    public function findByModelAndPathsAndType($model, array $paths, string $type): array
     {
         $filters = [];
 
@@ -68,12 +68,13 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
         $query->getQuerySettings()->setRespectStoragePage(false);
         $query->matching($query->logicalAnd($query->equals('model', $model), $query->in('filter_path', $paths), $query->equals('type_of_filter', $type)));
 
+        /** @var Filter[]|QueryResultInterface $results */
         $results = $query->execute();
 
         foreach ($results as $result) {
             $this->filterBuffer[$this->bufferKey($model, $result->getFilterPath(), $type)] = $result;
         }
 
-        return $results;
+        return $results->toArray();
     }
 }

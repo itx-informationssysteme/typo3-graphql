@@ -24,7 +24,6 @@ class TableNameResolver
     }
 
     /**
-     *
      * Copy of DataMapFactory::resolveTableName, because it is protected
      * Resolve the table name for the given class name
      *
@@ -37,7 +36,7 @@ class TableNameResolver
         $className = ltrim($className, '\\');
         $classNameParts = explode('\\', $className);
         // Skip vendor and product name for core classes
-        if (strpos($className, 'TYPO3\\CMS\\') === 0) {
+        if (str_starts_with($className, 'TYPO3\\CMS\\')) {
             $classPartsToSkip = 2;
         } else {
             $classPartsToSkip = 1;

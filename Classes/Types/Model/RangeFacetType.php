@@ -11,7 +11,6 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class RangeFacetType extends ObjectType implements TypeNameInterface
 {
-
     /**
      * @throws NameNotFoundException
      */

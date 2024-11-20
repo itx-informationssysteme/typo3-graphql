@@ -43,9 +43,10 @@ class PaginationUtility
      * @throws NameNotFoundException
      * @throws NotFoundException
      */
-    public static function generateConnectionTypes(Type           $objectType,
-                                                   TypeRegistry   $typeRegistry): ConnectionType
-    {
+    public static function generateConnectionTypes(
+        Type $objectType,
+        TypeRegistry $typeRegistry
+    ): ConnectionType {
         $edgeType = new EdgeType($objectType);
         $connectionType = new ConnectionType($objectType, $edgeType);
 
@@ -86,7 +87,7 @@ class PaginationUtility
             $dbFieldName = GeneralUtility::camelCaseToLowerCaseUnderscored($field);
 
             // Check if field exists in TCA
-            if (!TcaUtility::doesFieldExist($tableName, $dbFieldName)) {
+            if (!TcaUtility::fieldExistsAndIsCustom($tableName, $dbFieldName)) {
                 continue;
             }
 
