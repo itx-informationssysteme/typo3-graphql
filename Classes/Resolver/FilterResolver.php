@@ -302,8 +302,10 @@ class FilterResolver
                                                                   $storagePids)));
         }
 
-        $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                                                          $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        if (isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -491,8 +493,10 @@ class FilterResolver
                                                                   $storagePids)));
         }
 
-        $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                                                          $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        if (isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -630,7 +634,10 @@ class FilterResolver
                                                    QueryBuilder $queryBuilder): string
     {
         $lastElementTable = $tableName;
-
+        $joinedTables = [];
+        $i = 1;
+        $lastElementTableAlias = NULL;
+        
         // Go through the filter path and join the tables by using the TCA MM relations
         /**
          * @var string $currentTable
@@ -649,31 +656,46 @@ class FilterResolver
 
                 // Join with MM and foreign table
                 $queryBuilder->join($currentTable,
-                                    $tca['MM'],
-                                    $tca['MM'],
-                                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableLocalField",
-                                                              $queryBuilder->quoteIdentifier($currentTable . '.uid')));
+                    $tca['MM'],
+                    $tca['MM'],
+                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableLocalField",
+                        $queryBuilder->quoteIdentifier($currentTable . '.uid')));
                 foreach ($tca['MM_match_fields'] ?? [] as $key => $value) {
                     $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.' . $key,
-                                                                      $queryBuilder->createNamedParameter($value)));
+                        $queryBuilder->createNamedParameter($value)));
                 }
 
-                $queryBuilder->join($tca['MM'],
-                                    $tca['foreign_table'],
-                                    $tca['foreign_table'],
-                                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
-                                                              $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
+                if(!in_array($lastElementTable, $joinedTables)){
+                    $queryBuilder->join($tca['MM'],
+                        $lastElementTable,
+                        $lastElementTable,
+                        $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
+                            $queryBuilder->quoteIdentifier($lastElementTable . '.uid')));
+                    $joinedTables[] = $lastElementTable;
+                } else {
+                    $queryBuilder->join(
+                        $tca['MM'],
+                        $lastElementTable,
+                        $lastElementTable . "$i",
+                        $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
+                        $queryBuilder->quoteIdentifier($lastElementTable . '.uid')));
+                        $lastElementTableAlias = $lastElementTable . "$i";
+                        $i++;
+                }
                 continue;
             }
 
             // Join with foreign table
             $queryBuilder->join($currentTable,
-                                $tca['foreign_table'],
-                                $tca['foreign_table'],
+                                $lastElementTable,
+                                $lastElementTable,
                                 $queryBuilder->expr()->eq($currentTable . '.' . $fieldName,
                                                           $queryBuilder->quoteIdentifier($tca['foreign_table'] . ".uid")));
+            $joinedTables[] = $lastElementTable;
         }
-
+        if($lastElementTableAlias !== NULL){        // Not sure if we keep this
+            return $lastElementTableAlias;
+        }
         return $lastElementTable;
     }
 

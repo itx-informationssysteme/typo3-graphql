@@ -102,7 +102,10 @@ class QueryResolver
         $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
         $qb->setRestrictions($frontendRestrictionContainer);
 
-        $qb->from($tableName)->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
+        $qb->from($tableName);
+        if(isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])){
+            $qb->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
+        }
 
         if (!empty($storagePids)) {
             $qb->andWhere($qb->expr()->in("$tableName.pid", $storagePids));
