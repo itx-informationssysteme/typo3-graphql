@@ -105,7 +105,7 @@ class QueryResolver
         $qb->setRestrictions($frontendRestrictionContainer);
 
         $qb->from($tableName);
-        if(isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])){
+        if($language !== null && TcaUtility::fieldExists($tableName, 'sys_language_uid')){
             $qb->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
         }
 
@@ -125,7 +125,7 @@ class QueryResolver
             $args,
             FilterEventSource::QUERY_COUNT
         ));
-        $count = $qb->execute()->fetchOne();
+        $count = $qb->executeQuery()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName, array_map(static fn($x) => $x['field'], $sorting));
 
@@ -155,7 +155,7 @@ class QueryResolver
         ));
 
         return new PaginatedQueryResult(
-            $qb->execute()->fetchAllAssociative(),
+            $qb->executeQuery()->fetchAllAssociative(),
             $count,
             $offset,
             $resolveInfo,
@@ -211,7 +211,7 @@ class QueryResolver
             FilterEventSource::QUERY_COUNT
         ));
 
-        $count = $qb->execute()->fetchOne();
+        $count = $qb->executeQuery()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable, array_map(static fn($x) => $x['field'], $sorting));
 
@@ -241,7 +241,7 @@ class QueryResolver
         ));
 
         return new PaginatedQueryResult(
-            $qb->execute()->fetchAllAssociative(),
+            $qb->executeQuery()->fetchAllAssociative(),
             $count,
             $offset,
             $resolveInfo,
