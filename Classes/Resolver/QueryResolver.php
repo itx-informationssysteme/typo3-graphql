@@ -310,7 +310,7 @@ class QueryResolver
                     $qb->expr()->inSet($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
             }
 
-            $qb->andWhere($qb->expr()->orX(...$inSetExpressions));
+            $qb->andWhere($qb->expr()->or(...$inSetExpressions));
         }
 
         foreach ($rangeFilterConfiguration as $filterConfiguration) {
