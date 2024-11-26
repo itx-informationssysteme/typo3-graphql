@@ -633,8 +633,7 @@ class FilterResolver
                                                    string       $tableName,
                                                    QueryBuilder $queryBuilder): string
     {
-        $lastElementTable = $tableName;
-        $joinedTables = [];
+        $joinedTables[] = $queryBuilder->getQueryParts()["from"][0]["table"];
         $i = 1;
         $lastElementTableAlias = NULL;
 
@@ -664,11 +663,13 @@ class FilterResolver
                     $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.' . $key,
                         $queryBuilder->createNamedParameter($value)));
                 }
+
                 $lastElementTableAlias = $lastElementTable;
                 if(in_array($lastElementTable, $joinedTables)){
                     $lastElementTableAlias = $lastElementTable . $i++;
                 }
                 $joinedTables[] = $lastElementTableAlias;
+
                 $queryBuilder->join(
                     $tca['MM'],
                     $lastElementTable,
