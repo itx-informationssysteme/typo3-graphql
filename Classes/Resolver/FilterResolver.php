@@ -633,7 +633,7 @@ class FilterResolver
                                                    string       $tableName,
                                                    QueryBuilder $queryBuilder): string
     {
-        $joinedTables[] = $queryBuilder->getQueryParts()["from"][0]["table"];
+        $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
         $i = 1;
         $lastElementTableAlias = NULL;
 
