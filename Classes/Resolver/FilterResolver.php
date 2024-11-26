@@ -648,7 +648,7 @@ class FilterResolver
 
             if ($tca['MM'] ?? false) {
                 // Figure out from which side of the MM table we need to join TODO: This might not be robust enough
-                $isLocalTable = ($tca['MM_match_fields']['tablenames'] ?? '') === $currentTable;
+                $isLocalTable = isset($tca['MM_opposite_field']);
 
                 $mmTableLocalField = $isLocalTable ? 'uid_foreign' : 'uid_local';
                 $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
