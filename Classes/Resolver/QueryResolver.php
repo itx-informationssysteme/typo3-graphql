@@ -103,7 +103,6 @@ class QueryResolver
         $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
         $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
         $qb->setRestrictions($frontendRestrictionContainer);
-        $qb->from($tableName);
 
         $qb->from($tableName);
         if(isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])){

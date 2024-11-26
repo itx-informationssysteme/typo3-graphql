@@ -637,7 +637,7 @@ class FilterResolver
         $joinedTables = [];
         $i = 1;
         $lastElementTableAlias = NULL;
-        
+
         // Go through the filter path and join the tables by using the TCA MM relations
         /**
          * @var string $currentTable
@@ -664,24 +664,18 @@ class FilterResolver
                     $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.' . $key,
                         $queryBuilder->createNamedParameter($value)));
                 }
-
-                if(!in_array($lastElementTable, $joinedTables)){
-                    $queryBuilder->join($tca['MM'],
-                        $lastElementTable,
-                        $lastElementTable,
-                        $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
-                            $queryBuilder->quoteIdentifier($lastElementTable . '.uid')));
-                    $joinedTables[] = $lastElementTable;
-                } else {
-                    $queryBuilder->join(
-                        $tca['MM'],
-                        $lastElementTable,
-                        $lastElementTable . "$i",
-                        $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
-                        $queryBuilder->quoteIdentifier($lastElementTable . '.uid')));
-                        $lastElementTableAlias = $lastElementTable . "$i";
-                        $i++;
+                $lastElementTableAlias = $lastElementTable;
+                if(in_array($lastElementTable, $joinedTables)){
+                    $lastElementTableAlias = $lastElementTable . $i++;
                 }
+                $joinedTables[] = $lastElementTableAlias;
+                $queryBuilder->join(
+                    $tca['MM'],
+                    $lastElementTable,
+                    $lastElementTableAlias,
+                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
+                        $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')));
+
                 continue;
             }
 
@@ -693,10 +687,8 @@ class FilterResolver
                                                           $queryBuilder->quoteIdentifier($tca['foreign_table'] . ".uid")));
             $joinedTables[] = $lastElementTable;
         }
-        if($lastElementTableAlias !== NULL){        // Not sure if we keep this
-            return $lastElementTableAlias;
-        }
-        return $lastElementTable;
+
+        return $lastElementTableAlias;
     }
 
     /**
