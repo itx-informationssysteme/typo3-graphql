@@ -23,6 +23,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Database\Query\Restriction\FrontendRestrictionContainer;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
@@ -299,6 +300,8 @@ class FilterResolver
 
         // Query Builder
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
+        $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
+        $queryBuilder->setRestrictions($frontendRestrictionContainer);
 
         $lastElementTable = self::buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
 
@@ -327,11 +330,9 @@ class FilterResolver
             ));
         }
 
-        if ($language !== null) {
-            $queryBuilder->andWhere($queryBuilder->expr()->eq(
-                $tableName . '.sys_language_uid',
-                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
-            ));
+        if (isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
         }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -348,6 +349,7 @@ class FilterResolver
                 'discrete'
             ));
             $queryBuilder = $event->getQueryBuilder();
+
         }
 
         $fieldPrefix = "$lastElementTable.";
@@ -503,6 +505,8 @@ class FilterResolver
 
         // Query Builder
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
+        $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
+        $queryBuilder->setRestrictions($frontendRestrictionContainer);
 
         $lastElementTable = self::buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
 
@@ -531,11 +535,9 @@ class FilterResolver
             ));
         }
 
-        if ($language !== null) {
-            $queryBuilder->andWhere($queryBuilder->expr()->eq(
-                $tableName . '.sys_language_uid',
-                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
-            ));
+        if (isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
         }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -687,9 +689,11 @@ class FilterResolver
         string $tableName,
         QueryBuilder $queryBuilder
     ): string {
+
         $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"] ?? []);
         $i = 1;
         $lastElementTableAlias = NULL;
+
         // Go through the filter path and join the tables by using the TCA MM relations
         /**
          * @var string $currentTable
@@ -707,20 +711,14 @@ class FilterResolver
                 $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
 
                 // Join with MM and foreign table
-                $queryBuilder->join(
-                    $currentTable,
+                $queryBuilder->join($currentTable,
                     $tca['MM'],
                     $tca['MM'],
-                    $queryBuilder->expr()->eq(
-                        $tca['MM'] . ".$mmTableLocalField",
-                        $queryBuilder->quoteIdentifier($currentTable . '.uid')
-                    )
-                );
+                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableLocalField",
+                        $queryBuilder->quoteIdentifier($currentTable . '.uid')));
                 foreach ($tca['MM_match_fields'] ?? [] as $key => $value) {
-                    $queryBuilder->andWhere($queryBuilder->expr()->eq(
-                        $tca['MM'] . '.' . $key,
-                        $queryBuilder->createNamedParameter($value)
-                    ));
+                    $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.' . $key,
+                        $queryBuilder->createNamedParameter($value)));
                 }
 
                 $lastElementTableAlias = $lastElementTable;
