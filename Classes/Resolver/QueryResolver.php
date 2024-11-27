@@ -121,7 +121,7 @@ class QueryResolver
             $args,
             FilterEventSource::QUERY_COUNT
         ));
-        $count = $qb->execute()->fetchOne();
+        $count = $qb->executeQuery()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName, array_map(static fn($x) => $x['field'], $sorting));
 
@@ -151,7 +151,7 @@ class QueryResolver
         ));
 
         return new PaginatedQueryResult(
-            $qb->execute()->fetchAllAssociative(),
+            $qb->executeQuery()->fetchAllAssociative(),
             $count,
             $offset,
             $resolveInfo,
@@ -205,7 +205,7 @@ class QueryResolver
             FilterEventSource::QUERY_COUNT
         ));
 
-        $count = $qb->execute()->fetchOne();
+        $count = $qb->executeQuery()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable, array_map(static fn($x) => $x['field'], $sorting));
 
@@ -235,7 +235,7 @@ class QueryResolver
         ));
 
         return new PaginatedQueryResult(
-            $qb->execute()->fetchAllAssociative(),
+            $qb->executeQuery()->fetchAllAssociative(),
             $count,
             $offset,
             $resolveInfo,
@@ -301,7 +301,7 @@ class QueryResolver
                     $qb->expr()->inSet($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
             }
 
-            $qb->andWhere($qb->expr()->orX(...$inSetExpressions));
+            $qb->andWhere($qb->expr()->or(...$inSetExpressions));
         }
 
         foreach ($rangeFilterConfiguration as $filterConfiguration) {
