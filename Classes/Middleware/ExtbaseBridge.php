@@ -58,7 +58,9 @@ class ExtbaseBridge
 
     protected function createGlobalTsfe(Site $site, ServerRequestInterface $request): ServerRequestInterface
     {
-        if (version_compare($this->typo3Version, '11.5', '>=')) {
+        if (version_compare($this->typo3Version, '13.0', '>=')) {
+            // Do nothing
+        } else if (version_compare($this->typo3Version, '11.5', '>=')) {
             $controller = GeneralUtility::makeInstance(
                 TypoScriptFrontendController::class,
                 $this->context,
@@ -92,7 +94,10 @@ class ExtbaseBridge
 
     protected function bootFrontend(ServerRequestInterface $request): ServerRequestInterface
     {
-        if (version_compare($this->typo3Version, '12.2', '>=')) {
+        if (version_compare($this->typo3Version, '13.0', '>=')) {
+            // Do nothing
+        }
+        else if(version_compare($this->typo3Version, '12.2', '>=')) {
             // Run Frontend TypoScript
             $request = $GLOBALS['TSFE']->getFromCache($request);
         } elseif (version_compare($this->typo3Version, '11.5', '>=')) {
