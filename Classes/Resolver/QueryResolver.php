@@ -264,7 +264,7 @@ class QueryResolver
         $rangeFilters = [];
 
         if(array_key_exists(QueryArgumentsUtility::$discreteFilters, $filters)){
-            if ($filters[QueryArgumentsUtility::$discreteFilters]) {
+            if ($filters[QueryArgumentsUtility::$discreteFilters] ?? false) {
                 $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
                 // Path as key for discrete filters
@@ -272,8 +272,10 @@ class QueryResolver
                     array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
             }
         }
-        if(array_key_exists(QueryArgumentsUtility::$rangeFilters, $filters)){
-            if ($filters[QueryArgumentsUtility::$rangeFilters]) {
+
+        if (array_key_exists(QueryArgumentsUtility::$rangeFilters, $filters)) {
+            if ($filters[QueryArgumentsUtility::$rangeFilters] ?? false) {
+
                 $rangeFilters = $filters[QueryArgumentsUtility::$rangeFilters] ?? [];
 
                 // Path as key for discrete filters
