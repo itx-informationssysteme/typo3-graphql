@@ -121,7 +121,7 @@ class QueryResolver
             $args,
             FilterEventSource::QUERY_COUNT
         ));
-        $count = $qb->execute()->fetchOne();
+        $count = $qb->executeQuery()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $tableName, array_map(static fn($x) => $x['field'], $sorting));
 
@@ -151,7 +151,7 @@ class QueryResolver
         ));
 
         return new PaginatedQueryResult(
-            $qb->execute()->fetchAllAssociative(),
+            $qb->executeQuery()->fetchAllAssociative(),
             $count,
             $offset,
             $resolveInfo,
@@ -205,7 +205,7 @@ class QueryResolver
             FilterEventSource::QUERY_COUNT
         ));
 
-        $count = $qb->execute()->fetchOne();
+        $count = $qb->executeQuery()->fetchOne();
 
         $fields = PaginationUtility::getFieldSelection($resolveInfo, $foreignTable, array_map(static fn($x) => $x['field'], $sorting));
 
@@ -235,7 +235,7 @@ class QueryResolver
         ));
 
         return new PaginatedQueryResult(
-            $qb->execute()->fetchAllAssociative(),
+            $qb->executeQuery()->fetchAllAssociative(),
             $count,
             $offset,
             $resolveInfo,
@@ -257,19 +257,23 @@ class QueryResolver
         $discreteFilters = [];
         $rangeFilters = [];
 
-        if ($filters[QueryArgumentsUtility::$discreteFilters] ?? false) {
-            $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
+        if(array_key_exists(QueryArgumentsUtility::$discreteFilters, $filters)){
+            if ($filters[QueryArgumentsUtility::$discreteFilters] ?? false) {
+                $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
-            // Path as key for discrete filters
-            $discreteFilters =
-                array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
+                // Path as key for discrete filters
+                $discreteFilters =
+                    array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
+            }
         }
+        
+        if (array_key_exists(QueryArgumentsUtility::$rangeFilters, $filters)) {
+            if ($filters[QueryArgumentsUtility::$rangeFilters] ?? false) {
+                $rangeFilters = $filters[QueryArgumentsUtility::$rangeFilters] ?? [];
 
-        if ($filters[QueryArgumentsUtility::$rangeFilters] ?? false) {
-            $rangeFilters = $filters[QueryArgumentsUtility::$rangeFilters] ?? [];
-
-            // Path as key for discrete filters
-            $rangeFilters = array_combine(array_map(static fn($filter) => $filter['path'], $rangeFilters), $rangeFilters);
+                // Path as key for discrete filters
+                $rangeFilters = array_combine(array_map(static fn($filter) => $filter['path'], $rangeFilters), $rangeFilters);
+            }
         }
 
         $discreteFilterConfigurations =
@@ -301,7 +305,7 @@ class QueryResolver
                     $qb->expr()->inSet($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
             }
 
-            $qb->andWhere($qb->expr()->orX(...$inSetExpressions));
+            $qb->andWhere($qb->expr()->or(...$inSetExpressions));
         }
 
         foreach ($rangeFilterConfiguration as $filterConfiguration) {
