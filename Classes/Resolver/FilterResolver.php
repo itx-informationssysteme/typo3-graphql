@@ -633,9 +633,13 @@ class FilterResolver
                                                    string       $tableName,
                                                    QueryBuilder $queryBuilder): string
     {
-        $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
+        $joinedTables = [];
+        if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
+            $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
+        }
+
         $i = 1;
-        $lastElementTableAlias = NULL;
+        $lastElementTableAlias = $tableName;
 
         // Go through the filter path and join the tables by using the TCA MM relations
         /**
@@ -645,6 +649,7 @@ class FilterResolver
          */
         foreach (self::walkTcaRelations($filterPathElements, $tableName) as [$currentTable, $fieldName, $tca]) {
             $lastElementTable = $tca['foreign_table'];
+            $lastElementTableAlias = $lastElementTable;
 
             if ($tca['MM'] ?? false) {
                 // Figure out from which side of the MM table we need to join TODO: This might not be robust enough
