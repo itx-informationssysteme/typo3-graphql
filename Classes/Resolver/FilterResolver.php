@@ -302,8 +302,10 @@ class FilterResolver
                                                                   $storagePids)));
         }
 
-        $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                                                          $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        if (isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -491,8 +493,10 @@ class FilterResolver
                                                                   $storagePids)));
         }
 
-        $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                                                          $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        if (isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -629,7 +633,13 @@ class FilterResolver
                                                    string       $tableName,
                                                    QueryBuilder $queryBuilder): string
     {
-        $lastElementTable = $tableName;
+        $joinedTables = [];
+        if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
+            $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
+        }
+
+        $i = 1;
+        $lastElementTableAlias = $tableName;
 
         // Go through the filter path and join the tables by using the TCA MM relations
         /**
@@ -639,42 +649,52 @@ class FilterResolver
          */
         foreach (self::walkTcaRelations($filterPathElements, $tableName) as [$currentTable, $fieldName, $tca]) {
             $lastElementTable = $tca['foreign_table'];
+            $lastElementTableAlias = $lastElementTable;
 
             if ($tca['MM'] ?? false) {
                 // Figure out from which side of the MM table we need to join TODO: This might not be robust enough
-                $isLocalTable = ($tca['MM_match_fields']['tablenames'] ?? '') === $currentTable;
+                $isLocalTable = isset($tca['MM_opposite_field']);
 
                 $mmTableLocalField = $isLocalTable ? 'uid_foreign' : 'uid_local';
                 $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
 
                 // Join with MM and foreign table
                 $queryBuilder->join($currentTable,
-                                    $tca['MM'],
-                                    $tca['MM'],
-                                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableLocalField",
-                                                              $queryBuilder->quoteIdentifier($currentTable . '.uid')));
+                    $tca['MM'],
+                    $tca['MM'],
+                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableLocalField",
+                        $queryBuilder->quoteIdentifier($currentTable . '.uid')));
                 foreach ($tca['MM_match_fields'] ?? [] as $key => $value) {
                     $queryBuilder->andWhere($queryBuilder->expr()->eq($tca['MM'] . '.' . $key,
-                                                                      $queryBuilder->createNamedParameter($value)));
+                        $queryBuilder->createNamedParameter($value)));
                 }
 
-                $queryBuilder->join($tca['MM'],
-                                    $tca['foreign_table'],
-                                    $tca['foreign_table'],
-                                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
-                                                              $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')));
+                $lastElementTableAlias = $lastElementTable;
+                if(in_array($lastElementTable, $joinedTables)){
+                    $lastElementTableAlias = $lastElementTable . $i++;
+                }
+                $joinedTables[] = $lastElementTableAlias;
+
+                $queryBuilder->join(
+                    $tca['MM'],
+                    $lastElementTable,
+                    $lastElementTableAlias,
+                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
+                        $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')));
+
                 continue;
             }
 
             // Join with foreign table
             $queryBuilder->join($currentTable,
-                                $tca['foreign_table'],
-                                $tca['foreign_table'],
+                                $lastElementTable,
+                                $lastElementTable,
                                 $queryBuilder->expr()->eq($currentTable . '.' . $fieldName,
                                                           $queryBuilder->quoteIdentifier($tca['foreign_table'] . ".uid")));
+            $joinedTables[] = $lastElementTable;
         }
 
-        return $lastElementTable;
+        return $lastElementTableAlias;
     }
 
     /**
