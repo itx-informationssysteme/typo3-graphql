@@ -17,6 +17,8 @@ use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Types\Skeleton\Range;
 use Itx\Typo3GraphQL\Types\Skeleton\RangeFilterInput;
+use Itx\Typo3GraphQL\Types\Skeleton\DateRange;
+use Itx\Typo3GraphQL\Types\Skeleton\DateFilterInput;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -134,6 +136,9 @@ class FilterResolver
         $rangefilterArguments = $this->extractRangeFilterObjectsMap($args);
         $rangeFilterPaths = map($rangefilterArguments)->map(fn(RangeFilterInput $filter) => $filter->path)->toArray();
 
+        $datefilterArguments = $this->extractDateFilterObjectsMap($args);
+        $dateFilterPaths = map($datefilterArguments)->map(fn(DateFilterInput $filter) => $filter->path)->toArray();
+
         if (array_key_exists('discreteFilters', $args['filters'])) {
             // Switch keys and values for $discreteFilterPaths
             $filters = array_flip($discreteFilterPaths);
@@ -214,6 +219,39 @@ class FilterResolver
             }
         }
 
+        if (array_key_exists('dateFilters', $args['filters'])) {
+            $filters = array_flip($dateFilterPaths);
+            $filterResult = $this->filterRepository->findByModelAndPathsAndType($modelClassPath, $dateFilterPaths, 'dateRange');
+
+            foreach ($filterResult as $filter) {
+                $filters[$filter->getFilterPath()] = $filter;
+            }
+
+            foreach ($filters as $path => $filter) {
+                if (!$filter instanceof Filter) {
+                    throw new \RuntimeException("DateRange Filter $path not found");
+                }
+
+                $facet = [];
+                $facet['label'] = $filter->getName();
+                $facet['path'] = $filter->getFilterPath();
+                $facet['type'] = FacetType::DATERANGE;
+                $facet['unit'] = $filter->getUnit();
+
+                $facet['dateRange'] = $this->fetchRanges($tableName,
+                                                     $filter->getFilterPath(),
+                                                     $args,
+                                                     $discreteFilterArguments,
+                                                     $datefilterArguments,
+                                                     $resolveInfo,
+                                                     $modelClassPath,
+                                                     $mmTable,
+                                                     $localUid);
+
+                $facets[] = $facet;
+            }
+        }
+
         return $facets;
     }
 
@@ -262,6 +300,28 @@ class FilterResolver
 
         return $rangeFilterArguments;
     }
+    
+    /**
+     * @param array $args
+     *
+     * @return array<string,DateFilterInput>
+     */
+    private function extractDateFilterObjectsMap(array $args): array
+    {
+        $filterArguments = $args[QueryArgumentsUtility::$filters] ?? [];
+
+        $dateFilterArguments = $filterArguments[QueryArgumentsUtility::$dateFilters] ?? [];
+
+        // Set key path from range filter array as key
+        foreach ($dateFilterArguments as $key => $filter) {
+            $dateFilterArguments[$filter['path']] = new DateFilterInput($filter['path'],
+                                                                          new DateRange($filter['dateRange']['min'] ?? null,
+                                                                                    $filter['dateRange']['max'] ?? null));
+            unset($dateFilterArguments[$key]);
+        }
+
+        return $dateFilterArguments;
+    }
 
     /**
      * @param string                            $tableName
@@ -269,6 +329,7 @@ class FilterResolver
      * @param array                             $args
      * @param array<string,DiscreteFilterInput> $discreteFilterArguments
      * @param array<string,RangeFilterInput>    $rangeFilterArguments
+     * @param array<string,DateFilterInput>     $dateFilterArguments
      * @param ResolveInfo                       $resolveInfo
      * @param string                            $modelClassPath
      * @param string|null                       $mmTable
@@ -285,6 +346,7 @@ class FilterResolver
         array $args,
         array $discreteFilterArguments,
         array $rangeFilterArguments,
+        array $dateFilterArguments,
         ResolveInfo $resolveInfo,
         string $modelClassPath,
         ?string $mmTable,
@@ -336,6 +398,7 @@ class FilterResolver
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
+        $this->applyDateFilters($dateFilterArguments, $tableName, $queryBuilder, $filterPath);
 
         if ($triggerEvent) {
             /** @var ModifyQueryBuilderForFilteringEvent $event */
@@ -372,6 +435,7 @@ class FilterResolver
      * @param array                             $args
      * @param array<string,DiscreteFilterInput> $discreteFilterArguments
      * @param array<string,RangeFilterInput>    $rangeFilterArguments
+     * @param array<string,DateFilterInput>     $dateFilterArguments
      * @param ResolveInfo                       $resolveInfo
      * @param string                            $modelClassPath
      * @param string|null                       $mmTable
@@ -388,6 +452,7 @@ class FilterResolver
         array $args,
         array $discreteFilterArguments,
         array $rangeFilterArguments,
+        array $dateFilterArguments,
         ResolveInfo $resolveInfo,
         string $modelClassPath,
         ?string $mmTable,
@@ -438,6 +503,7 @@ class FilterResolver
             $args,
             $discreteFilterArguments,
             $rangeFilterArguments,
+            $dateFilterArguments,
             $resolveInfo,
             $modelClassPath,
             $mmTable,
@@ -474,6 +540,7 @@ class FilterResolver
      * @param array                              $args
      * @param array<string, DiscreteFilterInput> $discreteFilterArguments
      * @param array<string, RangeFilterInput>    $rangeFilterArguments
+     * @param array<string, DateFilterInput>     $dateFilterArguments
      * @param ResolveInfo                        $resolveInfo
      * @param string                             $modelClassPath
      * @param string|null                        $mmTable
@@ -490,6 +557,7 @@ class FilterResolver
         array $args,
         array $discreteFilterArguments,
         array $rangeFilterArguments,
+        array $dateFilterArguments,
         ResolveInfo $resolveInfo,
         string $modelClassPath,
         ?string $mmTable,
@@ -540,6 +608,7 @@ class FilterResolver
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
+        $this->applyDateFilters($dateFilterArguments, $tableName, $queryBuilder, $filterPath);
 
         /** @var ModifyQueryBuilderForFilteringEvent $event */
         $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
@@ -647,6 +716,49 @@ class FilterResolver
                     $whereFilterTable . '.' . $whereFilterLastElement,
                     $queryBuilder->createNamedParameter($whereFilter->range->max)
                 );
+            }
+
+            $queryBuilder->andWhere(...$andExpressions);
+        }
+    }
+
+    /**
+     * @param array<string,DateFilterInput>  $filterInputs
+     * @param string                         $tableName
+     * @param QueryBuilder                   $queryBuilder
+     * @param string                         $filterPath
+     *
+     * @throws FieldDoesNotExistException
+     */
+    private function applyDateFilters(array        $filterInputs,
+                                       string       $tableName,
+                                       QueryBuilder $queryBuilder,
+                                       string       $filterPath): void
+    {
+        // Filter out filter arguments that are not part of the current filter path
+        $otherFilters = array_filter($filterInputs,
+            static function(DateFilterInput $filterInput) use ($filterPath) {
+                return $filterInput->path !== $filterPath &&
+                    ($filterInput->dateRange->min !== null || $filterInput->dateRange->max !== null);
+            });
+
+        /** @var DateFilterInput $whereFilter */
+        foreach ($otherFilters as $whereFilter) {
+            $whereFilterPathElements = explode('.', $whereFilter->path);
+            $whereFilterLastElement = array_pop($whereFilterPathElements);
+
+            $whereFilterTable = self::buildJoinsByWalkingPath($whereFilterPathElements, $tableName, $queryBuilder);
+
+            $andExpressions = [];
+
+            if ($whereFilter->dateRange->min !== null) {
+                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                               $queryBuilder->createNamedParameter($whereFilter->dateRange->min));
+            }
+
+            if ($whereFilter->dateRange->max !== null) {
+                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                               $queryBuilder->createNamedParameter($whereFilter->dateRange->max));
             }
 
             $queryBuilder->andWhere(...$andExpressions);

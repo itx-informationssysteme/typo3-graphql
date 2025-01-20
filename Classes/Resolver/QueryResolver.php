@@ -256,6 +256,7 @@ class QueryResolver
         $filters = $args[QueryArgumentsUtility::$filters] ?? [];
         $discreteFilters = [];
         $rangeFilters = [];
+        $dateFilters = [];
 
         if(array_key_exists(QueryArgumentsUtility::$discreteFilters, $filters)){
             if ($filters[QueryArgumentsUtility::$discreteFilters] ?? false) {
@@ -275,6 +276,14 @@ class QueryResolver
                 $rangeFilters = array_combine(array_map(static fn($filter) => $filter['path'], $rangeFilters), $rangeFilters);
             }
         }
+        if(array_key_exists(QueryArgumentsUtility::$dateFilters, $filters)){
+            if ($filters[QueryArgumentsUtility::$dateFilters]) {
+                $dateFilters = $filters[QueryArgumentsUtility::$dateFilters] ?? [];
+
+                // Path as key for discrete filters
+                $dateFilters = array_combine(array_map(static fn($filter) => $filter['path'], $dateFilters), $dateFilters);
+            }
+        }
 
         $discreteFilterConfigurations =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($discreteFilters), 'discrete');
@@ -283,8 +292,14 @@ class QueryResolver
 
         $rangeFilterConfiguration =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($rangeFilters), 'range');
+        
+        $dateFilterConfiguration =
+            $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($dateFilters), 'dateRange');
+
         $staticRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($rangeFilters), 'range');
+        $staticDateRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($dateRangeFilters), 'dateRange');
         $rangeFilterConfiguration = array_merge($rangeFilterConfiguration, $staticRangeFilters);
+        $dateFilterConfiguration = array_merge($dateFilterConfiguration, $staticDateRangeFilters);
 
         foreach ($discreteFilterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
@@ -335,6 +350,29 @@ class QueryResolver
             $qb->andWhere(...$andExpressions);
         }
 
-        return [$discreteFilterConfigurations, $rangeFilterConfiguration];
+        foreach ($dateFilterConfiguration as $filterConfiguration) {
+            $dateFilter = $dateFilters[$filterConfiguration->getFilterPath()] ?? [];
+
+            $whereFilterPathElements = explode('.', $dateFilter['path']);
+            $whereFilterLastElement = array_pop($whereFilterPathElements);
+
+            $whereFilterTable = FilterResolver::buildJoinsByWalkingPath($whereFilterPathElements, $table, $qb);
+
+            $andExpressions = [];
+
+            if (($dateFilter['dateRange']['min'] ?? null) !== null) {
+                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                     $qb->createNamedParameter($dateFilter['dateRange']['min']));
+            }
+
+            if (($dateFilter['dateRange']['max'] ?? null) !== null) {
+                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                     $qb->createNamedParameter($dateFilter['dateRange']['max']));
+            }
+
+            $qb->andWhere(...$andExpressions);
+        }
+
+        return [$discreteFilterConfigurations, $dateFilterConfiguration];
     }
 }
