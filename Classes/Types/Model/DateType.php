@@ -6,6 +6,7 @@ use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
 use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
+use Itx\Typo3GraphQL\Types\DateType as DateTypeScalar;
 
 class DateType extends ObjectType implements TypeNameInterface
 {
@@ -15,8 +16,8 @@ class DateType extends ObjectType implements TypeNameInterface
 
         $fields = [];
 
-        $fields[] = InputFieldBuilder::create('min', Type::nonNull(Type::int()))->build();  // TODO: Date not available?
-        $fields[] = InputFieldBuilder::create('max', Type::nonNull(Type::int()))->build();
+        $fields[] = InputFieldBuilder::create('min', Type::nonNull(DateTypeScalar::$standardTypes))->build();
+        $fields[] = InputFieldBuilder::create('max', Type::nonNull(DateTypeScalar::$standardTypes))->build();
 
         $objectBuilder->setFields($fields);
         parent::__construct($objectBuilder->build());
