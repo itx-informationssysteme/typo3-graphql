@@ -181,7 +181,7 @@ class QueryResolver
 
         $sorting = $args[QueryArgumentsUtility::$sorting] ?? [];
 
-        $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
+        $mm = $GLOBALS['TCA'][$tableName]['columns'][GeneralUtility::camelCaseToLowerCaseUnderscored($resolveInfo->fieldName)]['config']['MM'];
         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
 
         $qb = $this->connectionPool->getQueryBuilderForTable($foreignTable);
