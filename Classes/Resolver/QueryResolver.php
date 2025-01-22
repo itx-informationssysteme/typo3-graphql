@@ -360,14 +360,14 @@ class QueryResolver
 
             $andExpressions = [];
 
-            if (($dateFilter['dateRange']['min'] ?? null) !== null) {
+            if (($dateFilter['range']['min'] ?? null) !== null) {
                 $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($dateFilter['dateRange']['min']));
+                                                     $qb->createNamedParameter($dateFilter['range']['min']));
             }
 
-            if (($dateFilter['dateRange']['max'] ?? null) !== null) {
+            if (($dateFilter['range']['max'] ?? null) !== null) {
                 $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($dateFilter['dateRange']['max']));
+                                                     $qb->createNamedParameter($dateFilter['range']['max']));
             }
 
             $qb->andWhere(...$andExpressions);
