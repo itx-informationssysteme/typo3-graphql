@@ -7,6 +7,7 @@ use GraphQL\Type\Definition\Type;
 use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
 use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
 use Itx\Typo3GraphQL\Types\DateType;
+use Itx\Typo3GraphQL\Types\TypeRegistry;
 
 class DateInputType extends InputObjectType implements TypeNameInterface
 {
@@ -17,8 +18,8 @@ class DateInputType extends InputObjectType implements TypeNameInterface
 
         $fields = [];
 
-        $fields[] = InputFieldBuilder::create('min', DateType::$standardTypes)->build();
-        $fields[] = InputFieldBuilder::create('max', DateType::$standardTypes)->build();
+        $fields[] = InputFieldBuilder::create('min', TypeRegistry::dateTime())->build();
+        $fields[] = InputFieldBuilder::create('max', TypeRegistry::dateTime())->build();
 
         $objectBuilder->setFields($fields);
         $objectBuilder->setDescription('Inclusive range of dates');
