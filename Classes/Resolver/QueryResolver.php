@@ -21,6 +21,7 @@ use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Resource\FileRepository;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\DomainObject\AbstractDomainObject;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
@@ -182,7 +183,7 @@ class QueryResolver
 
         $sorting = $args[QueryArgumentsUtility::$sorting] ?? [];
 
-        $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
+        $mm = $GLOBALS['TCA'][$tableName]['columns'][GeneralUtility::camelCaseToLowerCaseUnderscored($resolveInfo->fieldName)]['config']['MM'];
         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
 
         $qb = $this->connectionPool->getQueryBuilderForTable($foreignTable);
@@ -266,7 +267,7 @@ class QueryResolver
                     array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
             }
         }
-        
+
         if (array_key_exists(QueryArgumentsUtility::$rangeFilters, $filters)) {
             if ($filters[QueryArgumentsUtility::$rangeFilters] ?? false) {
                 $rangeFilters = $filters[QueryArgumentsUtility::$rangeFilters] ?? [];
