@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
+use DateTime;
 use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use Generator;
@@ -240,7 +241,7 @@ class FilterResolver
                 $facet['type'] = FacetType::DATERANGE;
                 $facet['unit'] = $filter->getUnit();
 
-                $facet['dateRange'] = $this->fetchRanges($tableName,
+                $facet['range'] = $this->fetchDateRanges($tableName,
                                                      $filter->getFilterPath(),
                                                      $args,
                                                      $discreteFilterArguments,
@@ -636,6 +637,106 @@ class FilterResolver
         $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
 
         return new Range($result[0]['min'] ?? 0, $result[0]['max'] ?? 0);
+    }
+
+    /**
+     * @param string                             $tableName
+     * @param string                             $filterPath
+     * @param array                              $args
+     * @param array<string, DiscreteFilterInput> $discreteFilterArguments
+     * @param array<string, RangeFilterInput>    $rangeFilterArguments
+     * @param array<string, DateFilterInput>     $dateFilterArguments
+     * @param ResolveInfo                        $resolveInfo
+     * @param string                             $modelClassPath
+     * @param string|null                        $mmTable
+     * @param int|null                           $localUid
+     *
+     * @return Range
+     * @throws DBALException
+     * @throws Exception
+     * @throws FieldDoesNotExistException
+     */
+    private function fetchDateRanges(string      $tableName,
+                                 string      $filterPath,
+                                 array       $args,
+                                 array       $discreteFilterArguments,
+                                 array       $rangeFilterArguments,
+                                 array       $dateFilterArguments,
+                                 ResolveInfo $resolveInfo,
+                                 string      $modelClassPath,
+                                 ?string     $mmTable,
+                                 ?int        $localUid): DateRange
+    {
+        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+        $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
+
+        $filterPathElements = explode('.', $filterPath);
+        $lastElement = array_pop($filterPathElements);
+
+        // Query Builder
+        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
+        $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
+        $queryBuilder->setRestrictions($frontendRestrictionContainer);
+
+        $lastElementTable = self::buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
+
+        // If we have a relation constraint, we need to add the constraint to the query
+        if ($mmTable !== null && $localUid !== null) {
+            $queryBuilder->leftJoin($tableName,
+                                    $mmTable,
+                                    'mm',
+                                    $queryBuilder->expr()
+                                                 ->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid')));
+            $queryBuilder->andWhere($queryBuilder->expr()->eq('mm.uid_local', $queryBuilder->createNamedParameter($localUid)));
+        }
+
+        if (count($storagePids) > 0) {
+            $queryBuilder->andWhere($queryBuilder->expr()->in($tableName . '.pid',
+                                                              array_map(static fn($a) => $queryBuilder->createNamedParameter($a,
+                                                                                                                             \PDO::PARAM_INT),
+                                                                  $storagePids)));
+        }
+
+        if (isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        }
+
+        $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
+        $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
+        $this->applyDateFilters($dateFilterArguments, $tableName, $queryBuilder, $filterPath);
+
+        /** @var ModifyQueryBuilderForFilteringEvent $event */
+        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
+                                                                                          $tableName,
+                                                                                          $queryBuilder,
+                                                                                          $args,
+                                                                                          FilterEventSource::FILTER,
+                                                                                          'range'));
+        $queryBuilder = $event->getQueryBuilder();
+
+        $fieldPrefix = "$lastElementTable.";
+        if (!TcaUtility::doesFieldExist($lastElementTable, $lastElement)) {
+            $fieldPrefix = '';
+        }
+
+        $queryBuilder->addSelectLiteral("MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max")
+                     ->from($tableName);
+
+        $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+
+        if (DateTime::createFromFormat("Y-m-d", $result[0]['min'])){
+            $min = DateTime::createFromFormat("Y-m-d", $result[0]['min']);
+        } else {   
+            $min = new DateTime();
+        }
+        if (DateTime::createFromFormat("Y-m-d", $result[0]['max'])){
+            $max = DateTime::createFromFormat("Y-m-d", $result[0]['max']);
+        } else {   
+            $max = new DateTime();
+        }
+
+        return new DateRange($min, $max);
     }
 
     /**
