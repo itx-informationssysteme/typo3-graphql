@@ -899,12 +899,13 @@ class FilterResolver
     /**
      * @throws FieldDoesNotExistException
      */
-    public static function buildJoinsByWalkingPath(
-        array $filterPathElements,
-        string $tableName,
-        QueryBuilder $queryBuilder
-    ): string {
-        $joinedTables = [];
+    public static function buildJoinsByWalkingPath(array        $filterPathElements,
+                                                   string       $tableName,
+                                                   QueryBuilder $queryBuilder,
+                                                   array        $alreadyJoinedTables = []): array
+    {
+        $joinedTables = $alreadyJoinedTables;
+        
         if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
             $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
         }
@@ -963,20 +964,20 @@ class FilterResolver
                 continue;
             }
 
+            if (in_array($lastElementTable, $joinedTables)) {
+                $lastElementTableAlias = $lastElementTable . $i++;
+            }
+
             // Join with foreign table
-            $queryBuilder->join(
-                $currentTable,
-                $lastElementTable,
-                $lastElementTable,
-                $queryBuilder->expr()->eq(
-                    $currentTable . '.' . $fieldName,
-                    $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
-                )
-            );
+            $queryBuilder->join($currentTable,
+                                $lastElementTable,
+                                $lastElementTableAlias,
+                                $queryBuilder->expr()->eq($currentTable . '.' . $fieldName,
+                                                          $queryBuilder->quoteIdentifier($lastElementTableAlias . ".uid")));
             $joinedTables[] = $lastElementTable;
         }
 
-        return $lastElementTableAlias;
+        return ['lastElementTableAlias' => $lastElementTableAlias, 'joinedTables' => $joinedTables];
     }
 
     /**
