@@ -848,9 +848,11 @@ class FilterResolver
      */
     public static function buildJoinsByWalkingPath(array        $filterPathElements,
                                                    string       $tableName,
-                                                   QueryBuilder $queryBuilder): string
+                                                   QueryBuilder $queryBuilder,
+                                                   array        $alreadyJoinedTables = []): array
     {
-        $joinedTables = [];
+        $joinedTables = $alreadyJoinedTables;
+        
         if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
             $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
         }
@@ -902,16 +904,20 @@ class FilterResolver
                 continue;
             }
 
+            if (in_array($lastElementTable, $joinedTables)) {
+                $lastElementTableAlias = $lastElementTable . $i++;
+            }
+
             // Join with foreign table
             $queryBuilder->join($currentTable,
                                 $lastElementTable,
-                                $lastElementTable,
+                                $lastElementTableAlias,
                                 $queryBuilder->expr()->eq($currentTable . '.' . $fieldName,
-                                                          $queryBuilder->quoteIdentifier($tca['foreign_table'] . ".uid")));
+                                                          $queryBuilder->quoteIdentifier($lastElementTableAlias . ".uid")));
             $joinedTables[] = $lastElementTable;
         }
 
-        return $lastElementTableAlias;
+        return ['lastElementTableAlias' => $lastElementTableAlias, 'joinedTables' => $joinedTables];
     }
 
     /**

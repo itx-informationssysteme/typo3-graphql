@@ -253,6 +253,7 @@ class QueryResolver
         $discreteFilters = [];
         $rangeFilters = [];
         $dateFilters = [];
+        $joinedTables = [];
 
         if(array_key_exists(QueryArgumentsUtility::$discreteFilters, $filters)){
             if ($filters[QueryArgumentsUtility::$discreteFilters]) {
@@ -297,13 +298,14 @@ class QueryResolver
                 continue;
             }
 
-            $lastElementTable = FilterResolver::buildJoinsByWalkingPath($filterPathElements, $table, $qb);
+            $lastElementTable = FilterResolver::buildJoinsByWalkingPath($filterPathElements, $table, $qb, $joinedTables);
+            $joinedTables = $lastElementTable['joinedTables'];
 
             $inSetExpressions = [];
 
             foreach ($discreteFilter['options'] as $option) {
                 $inSetExpressions[] =
-                    $qb->expr()->inSet($lastElementTable . '.' . $lastElement, $qb->createNamedParameter($option));
+                    $qb->expr()->inSet($lastElementTable['lastElementTableAlias'] . '.' . $lastElement, $qb->createNamedParameter($option));
             }
 
             $qb->andWhere($qb->expr()->orX(...$inSetExpressions));
@@ -315,17 +317,18 @@ class QueryResolver
             $whereFilterPathElements = explode('.', $rangeFilter['path']);
             $whereFilterLastElement = array_pop($whereFilterPathElements);
 
-            $whereFilterTable = FilterResolver::buildJoinsByWalkingPath($whereFilterPathElements, $table, $qb);
+            $whereFilterTable = FilterResolver::buildJoinsByWalkingPath($whereFilterPathElements, $table, $qb, $joinedTables);
+            $joinedTables = $whereFilterTable['joinedTables'];
 
             $andExpressions = [];
 
             if (($rangeFilter['range']['min'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                $andExpressions[] = $qb->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                      $qb->createNamedParameter($rangeFilter['range']['min']));
             }
 
             if (($rangeFilter['range']['max'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                $andExpressions[] = $qb->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                      $qb->createNamedParameter($rangeFilter['range']['max']));
             }
 
@@ -338,17 +341,18 @@ class QueryResolver
             $whereFilterPathElements = explode('.', $dateFilter['path']);
             $whereFilterLastElement = array_pop($whereFilterPathElements);
 
-            $whereFilterTable = FilterResolver::buildJoinsByWalkingPath($whereFilterPathElements, $table, $qb);
+            $whereFilterTable = FilterResolver::buildJoinsByWalkingPath($whereFilterPathElements, $table, $qb, $joinedTables);
+            $joinedTables = $whereFilterTable['joinedTables'];
 
             $andExpressions = [];
 
             if (($dateFilter['range']['min'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                $andExpressions[] = $qb->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                      $qb->createNamedParameter($dateFilter['range']['min']));
             }
 
             if (($dateFilter['range']['max'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                $andExpressions[] = $qb->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                      $qb->createNamedParameter($dateFilter['range']['max']));
             }
 
