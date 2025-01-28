@@ -298,7 +298,7 @@ class QueryResolver
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($dateFilters), 'dateRange');
 
         $staticRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($rangeFilters), 'range');
-        $staticDateRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($dateRangeFilters), 'dateRange');
+        $staticDateRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($dateFilters), 'dateRange');
         $rangeFilterConfiguration = array_merge($rangeFilterConfiguration, $staticRangeFilters);
         $dateFilterConfiguration = array_merge($dateFilterConfiguration, $staticDateRangeFilters);
 
