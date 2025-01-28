@@ -304,7 +304,7 @@ class FilterResolver
 
         return $rangeFilterArguments;
     }
-    
+
     /**
      * @param array $args
      *
@@ -727,12 +727,12 @@ class FilterResolver
 
         if (DateTime::createFromFormat("Y-m-d", $result[0]['min'])){
             $min = DateTime::createFromFormat("Y-m-d", $result[0]['min']);
-        } else {   
+        } else {
             $min = new DateTime();
         }
         if (DateTime::createFromFormat("Y-m-d", $result[0]['max'])){
             $max = DateTime::createFromFormat("Y-m-d", $result[0]['max']);
-        } else {   
+        } else {
             $max = new DateTime();
         }
 
@@ -902,10 +902,8 @@ class FilterResolver
     public static function buildJoinsByWalkingPath(array        $filterPathElements,
                                                    string       $tableName,
                                                    QueryBuilder $queryBuilder,
-                                                   array        $alreadyJoinedTables = []): array
+                                                   array        $joinedTables = []): array
     {
-        $joinedTables = $alreadyJoinedTables;
-        
         if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
             $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
         }
@@ -949,7 +947,7 @@ class FilterResolver
                 }
 
                 $lastElementTableAlias = $lastElementTable;
-                if(in_array($lastElementTable, $joinedTables)){
+                while (in_array($lastElementTableAlias, $joinedTables)){
                     $lastElementTableAlias = $lastElementTable . $i++;
                 }
                 $joinedTables[] = $lastElementTableAlias;
@@ -964,7 +962,8 @@ class FilterResolver
                 continue;
             }
 
-            if (in_array($lastElementTable, $joinedTables)) {
+            $lastElementTableAlias = $lastElementTable;
+            while (in_array($lastElementTableAlias, $joinedTables)) {
                 $lastElementTableAlias = $lastElementTable . $i++;
             }
 
@@ -974,7 +973,7 @@ class FilterResolver
                                 $lastElementTableAlias,
                                 $queryBuilder->expr()->eq($currentTable . '.' . $fieldName,
                                                           $queryBuilder->quoteIdentifier($lastElementTableAlias . ".uid")));
-            $joinedTables[] = $lastElementTable;
+            $joinedTables[] = $lastElementTableAlias;
         }
 
         return ['lastElementTableAlias' => $lastElementTableAlias, 'joinedTables' => $joinedTables];
