@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
+use DateTime;
 use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
 use Generator;
@@ -17,6 +18,8 @@ use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Types\Skeleton\Range;
 use Itx\Typo3GraphQL\Types\Skeleton\RangeFilterInput;
+use Itx\Typo3GraphQL\Types\Skeleton\DateRange;
+use Itx\Typo3GraphQL\Types\Skeleton\DateFilterInput;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -134,6 +137,9 @@ class FilterResolver
         $rangefilterArguments = $this->extractRangeFilterObjectsMap($args);
         $rangeFilterPaths = map($rangefilterArguments)->map(fn(RangeFilterInput $filter) => $filter->path)->toArray();
 
+        $datefilterArguments = $this->extractDateFilterObjectsMap($args);
+        $dateFilterPaths = map($datefilterArguments)->map(fn(DateFilterInput $filter) => $filter->path)->toArray();
+
         if (array_key_exists('discreteFilters', $args['filters'])) {
             // Switch keys and values for $discreteFilterPaths
             $filters = array_flip($discreteFilterPaths);
@@ -165,6 +171,7 @@ class FilterResolver
                     $args,
                     $discreteFilterArguments,
                     $rangefilterArguments,
+                    $datefilterArguments,
                     $resolveInfo,
                     $modelClassPath,
                     $mmTable,
@@ -204,11 +211,46 @@ class FilterResolver
                     $args,
                     $discreteFilterArguments,
                     $rangefilterArguments,
+                    $datefilterArguments,
                     $resolveInfo,
                     $modelClassPath,
                     $mmTable,
                     $localUid
                 );
+
+                $facets[] = $facet;
+            }
+        }
+
+        if (array_key_exists('dateFilters', $args['filters'])) {
+            $filters = array_flip($dateFilterPaths);
+            $filterResult = $this->filterRepository->findByModelAndPathsAndType($modelClassPath, $dateFilterPaths, 'dateRange');
+
+            foreach ($filterResult as $filter) {
+                $filters[$filter->getFilterPath()] = $filter;
+            }
+
+            foreach ($filters as $path => $filter) {
+                if (!$filter instanceof Filter) {
+                    throw new \RuntimeException("DateRange Filter $path not found");
+                }
+
+                $facet = [];
+                $facet['label'] = $filter->getName();
+                $facet['path'] = $filter->getFilterPath();
+                $facet['type'] = FacetType::DATERANGE;
+                $facet['unit'] = $filter->getUnit();
+
+                $facet['range'] = $this->fetchDateRanges($tableName,
+                                                     $filter->getFilterPath(),
+                                                     $args,
+                                                     $discreteFilterArguments,
+                                                     $rangefilterArguments,
+                                                     $datefilterArguments,
+                                                     $resolveInfo,
+                                                     $modelClassPath,
+                                                     $mmTable,
+                                                     $localUid);
 
                 $facets[] = $facet;
             }
@@ -264,11 +306,34 @@ class FilterResolver
     }
 
     /**
+     * @param array $args
+     *
+     * @return array<string,DateFilterInput>
+     */
+    private function extractDateFilterObjectsMap(array $args): array
+    {
+        $filterArguments = $args[QueryArgumentsUtility::$filters] ?? [];
+
+        $dateFilterArguments = $filterArguments[QueryArgumentsUtility::$dateFilters] ?? [];
+
+        // Set key path from range filter array as key
+        foreach ($dateFilterArguments as $key => $filter) {
+            $dateFilterArguments[$filter['path']] = new DateFilterInput($filter['path'],
+                                                                          new DateRange($filter['dateRange']['min'] ?? null,
+                                                                                    $filter['dateRange']['max'] ?? null));
+            unset($dateFilterArguments[$key]);
+        }
+
+        return $dateFilterArguments;
+    }
+
+    /**
      * @param string                            $tableName
      * @param string                            $filterPath
      * @param array                             $args
      * @param array<string,DiscreteFilterInput> $discreteFilterArguments
      * @param array<string,RangeFilterInput>    $rangeFilterArguments
+     * @param array<string,DateFilterInput>     $dateFilterArguments
      * @param ResolveInfo                       $resolveInfo
      * @param string                            $modelClassPath
      * @param string|null                       $mmTable
@@ -285,6 +350,7 @@ class FilterResolver
         array $args,
         array $discreteFilterArguments,
         array $rangeFilterArguments,
+        array $dateFilterArguments,
         ResolveInfo $resolveInfo,
         string $modelClassPath,
         ?string $mmTable,
@@ -336,6 +402,7 @@ class FilterResolver
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
+        $this->applyDateFilters($dateFilterArguments, $tableName, $queryBuilder, $filterPath);
 
         if ($triggerEvent) {
             /** @var ModifyQueryBuilderForFilteringEvent $event */
@@ -350,18 +417,18 @@ class FilterResolver
             $queryBuilder = $event->getQueryBuilder();
         }
 
-        $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
+        $fieldPrefix = $lastElementTable['lastElementTableAlias'] . ".";
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
             $fieldPrefix = '';
         }
 
-        $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")
+        $queryBuilder->addSelectLiteral($lastElementTable['lastElementTableAlias'] . ".$lastElement AS value")
                      ->from($tableName)
                      ->addSelectLiteral("COUNT($tableName.uid) AS resultCount")
                      ->groupBy("$fieldPrefix$lastElement")
                      ->orderBy("$fieldPrefix$lastElement", 'ASC');
 
-        $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+        $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
         return $this->mapFilterOptions($result);
     }
@@ -372,6 +439,7 @@ class FilterResolver
      * @param array                             $args
      * @param array<string,DiscreteFilterInput> $discreteFilterArguments
      * @param array<string,RangeFilterInput>    $rangeFilterArguments
+     * @param array<string,DateFilterInput>     $dateFilterArguments
      * @param ResolveInfo                       $resolveInfo
      * @param string                            $modelClassPath
      * @param string|null                       $mmTable
@@ -388,6 +456,7 @@ class FilterResolver
         array $args,
         array $discreteFilterArguments,
         array $rangeFilterArguments,
+        array $dateFilterArguments,
         ResolveInfo $resolveInfo,
         string $modelClassPath,
         ?string $mmTable,
@@ -403,6 +472,7 @@ class FilterResolver
                 $tableName,
                 $filterPath,
                 $args,
+                [],
                 [],
                 [],
                 $resolveInfo,
@@ -438,6 +508,7 @@ class FilterResolver
             $args,
             $discreteFilterArguments,
             $rangeFilterArguments,
+            $dateFilterArguments,
             $resolveInfo,
             $modelClassPath,
             $mmTable,
@@ -474,6 +545,7 @@ class FilterResolver
      * @param array                              $args
      * @param array<string, DiscreteFilterInput> $discreteFilterArguments
      * @param array<string, RangeFilterInput>    $rangeFilterArguments
+     * @param array<string, DateFilterInput>     $dateFilterArguments
      * @param ResolveInfo                        $resolveInfo
      * @param string                             $modelClassPath
      * @param string|null                        $mmTable
@@ -490,6 +562,7 @@ class FilterResolver
         array $args,
         array $discreteFilterArguments,
         array $rangeFilterArguments,
+        array $dateFilterArguments,
         ResolveInfo $resolveInfo,
         string $modelClassPath,
         ?string $mmTable,
@@ -540,6 +613,7 @@ class FilterResolver
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
         $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
+        $this->applyDateFilters($dateFilterArguments, $tableName, $queryBuilder, $filterPath);
 
         /** @var ModifyQueryBuilderForFilteringEvent $event */
         $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
@@ -553,16 +627,126 @@ class FilterResolver
         $queryBuilder = $event->getQueryBuilder();
 
         $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
             $fieldPrefix = '';
         }
 
         $queryBuilder->addSelectLiteral("MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max")
                      ->from($tableName);
 
-        $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+        $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
         return new Range($result[0]['min'] ?? 0, $result[0]['max'] ?? 0);
+    }
+
+    /**
+     * @param string                             $tableName
+     * @param string                             $filterPath
+     * @param array                              $args
+     * @param array<string, DiscreteFilterInput> $discreteFilterArguments
+     * @param array<string, RangeFilterInput>    $rangeFilterArguments
+     * @param array<string, DateFilterInput>     $dateFilterArguments
+     * @param ResolveInfo                        $resolveInfo
+     * @param string                             $modelClassPath
+     * @param string|null                        $mmTable
+     * @param int|null                           $localUid
+     *
+     * @return Range
+     * @throws DBALException
+     * @throws Exception
+     * @throws FieldDoesNotExistException
+     */
+    private function fetchDateRanges(string      $tableName,
+                                 string      $filterPath,
+                                 array       $args,
+                                 array       $discreteFilterArguments,
+                                 array       $rangeFilterArguments,
+                                 array       $dateFilterArguments,
+                                 ResolveInfo $resolveInfo,
+                                 string      $modelClassPath,
+                                 ?string     $mmTable,
+                                 ?int        $localUid): DateRange
+    {
+        $language = $args[QueryArgumentsUtility::$language] ?? null;
+        $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
+
+        $filterPathElements = explode('.', $filterPath);
+        $lastElement = array_pop($filterPathElements);
+
+        // Query Builder
+        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
+
+        $lastElementTable = self::buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
+
+        // If we have a relation constraint, we need to add the constraint to the query
+        if ($mmTable !== null && $localUid !== null) {
+            $queryBuilder->leftJoin(
+                $tableName,
+                $mmTable,
+                'mm',
+                $queryBuilder->expr()
+                             ->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid'))
+            );
+            $queryBuilder->andWhere($queryBuilder->expr()->eq('mm.uid_local', $queryBuilder->createNamedParameter($localUid)));
+        }
+
+        if (count($storagePids) > 0) {
+            $queryBuilder->andWhere($queryBuilder->expr()->in(
+                $tableName . '.pid',
+                array_map(
+                    static fn($a) => $queryBuilder->createNamedParameter(
+                        $a,
+                        \PDO::PARAM_INT
+                    ),
+                    $storagePids
+                )
+            ));
+        }
+
+        if ($language !== null) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq(
+                $tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
+            ));
+        }
+
+        $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
+        $this->applyRangeFilters($rangeFilterArguments, $tableName, $queryBuilder, $filterPath);
+        $this->applyDateFilters($dateFilterArguments, $tableName, $queryBuilder, $filterPath);
+
+        /** @var ModifyQueryBuilderForFilteringEvent $event */
+        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $tableName,
+            $queryBuilder,
+            $args,
+            FilterEventSource::FILTER,
+            'range'
+        ));
+        $queryBuilder = $event->getQueryBuilder();
+
+        $fieldPrefix = $lastElementTable['lastElementTableAlias'] . ".";
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
+            $fieldPrefix = '';
+        }
+
+        $queryBuilder->addSelectLiteral("MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max")
+                     ->from($tableName);
+
+        $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
+
+        if (DateTime::createFromFormat("Y-m-d", $result[0]['min'])){
+            $min = DateTime::createFromFormat("Y-m-d", $result[0]['min']);
+        } else {
+            $min = new DateTime();
+        }
+        if (DateTime::createFromFormat("Y-m-d", $result[0]['max'])){
+            $max = DateTime::createFromFormat("Y-m-d", $result[0]['max']);
+        } else {
+            $max = new DateTime();
+        }
+
+        return new DateRange($min, $max);
     }
 
     /**
@@ -594,12 +778,12 @@ class FilterResolver
 
             foreach ($whereFilter->options as $option) {
                 $inSetExpressions[] = $queryBuilder->expr()->inSet(
-                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                     $queryBuilder->createNamedParameter($option)
                 );
             }
 
-            $queryBuilder->andWhere($queryBuilder->expr()->orX(...$inSetExpressions));
+            $queryBuilder->andWhere($queryBuilder->expr()->or(...$inSetExpressions));
         }
     }
 
@@ -637,16 +821,59 @@ class FilterResolver
 
             if ($whereFilter->range->min !== null) {
                 $andExpressions[] = $queryBuilder->expr()->gte(
-                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                     $queryBuilder->createNamedParameter($whereFilter->range->min)
                 );
             }
 
             if ($whereFilter->range->max !== null) {
                 $andExpressions[] = $queryBuilder->expr()->lte(
-                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                     $queryBuilder->createNamedParameter($whereFilter->range->max)
                 );
+            }
+
+            $queryBuilder->andWhere(...$andExpressions);
+        }
+    }
+
+    /**
+     * @param array<string,DateFilterInput>  $filterInputs
+     * @param string                         $tableName
+     * @param QueryBuilder                   $queryBuilder
+     * @param string                         $filterPath
+     *
+     * @throws FieldDoesNotExistException
+     */
+    private function applyDateFilters(array        $filterInputs,
+                                       string       $tableName,
+                                       QueryBuilder $queryBuilder,
+                                       string       $filterPath): void
+    {
+        // Filter out filter arguments that are not part of the current filter path
+        $otherFilters = array_filter($filterInputs,
+            static function(DateFilterInput $filterInput) use ($filterPath) {
+                return $filterInput->path !== $filterPath &&
+                    ($filterInput->dateRange->min !== null || $filterInput->dateRange->max !== null);
+            });
+
+        /** @var DateFilterInput $whereFilter */
+        foreach ($otherFilters as $whereFilter) {
+            $whereFilterPathElements = explode('.', $whereFilter->path);
+            $whereFilterLastElement = array_pop($whereFilterPathElements);
+
+            $whereFilterTable = self::buildJoinsByWalkingPath($whereFilterPathElements, $tableName, $queryBuilder);
+
+            $andExpressions = [];
+
+            if ($whereFilter->dateRange->min !== null) {
+                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                                                               $queryBuilder->createNamedParameter($whereFilter->dateRange->min));
+            }
+
+            if ($whereFilter->dateRange->max !== null) {
+                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                                                               $queryBuilder->createNamedParameter($whereFilter->dateRange->max));
             }
 
             $queryBuilder->andWhere(...$andExpressions);
@@ -682,12 +909,11 @@ class FilterResolver
     /**
      * @throws FieldDoesNotExistException
      */
-    public static function buildJoinsByWalkingPath(
-        array $filterPathElements,
-        string $tableName,
-        QueryBuilder $queryBuilder
-    ): string {
-        $joinedTables = [];
+    public static function buildJoinsByWalkingPath(array        $filterPathElements,
+                                                   string       $tableName,
+                                                   QueryBuilder $queryBuilder,
+                                                   array        $joinedTables = []): array
+    {
         if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
             $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
         }
@@ -731,7 +957,7 @@ class FilterResolver
                 }
 
                 $lastElementTableAlias = $lastElementTable;
-                if(in_array($lastElementTable, $joinedTables)){
+                while (in_array($lastElementTableAlias, $joinedTables)){
                     $lastElementTableAlias = $lastElementTable . $i++;
                 }
                 $joinedTables[] = $lastElementTableAlias;
@@ -746,20 +972,21 @@ class FilterResolver
                 continue;
             }
 
+            $lastElementTableAlias = $lastElementTable;
+            while (in_array($lastElementTableAlias, $joinedTables)) {
+                $lastElementTableAlias = $lastElementTable . $i++;
+            }
+
             // Join with foreign table
-            $queryBuilder->join(
-                $currentTable,
-                $lastElementTable,
-                $lastElementTable,
-                $queryBuilder->expr()->eq(
-                    $currentTable . '.' . $fieldName,
-                    $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
-                )
-            );
-            $joinedTables[] = $lastElementTable;
+            $queryBuilder->join($currentTable,
+                                $lastElementTable,
+                                $lastElementTableAlias,
+                                $queryBuilder->expr()->eq($currentTable . '.' . $fieldName,
+                                                          $queryBuilder->quoteIdentifier($lastElementTableAlias . ".uid")));
+            $joinedTables[] = $lastElementTableAlias;
         }
 
-        return $lastElementTableAlias;
+        return ['lastElementTableAlias' => $lastElementTableAlias, 'joinedTables' => $joinedTables];
     }
 
     /**

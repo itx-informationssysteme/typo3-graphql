@@ -13,11 +13,12 @@ class FacetsType extends \GraphQL\Type\Definition\UnionType implements TypeNameI
      */
     public function __construct()
     {
-        $builder = UnionBuilder::create(self::getTypeName(), [TypeRegistry::rangeFacet(), TypeRegistry::discreteFacet()])
+        $builder = UnionBuilder::create(self::getTypeName(), [TypeRegistry::rangeFacet(), TypeRegistry::discreteFacet(), TypeRegistry::dateFacet()])
                                ->setResolveType(function ($value) {
                                    return match ($value['type']) {
                                        \Itx\Typo3GraphQL\Enum\FacetType::RANGE => TypeRegistry::rangeFacet(),
                                        \Itx\Typo3GraphQL\Enum\FacetType::DISCRETE => TypeRegistry::discreteFacet(),
+                                       \Itx\Typo3GraphQL\Enum\FacetType::DATERANGE => TypeRegistry::dateFacet(),
                                        default => throw new \RuntimeException('Could not find Type ' . $value['type']),
                                    };
                                });
