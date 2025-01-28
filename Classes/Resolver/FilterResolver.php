@@ -723,7 +723,7 @@ class FilterResolver
             $inSetExpressions = [];
 
             foreach ($whereFilter->options as $option) {
-                $inSetExpressions[] = $queryBuilder->expr()->inSet($whereFilterTable . '.' . $whereFilterLastElement,
+                $inSetExpressions[] = $queryBuilder->expr()->inSet($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                                    $queryBuilder->createNamedParameter($option));
             }
 
@@ -761,12 +761,12 @@ class FilterResolver
             $andExpressions = [];
 
             if ($whereFilter->range->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                                $queryBuilder->createNamedParameter($whereFilter->range->min));
             }
 
             if ($whereFilter->range->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                                $queryBuilder->createNamedParameter($whereFilter->range->max));
             }
 
@@ -804,12 +804,12 @@ class FilterResolver
             $andExpressions = [];
 
             if ($whereFilter->dateRange->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                                $queryBuilder->createNamedParameter($whereFilter->dateRange->min));
             }
 
             if ($whereFilter->dateRange->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                                                                $queryBuilder->createNamedParameter($whereFilter->dateRange->max));
             }
 
