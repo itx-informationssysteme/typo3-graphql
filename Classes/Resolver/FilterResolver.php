@@ -417,7 +417,7 @@ class FilterResolver
             $queryBuilder = $event->getQueryBuilder();
         }
 
-        $fieldPrefix = "$lastElementTable.";
+        $fieldPrefix = $lastElementTable['lastElementTableAlias'] . ".";
         if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
             $fieldPrefix = '';
         }
@@ -428,7 +428,7 @@ class FilterResolver
                      ->groupBy("$fieldPrefix$lastElement")
                      ->orderBy("$fieldPrefix$lastElement", 'ASC');
 
-        $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+        $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
         return $this->mapFilterOptions($result);
     }
@@ -634,7 +634,7 @@ class FilterResolver
         $queryBuilder->addSelectLiteral("MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max")
                      ->from($tableName);
 
-        $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+        $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
         return new Range($result[0]['min'] ?? 0, $result[0]['max'] ?? 0);
     }
@@ -667,7 +667,7 @@ class FilterResolver
                                  ?string     $mmTable,
                                  ?int        $localUid): DateRange
     {
-        $language = (int)($args[QueryArgumentsUtility::$language] ?? 0);
+        $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
 
         $filterPathElements = explode('.', $filterPath);
@@ -675,31 +675,39 @@ class FilterResolver
 
         // Query Builder
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
-        $frontendRestrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
-        $queryBuilder->setRestrictions($frontendRestrictionContainer);
 
         $lastElementTable = self::buildJoinsByWalkingPath($filterPathElements, $tableName, $queryBuilder);
 
         // If we have a relation constraint, we need to add the constraint to the query
         if ($mmTable !== null && $localUid !== null) {
-            $queryBuilder->leftJoin($tableName,
-                                    $mmTable,
-                                    'mm',
-                                    $queryBuilder->expr()
-                                                 ->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid')));
+            $queryBuilder->leftJoin(
+                $tableName,
+                $mmTable,
+                'mm',
+                $queryBuilder->expr()
+                             ->eq('mm.uid_foreign', $queryBuilder->quoteIdentifier($tableName . '.uid'))
+            );
             $queryBuilder->andWhere($queryBuilder->expr()->eq('mm.uid_local', $queryBuilder->createNamedParameter($localUid)));
         }
 
         if (count($storagePids) > 0) {
-            $queryBuilder->andWhere($queryBuilder->expr()->in($tableName . '.pid',
-                                                              array_map(static fn($a) => $queryBuilder->createNamedParameter($a,
-                                                                                                                             \PDO::PARAM_INT),
-                                                                  $storagePids)));
+            $queryBuilder->andWhere($queryBuilder->expr()->in(
+                $tableName . '.pid',
+                array_map(
+                    static fn($a) => $queryBuilder->createNamedParameter(
+                        $a,
+                        \PDO::PARAM_INT
+                    ),
+                    $storagePids
+                )
+            ));
         }
 
-        if (isset($GLOBALS['TCA'][$tableName]['columns']['sys_language_uid'])) {
-            $queryBuilder->andWhere($queryBuilder->expr()->eq($tableName . '.sys_language_uid',
-                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)));
+        if ($language !== null) {
+            $queryBuilder->andWhere($queryBuilder->expr()->eq(
+                $tableName . '.sys_language_uid',
+                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
+            ));
         }
 
         $this->applyDiscreteFilters($discreteFilterArguments, $tableName, $queryBuilder, $filterPath);
@@ -707,23 +715,25 @@ class FilterResolver
         $this->applyDateFilters($dateFilterArguments, $tableName, $queryBuilder, $filterPath);
 
         /** @var ModifyQueryBuilderForFilteringEvent $event */
-        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent($modelClassPath,
-                                                                                          $tableName,
-                                                                                          $queryBuilder,
-                                                                                          $args,
-                                                                                          FilterEventSource::FILTER,
-                                                                                          'range'));
+        $event = $this->eventDispatcher->dispatch(new ModifyQueryBuilderForFilteringEvent(
+            $modelClassPath,
+            $tableName,
+            $queryBuilder,
+            $args,
+            FilterEventSource::FILTER,
+            'range'
+        ));
         $queryBuilder = $event->getQueryBuilder();
 
         $fieldPrefix = $lastElementTable['lastElementTableAlias'] . ".";
-        if (!TcaUtility::doesFieldExist($lastElementTable['lastElementTableAlias'], $lastElement)) {
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
             $fieldPrefix = '';
         }
 
         $queryBuilder->addSelectLiteral("MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max")
                      ->from($tableName);
 
-        $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
+        $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
         if (DateTime::createFromFormat("Y-m-d", $result[0]['min'])){
             $min = DateTime::createFromFormat("Y-m-d", $result[0]['min']);
@@ -773,7 +783,7 @@ class FilterResolver
                 );
             }
 
-            $queryBuilder->andWhere($queryBuilder->expr()->orX(...$inSetExpressions));
+            $queryBuilder->andWhere($queryBuilder->expr()->or(...$inSetExpressions));
         }
     }
 
