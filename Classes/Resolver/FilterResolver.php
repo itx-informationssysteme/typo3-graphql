@@ -418,7 +418,7 @@ class FilterResolver
         }
 
         $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
             $fieldPrefix = '';
         }
 
@@ -627,7 +627,7 @@ class FilterResolver
         $queryBuilder = $event->getQueryBuilder();
 
         $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
             $fieldPrefix = '';
         }
 
@@ -715,8 +715,8 @@ class FilterResolver
                                                                                           'range'));
         $queryBuilder = $event->getQueryBuilder();
 
-        $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::doesFieldExist($lastElementTable, $lastElement)) {
+        $fieldPrefix = $lastElementTable['lastElementTableAlias'] . ".";
+        if (!TcaUtility::doesFieldExist($lastElementTable['lastElementTableAlias'], $lastElement)) {
             $fieldPrefix = '';
         }
 
