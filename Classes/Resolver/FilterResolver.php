@@ -394,7 +394,7 @@ class FilterResolver
             $fieldPrefix = '';
         }
 
-        $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")
+        $queryBuilder->addSelectLiteral($lastElementTable['lastElementTableAlias'] . ".$lastElement AS value")
                      ->from($tableName)
                      ->addSelectLiteral("COUNT($tableName.uid) AS resultCount")
                      ->groupBy("$fieldPrefix$lastElement")
