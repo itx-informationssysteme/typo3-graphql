@@ -45,7 +45,8 @@ return [
                 'renderType' => 'selectSingle',
                 'items' => [
                     ['Discrete Filter', 'discrete'],
-                    ['Range Filter', 'range']
+                    ['Range Filter', 'range'],
+                    ['Date Filter', 'dateRange']
                 ]
             ]
         ],

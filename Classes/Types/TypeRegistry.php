@@ -19,6 +19,10 @@ use Itx\Typo3GraphQL\Types\Model\RangeFacetType;
 use Itx\Typo3GraphQL\Types\Model\RangeFilterInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeType;
+use Itx\Typo3GraphQL\Types\Model\DateFacetType;
+use Itx\Typo3GraphQL\Types\Model\DateFilterInputType;
+use Itx\Typo3GraphQL\Types\Model\DateInputType;
+use Itx\Typo3GraphQL\Types\Model\DateType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
@@ -52,6 +56,10 @@ class TypeRegistry
         $this->addType(self::range());
         $this->addType(self::rangeInput());
         $this->addType(self::rangeFilterInput());
+        $this->addType(self::dateFacet());
+        $this->addType(self::dateRange());
+        $this->addType(self::dateInput());
+        $this->addType(self::dateFilterInput());
         $this->addType(self::dateTime());
         $this->addType(self::fileExtensions());
         $this->addType(self::facetsType());
@@ -180,6 +188,17 @@ class TypeRegistry
     }
 
     /**
+     * @throws NameNotFoundException
+     */
+    public static function dateFilterInput() : DateFilterInputType
+    {
+        /** @var DateFilterInputType $type */
+        $type = self::getOrCreateCustomType(DateFilterInputType::class);
+
+        return $type;
+    }
+
+    /**
      * Gets an instance of FacetType
      *
      * @throws NameNotFoundException
@@ -201,6 +220,19 @@ class TypeRegistry
     {
         /** @var RangeFacetType $type */
         $type = self::getOrCreateCustomType(RangeFacetType::class);
+
+        return $type;
+    }
+
+    /**
+     * Gets an instance of RangeFacetType
+     *
+     * @throws NameNotFoundException
+     */
+    public static function dateFacet(): DateFacetType
+    {
+        /** @var DateFacetType $type */
+        $type = self::getOrCreateCustomType(DateFacetType::class);
 
         return $type;
     }
@@ -232,10 +264,32 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
+    public static function dateInput(): DateInputType
+    {
+        /**@var DateInputType $type */
+        $type = self::getOrCreateCustomType(DateInputType::class);
+
+        return $type;
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
     public static function range(): RangeType
     {
         /**@var RangeType $type */
         $type = self::getOrCreateCustomType(RangeType::class);
+
+        return $type;
+    }
+
+/**
+     * @throws NameNotFoundException
+     */
+    public static function dateRange(): DateType
+    {
+        /**@var DateType $type */
+        $type = self::getOrCreateCustomType(DateType::class);
 
         return $type;
     }

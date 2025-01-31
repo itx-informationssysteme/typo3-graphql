@@ -24,6 +24,7 @@ class FilterCollectionInputType extends InputObjectType implements TypeNameInter
         $fields = [];
         $fields[] = InputFieldBuilder::create(QueryArgumentsUtility::$discreteFilters, Type::listOf(Type::nonNull(TypeRegistry::discreteFilterInput())))->setDefaultValue([])->setDescription('Discrete filters')->build();
         $fields[] = InputFieldBuilder::create(QueryArgumentsUtility::$rangeFilters, Type::listOf(Type::nonNull(TypeRegistry::rangeFilterInput())))->setDefaultValue([])->setDescription('Range filters')->build();
+        $fields[] = InputFieldBuilder::create(QueryArgumentsUtility::$dateFilters, Type::listOf(Type::nonNull(TypeRegistry::dateFilterInput())))->setDefaultValue([])->setDescription('Date filters')->build();
 
         $objectBuilder->setFields($fields);
 
