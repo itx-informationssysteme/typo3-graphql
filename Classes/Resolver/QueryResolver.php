@@ -360,14 +360,18 @@ class QueryResolver
 
             $andExpressions = [];
 
-            if (($dateFilter['range']['min'] ?? null) !== null) {
+            /** @var ?\DateTimeInterface $rangeMin  */
+            $rangeMin = $dateFilter['range']['min'];
+            if (($rangeMin ?? null) !== null) {
                 $andExpressions[] = $qb->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($dateFilter['range']['min']));
+                                                     $qb->createNamedParameter($rangeMin->format(\DateTimeInterface::ATOM)));
             }
 
-            if (($dateFilter['range']['max'] ?? null) !== null) {
+            /** @var ?\DateTimeInterface $rangeMax  */
+            $rangeMax = $dateFilter['range']['max'];
+            if (($rangeMax ?? null) !== null) {
                 $andExpressions[] = $qb->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($dateFilter['range']['max']));
+                                                     $qb->createNamedParameter($rangeMax->format(\DateTimeInterface::ATOM)));
             }
 
             $qb->andWhere(...$andExpressions);
