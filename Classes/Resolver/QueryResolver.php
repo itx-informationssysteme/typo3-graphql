@@ -363,6 +363,6 @@ class QueryResolver
             $qb->andWhere(...$andExpressions);
         }
 
-        return [$discreteFilterConfigurations, $dateFilterConfiguration];
+        return [$discreteFilterConfigurations, $rangeFilterConfiguration, $dateFilterConfiguration];
     }
 }
