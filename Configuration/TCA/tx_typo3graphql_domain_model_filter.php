@@ -52,6 +52,10 @@ return [
                         'label' => 'Range Filter',
                         'value' => 'range',
                     ],
+                    [
+                        'label' => 'Date Filter',
+                        'value' => 'dateRange',
+                    ],
                 ],
             ],
         ],

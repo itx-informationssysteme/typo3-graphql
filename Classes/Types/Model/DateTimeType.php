@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Itx\Typo3GraphQL\Types\Model;
 
-use DateTime;
+use DateTimeImmutable;
 use DateTimeInterface;
 use GraphQL\Error\InvariantViolation;
 use GraphQL\Language\AST\Node;
 use GraphQL\Language\AST\StringValueNode;
 use GraphQL\Type\Definition\ScalarType;
 use GraphQL\Utils\Utils;
+use function Safe\preg_match;
 
 class DateTimeType extends ScalarType implements TypeNameInterface
 {
+    private const RFC_3339_REGEX = '~^(\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][\d]|3[01])T([01][\d]|2[0-3]):([0-5][\d]):([0-5][\d]|60))(\.\d{1,})?(([Z])|([+|-]([01][\d]|2[0-3]):[0-5][\d]))$~';
+
     /**
      * @var string
      */
@@ -27,11 +30,14 @@ class DateTimeType extends ScalarType implements TypeNameInterface
 
     /**
      * @param mixed $value
+     * @return string
      */
-    public function serialize($value): string
+    public function serialize(mixed $value): string
     {
-        if (!$value instanceof DateTime) {
-            throw new InvariantViolation('DateTime is not an instance of DateTime: ' . Utils::printSafe($value));
+        if (! $value instanceof DateTimeInterface) {
+            throw new InvariantViolation(
+                'DateTime is not an instance of DateTimeImmutable nor DateTime: ' . Utils::printSafe($value)
+            );
         }
 
         return $value->format(DateTimeInterface::ATOM);
@@ -39,25 +45,85 @@ class DateTimeType extends ScalarType implements TypeNameInterface
 
     /**
      * @param mixed $value
+     * @return DateTimeImmutable
+     * @throws \DateMalformedStringException
      */
-    public function parseValue($value): ?DateTime
+    public function parseValue(mixed $value): DateTimeImmutable
     {
-        return DateTime::createFromFormat(DateTimeInterface::ATOM, $value) ?: null;
+        if (! is_string($value)) {
+            throw new \Exception('DateTime must be a string');
+        }
+
+        if (! $this->validateDatetime($value)) {
+            throw new \Exception('Invalid date time format');
+        }
+
+        return new \DateTimeImmutable($value);
     }
 
     /**
-     * @param Node       $valueNode
+     *
+     * @param Node $valueNode
      * @param array|null $variables
      *
-     * @return mixed
+     * @return DateTimeImmutable|null
+     * @throws \DateMalformedStringException
      */
-    public function parseLiteral(Node $valueNode, ?array $variables = null): mixed
+    public function parseLiteral(Node $valueNode, ?array $variables = null): ?DateTimeImmutable
     {
-        if ($valueNode instanceof StringValueNode) {
-            return $valueNode->value;
+        if (! $valueNode instanceof StringValueNode) {
+            return null;
         }
 
-        return null;
+        return $this->parseValue($valueNode->value);
+    }
+
+    private function validateDatetime(string $value): bool
+    {
+        if (preg_match(self::RFC_3339_REGEX, $value) !== 1) {
+            return false;
+        }
+
+        $tPosition = strpos($value, 'T');
+        assert($tPosition !== false);
+
+        return $this->validateDate(substr($value, 0, $tPosition));
+    }
+
+    private function validateDate(string $date): bool
+    {
+        // Verify the correct number of days for the month contained in the date-string.
+        [$year, $month, $day] = explode('-', $date);
+        $year                 = (int) $year;
+        $month                = (int) $month;
+        $day                  = (int) $day;
+
+        switch ($month) {
+            case 2: // February
+                $isLeapYear = $this->isLeapYear($year);
+                if ($isLeapYear && $day > 29) {
+                    return false;
+                }
+
+                return $isLeapYear || $day <= 28;
+
+            case 4: // April
+            case 6: // June
+            case 9: // September
+            case 11: // November
+                if ($day > 30) {
+                    return false;
+                }
+
+                break;
+        }
+
+        return true;
+    }
+
+    private function isLeapYear(int $year): bool
+    {
+        return ($year % 4 === 0 && $year % 100 !== 0) || $year % 400 === 0;
     }
 
     public static function getTypeName(): string

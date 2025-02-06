@@ -6,4 +6,5 @@ enum FacetType
 {
     case DISCRETE;
     case RANGE;
+    case DATERANGE;
 }
