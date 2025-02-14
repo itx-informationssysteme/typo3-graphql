@@ -21,5 +21,14 @@ return [
                 'itx/typo3_graphql/graphql-server',
             ],
         ],
+        'itx/typo3_graphql/graphql-cache' => [
+            'target' => \Itx\Typo3GraphQL\Middleware\GraphQLCacheMiddleware::class,
+            'before' => [
+                'itx/typo3_graphql/graphql-server',
+            ],
+            'after' => [
+                'itx/typo3_graphql/graphql-cors',
+            ],
+        ],
     ],
 ];

@@ -18,6 +18,10 @@ services:
         arguments:
             $cache: '@cache.typo3_graphql_cache'
 
+    Itx\Typo3GraphQL\Middleware\GraphQLCacheMiddleware:
+        arguments:
+            $cache: '@cache.typo3_graphql_cache'
+
     Itx\Typo3GraphQL\EventListener\AfterTcaEventListener:
         tags:
             -   name: event.listener
