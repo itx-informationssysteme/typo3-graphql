@@ -31,6 +31,7 @@ class FilterResolver
 {
     protected PersistenceManager $persistenceManager;
     protected FilterRepository $filterRepository;
+    protected static array $joinedTables = [];
 
     public function __construct(
         PersistenceManager $persistenceManager,
@@ -687,9 +688,8 @@ class FilterResolver
         string $tableName,
         QueryBuilder $queryBuilder
     ): string {
-        $joinedTables = [];
         if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
-            $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
+            self::$joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
         }
 
         $i = 1;
@@ -713,13 +713,19 @@ class FilterResolver
                 $mmTableLocalField = $isLocalTable ? 'uid_foreign' : 'uid_local';
                 $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
 
+                $lastElementTableAlias = $tca['MM'];
+                while (in_array($lastElementTableAlias, self::$joinedTables)){
+                    $lastElementTableAlias = $tca['MM'] . $i++;
+                }
+                self::$joinedTables[] = $lastElementTableAlias;
+
                 // Join with MM and foreign table
                 $queryBuilder->join(
                     $currentTable,
                     $tca['MM'],
-                    $tca['MM'],
+                    $lastElementTableAlias,
                     $queryBuilder->expr()->eq(
-                        $tca['MM'] . ".$mmTableLocalField",
+                        $lastElementTableAlias . ".$mmTableLocalField",
                         $queryBuilder->quoteIdentifier($currentTable . '.uid')
                     )
                 );
@@ -731,10 +737,10 @@ class FilterResolver
                 }
 
                 $lastElementTableAlias = $lastElementTable;
-                if(in_array($lastElementTable, $joinedTables)){
+                if(in_array($lastElementTable, self::$joinedTables)){
                     $lastElementTableAlias = $lastElementTable . $i++;
                 }
-                $joinedTables[] = $lastElementTableAlias;
+                self::$joinedTables[] = $lastElementTableAlias;
 
                 $queryBuilder->join(
                     $tca['MM'],
@@ -756,7 +762,7 @@ class FilterResolver
                     $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
                 )
             );
-            $joinedTables[] = $lastElementTable;
+            self::$joinedTables[] = $lastElementTable;
         }
 
         return $lastElementTableAlias;
