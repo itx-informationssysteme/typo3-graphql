@@ -13,6 +13,7 @@ use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
+use Itx\Typo3GraphQL\Utility\FilterUtility;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Itx\Typo3GraphQL\Utility\TcaUtility;
@@ -266,7 +267,7 @@ class QueryResolver
                     array_combine(array_map(static fn($filter) => $filter['path'], $discreteFilters), $discreteFilters);
             }
         }
-        
+
         if (array_key_exists(QueryArgumentsUtility::$rangeFilters, $filters)) {
             if ($filters[QueryArgumentsUtility::$rangeFilters] ?? false) {
                 $rangeFilters = $filters[QueryArgumentsUtility::$rangeFilters] ?? [];
@@ -286,6 +287,7 @@ class QueryResolver
         $staticRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($rangeFilters), 'range');
         $rangeFilterConfiguration = array_merge($rangeFilterConfiguration, $staticRangeFilters);
 
+        FilterUtility::resetAlias();
         foreach ($discreteFilterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
 
@@ -308,6 +310,7 @@ class QueryResolver
             $qb->andWhere($qb->expr()->or(...$inSetExpressions));
         }
 
+        FilterUtility::resetAlias();
         foreach ($rangeFilterConfiguration as $filterConfiguration) {
             $rangeFilter = $rangeFilters[$filterConfiguration->getFilterPath()] ?? [];
 

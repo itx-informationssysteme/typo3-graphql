@@ -26,12 +26,12 @@ use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
+use Itx\Typo3GraphQL\Utility\FilterUtility;
 
 class FilterResolver
 {
     protected PersistenceManager $persistenceManager;
     protected FilterRepository $filterRepository;
-    protected static array $joinedTables = [];
 
     public function __construct(
         PersistenceManager $persistenceManager,
@@ -150,7 +150,10 @@ class FilterResolver
                 $filters[$filter->getFilterPath()] = $filter;
             }
 
+            //Facets befüllen
             foreach ($filters as $path => $filter) {
+                FilterUtility::resetAlias();
+
                 if (!$filter instanceof Filter) {
                     throw new \RuntimeException("Discrete Filter $path not found");
                 }
@@ -352,15 +355,16 @@ class FilterResolver
         }
 
         $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
+        $check = preg_replace('/\d+$/', '', $lastElementTable);
+        if (!TcaUtility::fieldExistsAndIsCustom($check, $lastElement)) {
             $fieldPrefix = '';
         }
 
         $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")
                      ->from($tableName)
                      ->addSelectLiteral("COUNT($tableName.uid) AS resultCount")
-                     ->groupBy("$fieldPrefix$lastElement")
-                     ->orderBy("$fieldPrefix$lastElement", 'ASC');
+                     ->groupBy("$lastElementTable.$lastElement")
+                     ->orderBy("$lastElementTable.$lastElement", 'ASC');
 
         $result = $queryBuilder->execute()->fetchAllAssociative() ?? [];
 
@@ -600,7 +604,8 @@ class FilterResolver
                 );
             }
 
-            $queryBuilder->andWhere($queryBuilder->expr()->orX(...$inSetExpressions));
+            if(sizeof($inSetExpressions) > 0)
+                $queryBuilder->andWhere($queryBuilder->expr()->orX(...$inSetExpressions));
         }
     }
 
@@ -689,11 +694,11 @@ class FilterResolver
         QueryBuilder $queryBuilder
     ): string {
         if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
-            self::$joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
+            FilterUtility::handleAlias(str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]));
         }
 
         $i = 1;
-        $lastElementTableAlias = $tableName;
+        $_lastElementTableAlias = $tableName;
 
         // Go through the filter path and join the tables by using the TCA MM relations
         /**
@@ -705,6 +710,7 @@ class FilterResolver
             $lastElementTable = $tca['foreign_table'];
             $lastElementTableAlias = $lastElementTable;
 
+            $_lastElementTableAlias = $lastElementTableAlias;
 
             if ($tca['MM'] ?? false) {
                 // Figure out from which side of the MM table we need to join TODO: This might not be robust enough
@@ -714,10 +720,8 @@ class FilterResolver
                 $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
 
                 $lastElementTableAlias = $tca['MM'];
-                while (in_array($lastElementTableAlias, self::$joinedTables)){
-                    $lastElementTableAlias = $tca['MM'] . $i++;
-                }
-                self::$joinedTables[] = $lastElementTableAlias;
+                $lastElementTableAlias = FilterUtility::handleAlias($lastElementTableAlias);
+                $lastElementTableAliasTCAMM = $lastElementTableAlias;
 
                 // Join with MM and foreign table
                 $queryBuilder->join(
@@ -736,36 +740,37 @@ class FilterResolver
                     ));
                 }
 
-                $lastElementTableAlias = $lastElementTable;
-                if(in_array($lastElementTable, self::$joinedTables)){
-                    $lastElementTableAlias = $lastElementTable . $i++;
-                }
-                self::$joinedTables[] = $lastElementTableAlias;
+                $lastElementTableAlias = FilterUtility::handleAlias($lastElementTable);
 
                 $queryBuilder->join(
                     $tca['MM'],
                     $lastElementTable,
                     $lastElementTableAlias,
-                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
+                    $queryBuilder->expr()->eq($lastElementTableAliasTCAMM . ".$mmTableForeignField",
                         $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')));
+
+                $_lastElementTableAlias = $lastElementTableAlias;
 
                 continue;
             }
+
+            $lastElementTableAlias = FilterUtility::handleAlias($lastElementTable);
 
             // Join with foreign table
             $queryBuilder->join(
                 $currentTable,
                 $lastElementTable,
-                $lastElementTable,
+                $lastElementTableAlias,
                 $queryBuilder->expr()->eq(
                     $currentTable . '.' . $fieldName,
                     $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
                 )
             );
-            self::$joinedTables[] = $lastElementTable;
+
+            $_lastElementTableAlias = $lastElementTableAlias;
         }
 
-        return $lastElementTableAlias;
+        return $_lastElementTableAlias;
     }
 
     /**
