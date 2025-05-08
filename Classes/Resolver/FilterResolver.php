@@ -759,7 +759,8 @@ class FilterResolver
         $otherFilters = array_filter($filterInputs,
             static function(RangeFilterInput $filterInput) use ($filterPath) {
                 return $filterInput->path !== $filterPath &&
-                    ($filterInput->range->min !== null || $filterInput->range->max !== null || $filterInput->rangeFloat->min !== null || $filterInput->rangeFloat->max !== null);
+                    ($filterInput->range && ($filterInput->range->min !== null || $filterInput->range->max !== null)) ||
+                    ($filterInput->rangeFloat && ($filterInput->rangeFloat->min !== null || $filterInput->rangeFloat->max !== null));
             });
 
         /** @var RangeFilterInput $whereFilter */
@@ -771,24 +772,30 @@ class FilterResolver
 
             $andExpressions = [];
 
-            if ($whereFilter->range->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
-                                                               $queryBuilder->createNamedParameter($whereFilter->range->min));
+            if ($whereFilter->range) {
+                if ($whereFilter->range->min !== null) {
+                    $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                                                                   $queryBuilder->createNamedParameter($whereFilter->range->min));
+                }
+
+                if ($whereFilter->range->max !== null) {
+                    $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                                                                   $queryBuilder->createNamedParameter($whereFilter->range->max));
+                }
             }
 
-            if ($whereFilter->range->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
-                                                               $queryBuilder->createNamedParameter($whereFilter->range->max));
-            }
-            if ($whereFilter->rangeFloat->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
-                    $queryBuilder->createNamedParameter($whereFilter->rangeFloat->min));
+            if ($whereFilter->rangeFloat) {
+                if ($whereFilter->rangeFloat->min !== null) {
+                    $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                        $queryBuilder->createNamedParameter($whereFilter->rangeFloat->min));
+                }
+
+                if ($whereFilter->rangeFloat->max !== null) {
+                    $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                        $queryBuilder->createNamedParameter($whereFilter->rangeFloat->max));
+                }
             }
 
-            if ($whereFilter->rangeFloat->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
-                    $queryBuilder->createNamedParameter($whereFilter->rangeFloat->max));
-            }
 
             $queryBuilder->andWhere(...$andExpressions);
         }
