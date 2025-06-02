@@ -688,9 +688,9 @@ class FilterResolver
         array $filterPathElements,
         string $tableName,
         QueryBuilder $queryBuilder
-    ): string {
+    ): ?string {
 
-        $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"] ?? []);
+        $joinedTables[] = str_replace('`', '', ($queryBuilder->getFrom()[0]->table) ?? []);
         $i = 1;
         $lastElementTableAlias = NULL;
 
@@ -726,7 +726,7 @@ class FilterResolver
                     $lastElementTableAlias = $lastElementTable . $i++;
                 }
                 $joinedTables[] = $lastElementTableAlias;
-                
+
                 $queryBuilder->join(
                     $tca['MM'],
                     $lastElementTable,
