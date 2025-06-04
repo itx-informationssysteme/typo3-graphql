@@ -29,6 +29,7 @@ use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
+use Itx\Typo3GraphQL\Utility\FilterUtility;
 
 class FilterResolver
 {
@@ -155,7 +156,10 @@ class FilterResolver
                 $filters[$filter->getFilterPath()] = $filter;
             }
 
+            //Facets befüllen
             foreach ($filters as $path => $filter) {
+                FilterUtility::resetAlias();
+
                 if (!$filter instanceof Filter) {
                     throw new \RuntimeException("Discrete Filter $path not found");
                 }
@@ -417,16 +421,17 @@ class FilterResolver
             $queryBuilder = $event->getQueryBuilder();
         }
 
-        $fieldPrefix = $lastElementTable['lastElementTableAlias'] . ".";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
+        $fieldPrefix = "$lastElementTable.";
+        $check = preg_replace('/\d+$/', '', $lastElementTable);
+        if (!TcaUtility::fieldExistsAndIsCustom($check, $lastElement)) {
             $fieldPrefix = '';
         }
 
-        $queryBuilder->addSelectLiteral($lastElementTable['lastElementTableAlias'] . ".$lastElement AS value")
+        $queryBuilder->addSelectLiteral("$lastElementTable.$lastElement AS value")
                      ->from($tableName)
                      ->addSelectLiteral("COUNT($tableName.uid) AS resultCount")
-                     ->groupBy("$fieldPrefix$lastElement")
-                     ->orderBy("$fieldPrefix$lastElement", 'ASC');
+                     ->groupBy("$lastElementTable.$lastElement")
+                     ->orderBy("$lastElementTable.$lastElement", 'ASC');
 
         $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
@@ -627,7 +632,7 @@ class FilterResolver
         $queryBuilder = $event->getQueryBuilder();
 
         $fieldPrefix = "$lastElementTable.";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
             $fieldPrefix = '';
         }
 
@@ -725,8 +730,8 @@ class FilterResolver
         ));
         $queryBuilder = $event->getQueryBuilder();
 
-        $fieldPrefix = $lastElementTable['lastElementTableAlias'] . ".";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
+        $fieldPrefix = "$lastElementTable.";
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
             $fieldPrefix = '';
         }
 
@@ -778,12 +783,13 @@ class FilterResolver
 
             foreach ($whereFilter->options as $option) {
                 $inSetExpressions[] = $queryBuilder->expr()->inSet(
-                    $whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                    $whereFilterTable . '.' . $whereFilterLastElement,
                     $queryBuilder->createNamedParameter($option)
                 );
             }
 
-            $queryBuilder->andWhere($queryBuilder->expr()->or(...$inSetExpressions));
+            if(sizeof($inSetExpressions) > 0)
+                $queryBuilder->andWhere($queryBuilder->expr()->or(...$inSetExpressions));
         }
     }
 
@@ -821,14 +827,14 @@ class FilterResolver
 
             if ($whereFilter->range->min !== null) {
                 $andExpressions[] = $queryBuilder->expr()->gte(
-                    $whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                    $whereFilterTable . '.' . $whereFilterLastElement,
                     $queryBuilder->createNamedParameter($whereFilter->range->min)
                 );
             }
 
             if ($whereFilter->range->max !== null) {
                 $andExpressions[] = $queryBuilder->expr()->lte(
-                    $whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                    $whereFilterTable . '.' . $whereFilterLastElement,
                     $queryBuilder->createNamedParameter($whereFilter->range->max)
                 );
             }
@@ -867,12 +873,12 @@ class FilterResolver
             $andExpressions = [];
 
             if ($whereFilter->dateRange->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
                                                                $queryBuilder->createNamedParameter($whereFilter->dateRange->min));
             }
 
             if ($whereFilter->dateRange->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
                                                                $queryBuilder->createNamedParameter($whereFilter->dateRange->max));
             }
 
@@ -909,17 +915,17 @@ class FilterResolver
     /**
      * @throws FieldDoesNotExistException
      */
-    public static function buildJoinsByWalkingPath(array        $filterPathElements,
-                                                   string       $tableName,
-                                                   QueryBuilder $queryBuilder,
-                                                   array        $joinedTables = []): array
-    {
+    public static function buildJoinsByWalkingPath(
+        array $filterPathElements,
+        string $tableName,
+        QueryBuilder $queryBuilder
+    ): string {
         if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
-            $joinedTables[] = str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]);
+            FilterUtility::handleAlias(str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]));
         }
 
         $i = 1;
-        $lastElementTableAlias = $tableName;
+        $_lastElementTableAlias = $tableName;
 
         // Go through the filter path and join the tables by using the TCA MM relations
         /**
@@ -931,6 +937,7 @@ class FilterResolver
             $lastElementTable = $tca['foreign_table'];
             $lastElementTableAlias = $lastElementTable;
 
+            $_lastElementTableAlias = $lastElementTableAlias;
 
             if ($tca['MM'] ?? false) {
                 // Figure out from which side of the MM table we need to join TODO: This might not be robust enough
@@ -939,13 +946,17 @@ class FilterResolver
                 $mmTableLocalField = $isLocalTable ? 'uid_foreign' : 'uid_local';
                 $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
 
+                $lastElementTableAlias = $tca['MM'];
+                $lastElementTableAlias = FilterUtility::handleAlias($lastElementTableAlias);
+                $lastElementTableAliasTCAMM = $lastElementTableAlias;
+
                 // Join with MM and foreign table
                 $queryBuilder->join(
                     $currentTable,
                     $tca['MM'],
-                    $tca['MM'],
+                    $lastElementTableAlias,
                     $queryBuilder->expr()->eq(
-                        $tca['MM'] . ".$mmTableLocalField",
+                        $lastElementTableAlias . ".$mmTableLocalField",
                         $queryBuilder->quoteIdentifier($currentTable . '.uid')
                     )
                 );
@@ -956,37 +967,37 @@ class FilterResolver
                     ));
                 }
 
-                $lastElementTableAlias = $lastElementTable;
-                while (in_array($lastElementTableAlias, $joinedTables)){
-                    $lastElementTableAlias = $lastElementTable . $i++;
-                }
-                $joinedTables[] = $lastElementTableAlias;
+                $lastElementTableAlias = FilterUtility::handleAlias($lastElementTable);
 
                 $queryBuilder->join(
                     $tca['MM'],
                     $lastElementTable,
                     $lastElementTableAlias,
-                    $queryBuilder->expr()->eq($tca['MM'] . ".$mmTableForeignField",
+                    $queryBuilder->expr()->eq($lastElementTableAliasTCAMM . ".$mmTableForeignField",
                         $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')));
+
+                $_lastElementTableAlias = $lastElementTableAlias;
 
                 continue;
             }
 
-            $lastElementTableAlias = $lastElementTable;
-            while (in_array($lastElementTableAlias, $joinedTables)) {
-                $lastElementTableAlias = $lastElementTable . $i++;
-            }
+            $lastElementTableAlias = FilterUtility::handleAlias($lastElementTable);
 
             // Join with foreign table
-            $queryBuilder->join($currentTable,
-                                $lastElementTable,
-                                $lastElementTableAlias,
-                                $queryBuilder->expr()->eq($currentTable . '.' . $fieldName,
-                                                          $queryBuilder->quoteIdentifier($lastElementTableAlias . ".uid")));
-            $joinedTables[] = $lastElementTableAlias;
+            $queryBuilder->join(
+                $currentTable,
+                $lastElementTable,
+                $lastElementTableAlias,
+                $queryBuilder->expr()->eq(
+                    $currentTable . '.' . $fieldName,
+                    $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
+                )
+            );
+
+            $_lastElementTableAlias = $lastElementTableAlias;
         }
 
-        return ['lastElementTableAlias' => $lastElementTableAlias, 'joinedTables' => $joinedTables];
+        return $_lastElementTableAlias;
     }
 
     /**
