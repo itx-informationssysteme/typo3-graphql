@@ -4,12 +4,14 @@ namespace Itx\Typo3GraphQL\Types\Model;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Definition\Type;
+use Itx\Typo3GraphQL\Events\CustomFileTypeFieldEvent;
 use Itx\Typo3GraphQL\Exception\BadInputException;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Resolver\ResolverContext;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
 use SimPod\GraphQLUtils\Builder\FieldBuilder;
 use SimPod\GraphQLUtils\Builder\ObjectBuilder;
+use TYPO3\CMS\Core\EventDispatcher\EventDispatcher;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\CropVariantCollection;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Domain\Model\FileReference;
@@ -158,6 +160,15 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
                                     return $root->getOriginalResource()->getLink();
                                 })
                                 ->build();
+
+        // Add custom fields to model
+        /** @var CustomModelFieldEvent $customEvent */
+        $eventDispatcher = GeneralUtility::makeInstance(EventDispatcher::class);
+        $customEvent = $eventDispatcher->dispatch(new CustomFileTypeFieldEvent());
+
+        foreach ($customEvent->getFieldBuilders() as $field) {
+            $fields[] = $field->build();
+        }
 
         $objectBuilder->setFields($fields);
 
