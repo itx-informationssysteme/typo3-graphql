@@ -730,8 +730,8 @@ class FilterResolver
         ));
         $queryBuilder = $event->getQueryBuilder();
 
-        $fieldPrefix = $lastElementTable['lastElementTableAlias'] . ".";
-        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable['lastElementTableAlias'], $lastElement)) {
+        $fieldPrefix = "$lastElementTable.";
+        if (!TcaUtility::fieldExistsAndIsCustom($lastElementTable, $lastElement)) {
             $fieldPrefix = '';
         }
 
@@ -873,12 +873,12 @@ class FilterResolver
             $andExpressions = [];
 
             if ($whereFilter->dateRange->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
                                                                $queryBuilder->createNamedParameter($whereFilter->dateRange->min));
             }
 
             if ($whereFilter->dateRange->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
                                                                $queryBuilder->createNamedParameter($whereFilter->dateRange->max));
             }
 
