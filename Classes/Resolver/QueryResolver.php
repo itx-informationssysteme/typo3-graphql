@@ -13,6 +13,7 @@ use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
 use Itx\Typo3GraphQL\Schema\Context;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
+use Itx\Typo3GraphQL\Utility\FilterUtility;
 use Itx\Typo3GraphQL\Utility\PaginationUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Itx\Typo3GraphQL\Utility\TcaUtility;
@@ -186,7 +187,7 @@ class QueryResolver
 
         $sorting = $args[QueryArgumentsUtility::$sorting] ?? [];
 
-        $mm = $GLOBALS['TCA'][$tableName]['columns'][$resolveInfo->fieldName]['config']['MM'];
+        $mm = $GLOBALS['TCA'][$tableName]['columns'][GeneralUtility::camelCaseToLowerCaseUnderscored($resolveInfo->fieldName)]['config']['MM'];
         $modelClassPath = $schemaContext->getTypeRegistry()->getModelClassPathByTableName($foreignTable);
 
         $qb = $this->connectionPool->getQueryBuilderForTable($foreignTable);
@@ -262,6 +263,7 @@ class QueryResolver
         $filters = $args[QueryArgumentsUtility::$filters] ?? [];
         $discreteFilters = [];
         $rangeFilters = [];
+        $dateFilters = [];
 
         if(array_key_exists(QueryArgumentsUtility::$discreteFilters, $filters)){
             if ($filters[QueryArgumentsUtility::$discreteFilters] ?? false) {
@@ -282,6 +284,14 @@ class QueryResolver
                 $rangeFilters = array_combine(array_map(static fn($filter) => $filter['path'], $rangeFilters), $rangeFilters);
             }
         }
+        if(array_key_exists(QueryArgumentsUtility::$dateFilters, $filters)){
+            if ($filters[QueryArgumentsUtility::$dateFilters]) {
+                $dateFilters = $filters[QueryArgumentsUtility::$dateFilters] ?? [];
+
+                // Path as key for discrete filters
+                $dateFilters = array_combine(array_map(static fn($filter) => $filter['path'], $dateFilters), $dateFilters);
+            }
+        }
 
         $discreteFilterConfigurations =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($discreteFilters), 'discrete');
@@ -290,9 +300,16 @@ class QueryResolver
 
         $rangeFilterConfiguration =
             $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($rangeFilters), 'range');
-        $staticRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($rangeFilters), 'range');
-        $rangeFilterConfiguration = array_merge($rangeFilterConfiguration, $staticRangeFilters);
 
+        $dateFilterConfiguration =
+            $this->filterRepository->findByModelAndPathsAndType($modelClassPath, array_keys($dateFilters), 'dateRange');
+
+        $staticRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($rangeFilters), 'range');
+        $staticDateRangeFilters = $this->configurationService->getFiltersForModel($modelClassPath, array_keys($dateFilters), 'dateRange');
+        $rangeFilterConfiguration = array_merge($rangeFilterConfiguration, $staticRangeFilters);
+        $dateFilterConfiguration = array_merge($dateFilterConfiguration, $staticDateRangeFilters);
+
+        FilterUtility::resetAlias();
         foreach ($discreteFilterConfigurations as $filterConfiguration) {
             $discreteFilter = $discreteFilters[$filterConfiguration->getFilterPath()] ?? [];
 
@@ -315,6 +332,7 @@ class QueryResolver
             $qb->andWhere($qb->expr()->or(...$inSetExpressions));
         }
 
+        FilterUtility::resetAlias();
         foreach ($rangeFilterConfiguration as $filterConfiguration) {
             $rangeFilter = $rangeFilters[$filterConfiguration->getFilterPath()] ?? [];
 
@@ -326,22 +344,45 @@ class QueryResolver
             $andExpressions = [];
 
             if (($rangeFilter['range']['min'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->gte(
-                    $whereFilterTable . '.' . $whereFilterLastElement,
-                    $qb->createNamedParameter($rangeFilter['range']['min'])
-                );
+                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                     $qb->createNamedParameter($rangeFilter['range']['min']));
             }
 
             if (($rangeFilter['range']['max'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->lte(
-                    $whereFilterTable . '.' . $whereFilterLastElement,
-                    $qb->createNamedParameter($rangeFilter['range']['max'])
-                );
+                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                     $qb->createNamedParameter($rangeFilter['range']['max']));
             }
 
             $qb->andWhere(...$andExpressions);
         }
 
-        return [$discreteFilterConfigurations, $rangeFilterConfiguration];
+        foreach ($dateFilterConfiguration as $filterConfiguration) {
+            $dateFilter = $dateFilters[$filterConfiguration->getFilterPath()] ?? [];
+
+            $whereFilterPathElements = explode('.', $dateFilter['path']);
+            $whereFilterLastElement = array_pop($whereFilterPathElements);
+
+            $whereFilterTable = FilterResolver::buildJoinsByWalkingPath($whereFilterPathElements, $table, $qb);
+
+            $andExpressions = [];
+
+            /** @var ?\DateTimeInterface $rangeMin  */
+            $rangeMin = $dateFilter['range']['min'];
+            if (($rangeMin ?? null) !== null) {
+                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                                                     $qb->createNamedParameter($rangeMin->format(\DateTimeInterface::ATOM)));
+            }
+
+            /** @var ?\DateTimeInterface $rangeMax  */
+            $rangeMax = $dateFilter['range']['max'];
+            if (($rangeMax ?? null) !== null) {
+                $andExpressions[] = $qb->expr()->lte($whereFilterTable. '.' . $whereFilterLastElement,
+                                                     $qb->createNamedParameter($rangeMax->format(\DateTimeInterface::ATOM)));
+            }
+
+            $qb->andWhere(...$andExpressions);
+        }
+
+        return [$discreteFilterConfigurations, $rangeFilterConfiguration, $dateFilterConfiguration];
     }
 }

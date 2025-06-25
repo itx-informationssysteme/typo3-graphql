@@ -17,7 +17,8 @@
 		"typo3/cms-frontend": "^12.4 || ^13",
 		"webonyx/graphql-php": "15.*",
 		"simpod/graphql-utils": "^0.7",
-		"aimeos/map": "^3"
+		"aimeos/map": "^3",
+        "thecodingmachine/safe": "^2.0"
     },
 	"require-dev": {
 		"phpstan/phpstan": "^1.10"

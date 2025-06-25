@@ -135,6 +135,8 @@ prevent impossible filter option combinations (e.g combinations that would retur
 Currently there are two types of filters available:
 * `DiscreteFilter` - This filter type allows you to select one or more options from a list of options.
 * `RangeFilter` - This filter type allows you to select a range of values.
+* `DateFilter` - This filter type allows you to select a range of datetimes 
+in ATOM format
 
 In the query above the filter options will be filtered as well in order to be able to disable options that are not available to
 prevent impossible filter option combinations. Whether a filter option will still get results or not is shown by the `disabled` field.
