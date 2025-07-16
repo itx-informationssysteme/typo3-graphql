@@ -98,6 +98,9 @@ class TCATypeMapper
             case 'category':
                 $this->handleCategoryType($context, $fieldBuilder);
                 break;
+            case 'datetime':
+                $fieldBuilder->setType(TypeRegistry::dateTime());
+                break;
         }
 
         // If the field is a translation parent field, we don't want the relation but only the element id
@@ -153,13 +156,6 @@ class TCATypeMapper
     protected function handleInputType(Context $context, FieldBuilder $fieldBuilder): void
     {
         $columnConfiguration = $context->getColumnConfiguration();
-
-        // DateTime
-        if (($columnConfiguration['config']['renderType'] ?? '') === 'inputDateTime') {
-            $fieldBuilder->setType(TypeRegistry::dateTime());
-
-            return;
-        }
 
         if (str_contains($columnConfiguration['config']['eval'] ?? '', 'int')) {
             $fieldBuilder->setType(Type::int());
