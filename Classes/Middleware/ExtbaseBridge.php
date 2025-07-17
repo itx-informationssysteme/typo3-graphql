@@ -26,15 +26,6 @@ use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
  */
 class ExtbaseBridge
 {
-    private string $typo3Version = '';
-    private Context $context;
-
-    public function __construct(Context $context)
-    {
-        $this->context = $context;
-        $this->typo3Version = (string)(new \TYPO3\CMS\Core\Information\Typo3Version());
-    }
-
     public function boot(ServerRequestInterface $request, RequestHandlerInterface $handler): void
     {
         $site = $request->getAttribute('site');
@@ -46,85 +37,19 @@ class ExtbaseBridge
             $GLOBALS['TYPO3_REQUEST'] = $request;
         }
 
-        if (!isset($GLOBALS['TSFE']) || !$GLOBALS['TSFE'] instanceof TypoScriptFrontendController) {
-            $request = $this->createGlobalTsfe($site, $request);
-        } else {
+        if (isset($GLOBALS['TSFE'])) {
             $GLOBALS['TSFE']->id = $site->getRootPageId();
         }
 
-        $request = $this->bootFrontend($request);
         $this->bootExtbase($request);
-    }
-
-    protected function createGlobalTsfe(Site $site, ServerRequestInterface $request): ServerRequestInterface
-    {
-        if (version_compare($this->typo3Version, '13.0', '>=')) {
-            // Do nothing
-        } else if (version_compare($this->typo3Version, '11.5', '>=')) {
-            $controller = GeneralUtility::makeInstance(
-                TypoScriptFrontendController::class,
-                $this->context,
-                $site,
-                $request->getAttribute('language', $site->getDefaultLanguage()),
-                new PageArguments($site->getRootPageId(), '0', []),
-                $request->getAttribute('frontend.user')
-            );
-
-            $controller->determineId($request);
-
-            $request = $request->withAttribute('frontend.controller', $controller);
-
-            // Make TSFE globally available
-            // @todo deprecate $GLOBALS['TSFE'] once TSFE is retrieved from the
-            //       PSR-7 request attribute frontend.controller throughout TYPO3 core
-            $GLOBALS['TSFE'] = $controller;
-        } else {
-            $GLOBALS['TSFE'] = GeneralUtility::makeInstance(
-                TypoScriptFrontendController::class,
-                null,
-                $site,
-                $request->getAttribute('language'),
-                null,
-                $request->getAttribute('frontend.user')
-            );
-        }
-
-        return $request;
-    }
-
-    protected function bootFrontend(ServerRequestInterface $request): ServerRequestInterface
-    {
-        if (version_compare($this->typo3Version, '13.0', '>=')) {
-            // Do nothing
-        }
-        else if(version_compare($this->typo3Version, '12.2', '>=')) {
-            // Run Frontend TypoScript
-            $request = $GLOBALS['TSFE']->getFromCache($request);
-        } elseif (version_compare($this->typo3Version, '11.5', '>=')) {
-            // nothing to do, TSFE is already ready
-        } else {
-            $GLOBALS['TSFE']->fetch_the_id($request);
-            $GLOBALS['TSFE']->getConfigArray($request);
-            $GLOBALS['TSFE']->settingLanguage($request);
-            $GLOBALS['TSFE']->newCObj();
-        }
-        return $request;
     }
 
     protected function bootExtbase(ServerRequestInterface $request): void
     {
-        if (version_compare($this->typo3Version, '12.4', '>=')) {
-            GeneralUtility::makeInstance(Bootstrap::class)->initialize([
-                'extensionName' => 'typo3_graphql',
-                'vendorName' => 'Itx',
-                'pluginName' => 'graphql',
-            ], $request);
-        } else {
-            GeneralUtility::makeInstance(Bootstrap::class)->initialize([
-                'extensionName' => 'typo3_graphql',
-                'vendorName' => 'Itx',
-                'pluginName' => 'graphql',
-            ], $request);
-        }
+        GeneralUtility::makeInstance(Bootstrap::class)->initialize([
+            'extensionName' => 'typo3_graphql',
+            'vendorName' => 'Itx',
+            'pluginName' => 'graphql',
+        ], $request);
     }
 }
