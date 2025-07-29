@@ -791,7 +791,7 @@ class FilterResolver
                 }
 
                 if ($whereFilter->rangeFloat->max !== null) {
-                    $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                    $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
                         $queryBuilder->createNamedParameter($whereFilter->rangeFloat->max));
                 }
             }
