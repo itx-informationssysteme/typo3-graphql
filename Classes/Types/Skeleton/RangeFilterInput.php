@@ -11,7 +11,6 @@ class RangeFilterInput
     public function __construct(string $path)
     {
         $this->path = $path;
-        $this->range = $range;
     }
 
     public function setRange(Range $range): void
