@@ -17,6 +17,7 @@ use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Types\Skeleton\Range;
+use Itx\Typo3GraphQL\Types\Skeleton\RangeFloat;
 use Itx\Typo3GraphQL\Types\Skeleton\RangeFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DateRange;
 use Itx\Typo3GraphQL\Types\Skeleton\DateFilterInput;
@@ -296,13 +297,19 @@ class FilterResolver
 
         // Set key path from range filter array as key
         foreach ($rangeFilterArguments as $key => $filter) {
-            $rangeFilterArguments[$filter['path']] = new RangeFilterInput(
-                $filter['path'],
-                new Range(
-                    $filter['range']['min'] ?? null,
-                    $filter['range']['max'] ?? null
-                )
-            );
+            $rangeFilterInput = new RangeFilterInput($filter['path']);
+
+            if (isset($filter['range']['min']) || isset($filter['range']['max'])) {
+                $range =  new Range($filter['range']['min'] ?? null,$filter['range']['max'] ?? null);
+                $rangeFilterInput->setRange($range);
+            }
+
+            if (isset($filter['rangeFloat']['min']) || isset($filter['rangeFloat']['max'])) {
+                $rangeFloat = new RangeFloat($filter['rangeFloat']['min'] ?? null, $filter['rangeFloat']['max'] ?? null);
+                $rangeFilterInput->setRangeFloat($rangeFloat);
+            }
+
+            $rangeFilterArguments[$filter['path']] = $rangeFilterInput;
             unset($rangeFilterArguments[$key]);
         }
 
@@ -812,7 +819,8 @@ class FilterResolver
             $filterInputs,
             static function (RangeFilterInput $filterInput) use ($filterPath) {
                 return $filterInput->path !== $filterPath &&
-                    ($filterInput->range->min !== null || $filterInput->range->max !== null);
+                    (($filterInput->range && ($filterInput->range->min !== null || $filterInput->range->max !== null)) ||
+                    ($filterInput->rangeFloat && ($filterInput->rangeFloat->min !== null || $filterInput->rangeFloat->max !== null)));
             }
         );
 
@@ -825,18 +833,34 @@ class FilterResolver
 
             $andExpressions = [];
 
-            if ($whereFilter->range->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte(
-                    $whereFilterTable . '.' . $whereFilterLastElement,
-                    $queryBuilder->createNamedParameter($whereFilter->range->min)
-                );
+            if ($whereFilter->range) {
+                if ($whereFilter->range->min !== null) {
+                    $andExpressions[] = $queryBuilder->expr()->gte(
+                        $whereFilterTable . '.' . $whereFilterLastElement,
+                        $queryBuilder->createNamedParameter($whereFilter->range->min)
+                    );
+                }
+
+                if ($whereFilter->range->max !== null) {
+                    $andExpressions[] = $queryBuilder->expr()->lte(
+                        $whereFilterTable . '.' . $whereFilterLastElement,
+                        $queryBuilder->createNamedParameter($whereFilter->range->max)
+                    );
+                }
             }
 
-            if ($whereFilter->range->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->lte(
-                    $whereFilterTable . '.' . $whereFilterLastElement,
-                    $queryBuilder->createNamedParameter($whereFilter->range->max)
-                );
+            if ($whereFilter->rangeFloat) {
+                if ($whereFilter->rangeFloat->min !== null) {
+                    $andExpressions[] = $queryBuilder->expr()->gte(
+                        $whereFilterTable . '.' . $whereFilterLastElement,
+                        $queryBuilder->createNamedParameter($whereFilter->rangeFloat->min));
+                }
+
+                if ($whereFilter->rangeFloat->max !== null) {
+                    $andExpressions[] = $queryBuilder->expr()->lte(
+                        $whereFilterTable . '.' . $whereFilterLastElement,
+                        $queryBuilder->createNamedParameter($whereFilter->rangeFloat->max));
+                }
             }
 
             $queryBuilder->andWhere(...$andExpressions);
@@ -990,7 +1014,7 @@ class FilterResolver
                 $lastElementTableAlias,
                 $queryBuilder->expr()->eq(
                     $currentTable . '.' . $fieldName,
-                    $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
+                    $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')
                 )
             );
 

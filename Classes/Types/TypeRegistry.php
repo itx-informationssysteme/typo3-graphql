@@ -17,6 +17,7 @@ use Itx\Typo3GraphQL\Types\Model\FilterOptionType;
 use Itx\Typo3GraphQL\Types\Model\LinkType;
 use Itx\Typo3GraphQL\Types\Model\RangeFacetType;
 use Itx\Typo3GraphQL\Types\Model\RangeFilterInputType;
+use Itx\Typo3GraphQL\Types\Model\RangeFloatInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeType;
 use Itx\Typo3GraphQL\Types\Model\DateFacetType;
@@ -55,6 +56,7 @@ class TypeRegistry
         $this->addType(self::rangeFacet());
         $this->addType(self::range());
         $this->addType(self::rangeInput());
+        $this->addType(self::rangeFloatInput());
         $this->addType(self::rangeFilterInput());
         $this->addType(self::dateFacet());
         $this->addType(self::dateRange());
@@ -257,6 +259,17 @@ class TypeRegistry
     {
         /**@var RangeInputType $type */
         $type = self::getOrCreateCustomType(RangeInputType::class);
+
+        return $type;
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    public static function rangeFloatInput(): RangeFloatInputType
+    {
+        /**@var RangeFloatInputType $type */
+        $type = self::getOrCreateCustomType(RangeFloatInputType::class);
 
         return $type;
     }
