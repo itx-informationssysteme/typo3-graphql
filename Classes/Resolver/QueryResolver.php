@@ -353,6 +353,16 @@ class QueryResolver
                                                      $qb->createNamedParameter($rangeFilter['range']['max']));
             }
 
+            if (($rangeFilter['rangeFloat']['min'] ?? null) !== null) {
+                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['rangeFloat']['min']));
+            }
+
+            if (($rangeFilter['rangeFloat']['max'] ?? null) !== null) {
+                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['rangeFloat']['max']));
+            }
+
             $qb->andWhere(...$andExpressions);
         }
 
