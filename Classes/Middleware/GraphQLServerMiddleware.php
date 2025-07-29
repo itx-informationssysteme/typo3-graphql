@@ -60,7 +60,7 @@ class GraphQLServerMiddleware implements MiddlewareInterface
         $this->configurationService = $container->get(ConfigurationService::class);
 
         // Start Extbase
-        $extbaseBridge = new ExtbaseBridge(GeneralUtility::makeInstance(Context::class));
+        $extbaseBridge = new ExtbaseBridge();
         $extbaseBridge->boot($request, $handler);
 
         $typeRegistry = new TypeRegistry();
