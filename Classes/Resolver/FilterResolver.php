@@ -1014,7 +1014,7 @@ class FilterResolver
                 $lastElementTableAlias,
                 $queryBuilder->expr()->eq(
                     $currentTable . '.' . $fieldName,
-                    $queryBuilder->quoteIdentifier($tca['foreign_table'] . '.uid')
+                    $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')
                 )
             );
 
