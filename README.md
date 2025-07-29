@@ -132,10 +132,10 @@ This will return the postings that have a location with the name `Testlocation`.
 You will also be able to notice that the filter options of other filters are filtered as well in order to be able to disable options that are not available to
 prevent impossible filter option combinations (e.g combinations that would return no results).
 
-Currently there are two types of filters available:
+Currently there are three types of filters available:
 * `DiscreteFilter` - This filter type allows you to select one or more options from a list of options.
 * `RangeFilter` - This filter type allows you to select a range of values.
-* `DateFilter` - This filter type allows you to select a range of datetimes 
+* `DateFilter` - This filter type allows you to select a range of datetimes
 in ATOM format
 
 In the query above the filter options will be filtered as well in order to be able to disable options that are not available to
