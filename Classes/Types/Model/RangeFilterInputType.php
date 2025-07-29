@@ -22,6 +22,7 @@ class RangeFilterInputType extends InputObjectType implements TypeNameInterface
         $fields[] = InputFieldBuilder::create('path', Type::nonNull(Type::string()))->setDescription('The filter path')->build();
 
         $fields[] = InputFieldBuilder::create('range', TypeRegistry::rangeInput())->build();
+        $fields[] = InputFieldBuilder::create('rangeFloat', TypeRegistry::rangeFloatInput())->build();
 
         $objectBuilder->setFields($fields);
 
