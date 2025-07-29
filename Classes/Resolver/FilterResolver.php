@@ -851,12 +851,14 @@ class FilterResolver
 
             if ($whereFilter->rangeFloat) {
                 if ($whereFilter->rangeFloat->min !== null) {
-                    $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                    $andExpressions[] = $queryBuilder->expr()->gte(
+                        $whereFilterTable . '.' . $whereFilterLastElement,
                         $queryBuilder->createNamedParameter($whereFilter->rangeFloat->min));
                 }
 
                 if ($whereFilter->rangeFloat->max !== null) {
-                    $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable['lastElementTableAlias'] . '.' . $whereFilterLastElement,
+                    $andExpressions[] = $queryBuilder->expr()->lte(
+                        $whereFilterTable . '.' . $whereFilterLastElement,
                         $queryBuilder->createNamedParameter($whereFilter->rangeFloat->max));
                 }
             }
