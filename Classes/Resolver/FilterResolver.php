@@ -944,8 +944,8 @@ class FilterResolver
         string $tableName,
         QueryBuilder $queryBuilder
     ): string {
-        if ($queryBuilder->getQueryParts()["from"][0]["table"] ?? false) {
-            FilterUtility::handleAlias(str_replace('`', '', $queryBuilder->getQueryParts()["from"][0]["table"]));
+        if (!empty($queryBuilder->getFrom()) && ($queryBuilder->getFrom()[0]->table  === "" || $queryBuilder->getFrom()[0]->table === null)) {
+            FilterUtility::handleAlias(str_replace('`', '', $queryBuilder->getFrom()[0]->table));
         }
 
         $i = 1;

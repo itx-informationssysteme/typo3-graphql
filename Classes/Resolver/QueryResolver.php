@@ -103,8 +103,8 @@ class QueryResolver
         $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
 
         $qb->from($tableName);
-        if ($language !== null && TcaUtility::fieldExists($tableName, 'sys_language_uid')) {
-            $qb->andWhere($qb->expr()->eq('sys_language_uid', $language));
+        if($language !== null && TcaUtility::fieldExists($tableName, 'sys_language_uid')){
+            $qb->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
         }
 
         if (!empty($storagePids)) {
