@@ -24,6 +24,8 @@ The GraphQL API can be accessed via the `/graphql` endpoint.
 
 `composer require itx/typo3-graphql`
 
+After that, create an empty (but not hidden!) page with the URL `/graphql`
+
 ## ⚙️ Configuration
 
 The extension uses two mechanisms to configure the GraphQL schema.
