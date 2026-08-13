@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Itx\Typo3GraphQL\Types\Model;
 
-use DateTimeImmutable;
-use DateTimeInterface;
 use GraphQL\Error\InvariantViolation;
 use GraphQL\Language\AST\Node;
 use GraphQL\Language\AST\StringValueNode;
 use GraphQL\Type\Definition\ScalarType;
 use GraphQL\Utils\Utils;
+
 use function Safe\preg_match;
 
 class DateTimeType extends ScalarType implements TypeNameInterface
@@ -34,21 +33,21 @@ class DateTimeType extends ScalarType implements TypeNameInterface
      */
     public function serialize(mixed $value): string
     {
-        if (! $value instanceof DateTimeInterface) {
+        if (! $value instanceof \DateTimeInterface) {
             throw new InvariantViolation(
                 'DateTime is not an instance of DateTimeImmutable nor DateTime: ' . Utils::printSafe($value)
             );
         }
 
-        return $value->format(DateTimeInterface::ATOM);
+        return $value->format(\DateTimeInterface::ATOM);
     }
 
     /**
      * @param mixed $value
-     * @return DateTimeImmutable
+     * @return \DateTimeImmutable
      * @throws \DateMalformedStringException
      */
-    public function parseValue(mixed $value): DateTimeImmutable
+    public function parseValue(mixed $value): \DateTimeImmutable
     {
         if (! is_string($value)) {
             throw new \Exception('DateTime must be a string');
@@ -62,14 +61,13 @@ class DateTimeType extends ScalarType implements TypeNameInterface
     }
 
     /**
-     *
      * @param Node $valueNode
      * @param array|null $variables
      *
-     * @return DateTimeImmutable|null
+     * @return \DateTimeImmutable|null
      * @throws \DateMalformedStringException
      */
-    public function parseLiteral(Node $valueNode, ?array $variables = null): ?DateTimeImmutable
+    public function parseLiteral(Node $valueNode, ?array $variables = null): ?\DateTimeImmutable
     {
         if (! $valueNode instanceof StringValueNode) {
             return null;
@@ -94,9 +92,9 @@ class DateTimeType extends ScalarType implements TypeNameInterface
     {
         // Verify the correct number of days for the month contained in the date-string.
         [$year, $month, $day] = explode('-', $date);
-        $year                 = (int) $year;
-        $month                = (int) $month;
-        $day                  = (int) $day;
+        $year                 = (int)$year;
+        $month                = (int)$month;
+        $day                  = (int)$day;
 
         switch ($month) {
             case 2: // February

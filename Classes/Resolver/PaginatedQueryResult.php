@@ -31,8 +31,8 @@ class PaginatedQueryResult
             $this->items = $items;
         }
 
-        if ($resolveInfo->fieldName === 'edges') {
-            foreach ($items as $counter => $item) {
+        if (!empty($resolveInfo->getFieldSelection()['edges'])) {
+            foreach ($this->items as $counter => $item) {
                 $cursor = $previousCursor + $counter + 1;
 
                 $this->edges[] = [

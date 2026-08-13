@@ -6,7 +6,11 @@ use GraphQL\Type\Definition\EnumType;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
 use Itx\Typo3GraphQL\Exception\NotFoundException;
+use Itx\Typo3GraphQL\Types\Model\DateFacetType;
+use Itx\Typo3GraphQL\Types\Model\DateFilterInputType;
+use Itx\Typo3GraphQL\Types\Model\DateInputType;
 use Itx\Typo3GraphQL\Types\Model\DateTimeType;
+use Itx\Typo3GraphQL\Types\Model\DateType;
 use Itx\Typo3GraphQL\Types\Model\DiscreteFacetType;
 use Itx\Typo3GraphQL\Types\Model\DiscreteFilterInputType;
 use Itx\Typo3GraphQL\Types\Model\FacetsType;
@@ -20,10 +24,6 @@ use Itx\Typo3GraphQL\Types\Model\RangeFilterInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeFloatInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeInputType;
 use Itx\Typo3GraphQL\Types\Model\RangeType;
-use Itx\Typo3GraphQL\Types\Model\DateFacetType;
-use Itx\Typo3GraphQL\Types\Model\DateFilterInputType;
-use Itx\Typo3GraphQL\Types\Model\DateInputType;
-use Itx\Typo3GraphQL\Types\Model\DateType;
 use Itx\Typo3GraphQL\Types\Model\SortingOrderType;
 use Itx\Typo3GraphQL\Types\Model\TypeNameInterface;
 use Itx\Typo3GraphQL\Types\Skeleton\PageInfoType;
@@ -192,7 +192,7 @@ class TypeRegistry
     /**
      * @throws NameNotFoundException
      */
-    public static function dateFilterInput() : DateFilterInputType
+    public static function dateFilterInput(): DateFilterInputType
     {
         /** @var DateFilterInputType $type */
         $type = self::getOrCreateCustomType(DateFilterInputType::class);
@@ -296,9 +296,9 @@ class TypeRegistry
         return $type;
     }
 
-/**
-     * @throws NameNotFoundException
-     */
+    /**
+         * @throws NameNotFoundException
+         */
     public static function dateRange(): DateType
     {
         /**@var DateType $type */

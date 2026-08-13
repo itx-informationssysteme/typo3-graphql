@@ -3,15 +3,12 @@
 namespace Itx\Typo3GraphQL\Types\Model;
 
 use GraphQL\Type\Definition\InputObjectType;
-use GraphQL\Type\Definition\Type;
+use Itx\Typo3GraphQL\Types\TypeRegistry;
 use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
 use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
-use Itx\Typo3GraphQL\Types\DateType;
-use Itx\Typo3GraphQL\Types\TypeRegistry;
 
 class DateInputType extends InputObjectType implements TypeNameInterface
 {
-
     public function __construct()
     {
         $objectBuilder = InputObjectBuilder::create(self::getTypeName());

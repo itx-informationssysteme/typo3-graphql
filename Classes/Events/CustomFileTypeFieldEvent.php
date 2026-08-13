@@ -11,7 +11,7 @@ class CustomFileTypeFieldEvent
      */
     protected array $fieldBuilders = [];
 
-    public function __construct() { }
+    public function __construct() {}
 
     public function setFieldBuilders(array $fieldBuilders): void
     {

@@ -11,7 +11,6 @@ use SimPod\GraphQLUtils\Builder\ObjectBuilder;
 
 class DateFacetType extends ObjectType implements TypeNameInterface
 {
-
     /**
      * @throws NameNotFoundException
      */

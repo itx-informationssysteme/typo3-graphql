@@ -13,7 +13,6 @@ use Itx\Typo3GraphQL\Resolver\ResolverContext;
 use Itx\Typo3GraphQL\Schema\SchemaGenerator;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
 use Itx\Typo3GraphQL\Types\TypeRegistry;
-use JsonException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -33,7 +32,7 @@ class GraphQLServerMiddleware implements MiddlewareInterface
      * @param RequestHandlerInterface $handler
      *
      * @return ResponseInterface
-     * @throws JsonException
+     * @throws \JsonException
      * @throws NameNotFoundException
      * @throws NotFoundException
      * @throws UnsupportedTypeException
@@ -60,8 +59,7 @@ class GraphQLServerMiddleware implements MiddlewareInterface
         $this->configurationService = $container->get(ConfigurationService::class);
 
         // Start Extbase
-        $extbaseBridge = new ExtbaseBridge();
-        $extbaseBridge->boot($request, $handler);
+        $request = $container->get(ExtbaseBridge::class)->boot($request);
 
         $typeRegistry = new TypeRegistry();
 
@@ -92,10 +90,10 @@ class GraphQLServerMiddleware implements MiddlewareInterface
             'fieldResolver' => [DefaultFieldResolver::class, 'defaultFieldResolver'],
         ];
 
-        // if fe debug is enabled, rethrow exceptions
-        if ($GLOBALS['TYPO3_CONF_VARS']['FE']['debug'] ?? false) {
-            $serverConfig['debugFlag'] = DebugFlag::RETHROW_INTERNAL_EXCEPTIONS;
-        }
+        // if fe debug is enabled, rethrow exceptions - Removed for now as logging can explode memory
+        //        if ($GLOBALS['TYPO3_CONF_VARS']['FE']['debug'] ?? false) {
+        //            $serverConfig['debugFlag'] = DebugFlag::RETHROW_INTERNAL_EXCEPTIONS;
+        //        }
 
         $server = new \GraphQL\Server\StandardServer($serverConfig);
 
