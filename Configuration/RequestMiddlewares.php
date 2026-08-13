@@ -12,11 +12,11 @@ return [
         'itx/typo3_graphql/graphql-server' => [
             'target' => \Itx\Typo3GraphQL\Middleware\GraphQLServerMiddleware::class,
             'after' => [
-                'typo3/cms-frontend/prepare-tsfe-rendering',
+                'typo3/cms-frontend/site',
             ],
             'before' => [
-                'typo3/cms-frontend/shortcut-and-mountpoint-redirect',
-            ]
+                'typo3/cms-frontend/static-route-resolver',
+            ],
         ],
         'itx/typo3_graphql/graphql-cors' => [
             'target' => \Itx\Typo3GraphQL\Middleware\CorsMiddleware::class,

@@ -103,7 +103,7 @@ class QueryResolver
         $qb = $this->connectionPool->getQueryBuilderForTable($tableName);
 
         $qb->from($tableName);
-        if($language !== null && TcaUtility::fieldExists($tableName, 'sys_language_uid')){
+        if ($language !== null && TcaUtility::fieldExists($tableName, 'sys_language_uid')) {
             $qb->andWhere($qb->expr()->eq("$tableName.sys_language_uid", $language));
         }
 
@@ -260,7 +260,7 @@ class QueryResolver
         $rangeFilters = [];
         $dateFilters = [];
 
-        if(array_key_exists(QueryArgumentsUtility::$discreteFilters, $filters)){
+        if (array_key_exists(QueryArgumentsUtility::$discreteFilters, $filters)) {
             if ($filters[QueryArgumentsUtility::$discreteFilters] ?? false) {
                 $discreteFilters = $filters[QueryArgumentsUtility::$discreteFilters] ?? [];
 
@@ -278,7 +278,7 @@ class QueryResolver
                 $rangeFilters = array_combine(array_map(static fn($filter) => $filter['path'], $rangeFilters), $rangeFilters);
             }
         }
-        if(array_key_exists(QueryArgumentsUtility::$dateFilters, $filters)){
+        if (array_key_exists(QueryArgumentsUtility::$dateFilters, $filters)) {
             if ($filters[QueryArgumentsUtility::$dateFilters]) {
                 $dateFilters = $filters[QueryArgumentsUtility::$dateFilters] ?? [];
 
@@ -338,23 +338,31 @@ class QueryResolver
             $andExpressions = [];
 
             if (($rangeFilter['range']['min'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeFilter['range']['min']));
+                $andExpressions[] = $qb->expr()->gte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['range']['min'])
+                );
             }
 
             if (($rangeFilter['range']['max'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeFilter['range']['max']));
+                $andExpressions[] = $qb->expr()->lte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['range']['max'])
+                );
             }
 
             if (($rangeFilter['rangeFloat']['min'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                    $qb->createNamedParameter($rangeFilter['rangeFloat']['min']));
+                $andExpressions[] = $qb->expr()->gte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['rangeFloat']['min'])
+                );
             }
 
             if (($rangeFilter['rangeFloat']['max'] ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
-                    $qb->createNamedParameter($rangeFilter['rangeFloat']['max']));
+                $andExpressions[] = $qb->expr()->lte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeFilter['rangeFloat']['max'])
+                );
             }
 
             $qb->andWhere(...$andExpressions);
@@ -373,15 +381,19 @@ class QueryResolver
             /** @var ?\DateTimeInterface $rangeMin  */
             $rangeMin = $dateFilter['range']['min'];
             if (($rangeMin ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeMin->format(\DateTimeInterface::ATOM)));
+                $andExpressions[] = $qb->expr()->gte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeMin->format(\DateTimeInterface::ATOM))
+                );
             }
 
             /** @var ?\DateTimeInterface $rangeMax  */
             $rangeMax = $dateFilter['range']['max'];
             if (($rangeMax ?? null) !== null) {
-                $andExpressions[] = $qb->expr()->lte($whereFilterTable. '.' . $whereFilterLastElement,
-                                                     $qb->createNamedParameter($rangeMax->format(\DateTimeInterface::ATOM)));
+                $andExpressions[] = $qb->expr()->lte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $qb->createNamedParameter($rangeMax->format(\DateTimeInterface::ATOM))
+                );
             }
 
             $qb->andWhere(...$andExpressions);

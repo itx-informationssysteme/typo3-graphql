@@ -2,10 +2,8 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
-use DateTime;
 use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception;
-use Generator;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Model\Filter;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
@@ -14,13 +12,14 @@ use Itx\Typo3GraphQL\Enum\FilterEventSource;
 use Itx\Typo3GraphQL\Events\ModifyQueryBuilderForFilteringEvent;
 use Itx\Typo3GraphQL\Exception\FieldDoesNotExistException;
 use Itx\Typo3GraphQL\Service\ConfigurationService;
+use Itx\Typo3GraphQL\Types\Skeleton\DateFilterInput;
+use Itx\Typo3GraphQL\Types\Skeleton\DateRange;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterInput;
 use Itx\Typo3GraphQL\Types\Skeleton\DiscreteFilterOption;
 use Itx\Typo3GraphQL\Types\Skeleton\Range;
-use Itx\Typo3GraphQL\Types\Skeleton\RangeFloat;
 use Itx\Typo3GraphQL\Types\Skeleton\RangeFilterInput;
-use Itx\Typo3GraphQL\Types\Skeleton\DateRange;
-use Itx\Typo3GraphQL\Types\Skeleton\DateFilterInput;
+use Itx\Typo3GraphQL\Types\Skeleton\RangeFloat;
+use Itx\Typo3GraphQL\Utility\FilterUtility;
 use Itx\Typo3GraphQL\Utility\QueryArgumentsUtility;
 use Itx\Typo3GraphQL\Utility\TcaUtility;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -30,7 +29,6 @@ use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
-use Itx\Typo3GraphQL\Utility\FilterUtility;
 
 class FilterResolver
 {
@@ -246,16 +244,18 @@ class FilterResolver
                 $facet['type'] = FacetType::DATERANGE;
                 $facet['unit'] = $filter->getUnit();
 
-                $facet['range'] = $this->fetchDateRanges($tableName,
-                                                     $filter->getFilterPath(),
-                                                     $args,
-                                                     $discreteFilterArguments,
-                                                     $rangefilterArguments,
-                                                     $datefilterArguments,
-                                                     $resolveInfo,
-                                                     $modelClassPath,
-                                                     $mmTable,
-                                                     $localUid);
+                $facet['range'] = $this->fetchDateRanges(
+                    $tableName,
+                    $filter->getFilterPath(),
+                    $args,
+                    $discreteFilterArguments,
+                    $rangefilterArguments,
+                    $datefilterArguments,
+                    $resolveInfo,
+                    $modelClassPath,
+                    $mmTable,
+                    $localUid
+                );
 
                 $facets[] = $facet;
             }
@@ -300,7 +300,7 @@ class FilterResolver
             $rangeFilterInput = new RangeFilterInput($filter['path']);
 
             if (isset($filter['range']['min']) || isset($filter['range']['max'])) {
-                $range =  new Range($filter['range']['min'] ?? null,$filter['range']['max'] ?? null);
+                $range =  new Range($filter['range']['min'] ?? null, $filter['range']['max'] ?? null);
                 $rangeFilterInput->setRange($range);
             }
 
@@ -329,9 +329,13 @@ class FilterResolver
 
         // Set key path from range filter array as key
         foreach ($dateFilterArguments as $key => $filter) {
-            $dateFilterArguments[$filter['path']] = new DateFilterInput($filter['path'],
-                                                                          new DateRange($filter['dateRange']['min'] ?? null,
-                                                                                    $filter['dateRange']['max'] ?? null));
+            $dateFilterArguments[$filter['path']] = new DateFilterInput(
+                $filter['path'],
+                new DateRange(
+                    $filter['dateRange']['min'] ?? null,
+                    $filter['dateRange']['max'] ?? null
+                )
+            );
             unset($dateFilterArguments[$key]);
         }
 
@@ -668,17 +672,18 @@ class FilterResolver
      * @throws Exception
      * @throws FieldDoesNotExistException
      */
-    private function fetchDateRanges(string      $tableName,
-                                 string      $filterPath,
-                                 array       $args,
-                                 array       $discreteFilterArguments,
-                                 array       $rangeFilterArguments,
-                                 array       $dateFilterArguments,
-                                 ResolveInfo $resolveInfo,
-                                 string      $modelClassPath,
-                                 ?string     $mmTable,
-                                 ?int        $localUid): DateRange
-    {
+    private function fetchDateRanges(
+        string $tableName,
+        string $filterPath,
+        array $args,
+        array $discreteFilterArguments,
+        array $rangeFilterArguments,
+        array $dateFilterArguments,
+        ResolveInfo $resolveInfo,
+        string $modelClassPath,
+        ?string $mmTable,
+        ?int $localUid
+    ): DateRange {
         $language = $args[QueryArgumentsUtility::$language] ?? null;
         $storagePids = (array)($args[QueryArgumentsUtility::$pageIds] ?? []);
 
@@ -747,15 +752,15 @@ class FilterResolver
 
         $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
-        if (DateTime::createFromFormat("Y-m-d", $result[0]['min'])){
-            $min = DateTime::createFromFormat("Y-m-d", $result[0]['min']);
+        if (\DateTime::createFromFormat('Y-m-d', $result[0]['min'])) {
+            $min = \DateTime::createFromFormat('Y-m-d', $result[0]['min']);
         } else {
-            $min = new DateTime();
+            $min = new \DateTime();
         }
-        if (DateTime::createFromFormat("Y-m-d", $result[0]['max'])){
-            $max = DateTime::createFromFormat("Y-m-d", $result[0]['max']);
+        if (\DateTime::createFromFormat('Y-m-d', $result[0]['max'])) {
+            $max = \DateTime::createFromFormat('Y-m-d', $result[0]['max']);
         } else {
-            $max = new DateTime();
+            $max = new \DateTime();
         }
 
         return new DateRange($min, $max);
@@ -795,8 +800,9 @@ class FilterResolver
                 );
             }
 
-            if(sizeof($inSetExpressions) > 0)
+            if (count($inSetExpressions) > 0) {
                 $queryBuilder->andWhere($queryBuilder->expr()->or(...$inSetExpressions));
+            }
         }
     }
 
@@ -853,13 +859,15 @@ class FilterResolver
                 if ($whereFilter->rangeFloat->min !== null) {
                     $andExpressions[] = $queryBuilder->expr()->gte(
                         $whereFilterTable . '.' . $whereFilterLastElement,
-                        $queryBuilder->createNamedParameter($whereFilter->rangeFloat->min));
+                        $queryBuilder->createNamedParameter($whereFilter->rangeFloat->min)
+                    );
                 }
 
                 if ($whereFilter->rangeFloat->max !== null) {
                     $andExpressions[] = $queryBuilder->expr()->lte(
                         $whereFilterTable . '.' . $whereFilterLastElement,
-                        $queryBuilder->createNamedParameter($whereFilter->rangeFloat->max));
+                        $queryBuilder->createNamedParameter($whereFilter->rangeFloat->max)
+                    );
                 }
             }
 
@@ -875,17 +883,20 @@ class FilterResolver
      *
      * @throws FieldDoesNotExistException
      */
-    private function applyDateFilters(array        $filterInputs,
-                                       string       $tableName,
-                                       QueryBuilder $queryBuilder,
-                                       string       $filterPath): void
-    {
+    private function applyDateFilters(
+        array $filterInputs,
+        string $tableName,
+        QueryBuilder $queryBuilder,
+        string $filterPath
+    ): void {
         // Filter out filter arguments that are not part of the current filter path
-        $otherFilters = array_filter($filterInputs,
-            static function(DateFilterInput $filterInput) use ($filterPath) {
+        $otherFilters = array_filter(
+            $filterInputs,
+            static function (DateFilterInput $filterInput) use ($filterPath) {
                 return $filterInput->path !== $filterPath &&
                     ($filterInput->dateRange->min !== null || $filterInput->dateRange->max !== null);
-            });
+            }
+        );
 
         /** @var DateFilterInput $whereFilter */
         foreach ($otherFilters as $whereFilter) {
@@ -897,13 +908,17 @@ class FilterResolver
             $andExpressions = [];
 
             if ($whereFilter->dateRange->min !== null) {
-                $andExpressions[] = $queryBuilder->expr()->gte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                               $queryBuilder->createNamedParameter($whereFilter->dateRange->min));
+                $andExpressions[] = $queryBuilder->expr()->gte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $queryBuilder->createNamedParameter($whereFilter->dateRange->min)
+                );
             }
 
             if ($whereFilter->dateRange->max !== null) {
-                $andExpressions[] = $queryBuilder->expr()->lte($whereFilterTable . '.' . $whereFilterLastElement,
-                                                               $queryBuilder->createNamedParameter($whereFilter->dateRange->max));
+                $andExpressions[] = $queryBuilder->expr()->lte(
+                    $whereFilterTable . '.' . $whereFilterLastElement,
+                    $queryBuilder->createNamedParameter($whereFilter->dateRange->max)
+                );
             }
 
             $queryBuilder->andWhere(...$andExpressions);
@@ -944,7 +959,7 @@ class FilterResolver
         string $tableName,
         QueryBuilder $queryBuilder
     ): string {
-        if (!empty($queryBuilder->getFrom()) && ($queryBuilder->getFrom()[0]->table  === "" || $queryBuilder->getFrom()[0]->table === null)) {
+        if (!empty($queryBuilder->getFrom()) && ($queryBuilder->getFrom()[0]->table  === '' || $queryBuilder->getFrom()[0]->table === null)) {
             FilterUtility::handleAlias(str_replace('`', '', $queryBuilder->getFrom()[0]->table));
         }
 
@@ -986,19 +1001,24 @@ class FilterResolver
                 );
                 foreach ($tca['MM_match_fields'] ?? [] as $key => $value) {
                     $queryBuilder->andWhere($queryBuilder->expr()->eq(
-                        $tca['MM'] . '.' . $key,
+                        $lastElementTableAliasTCAMM . '.' . $key,
                         $queryBuilder->createNamedParameter($value)
                     ));
                 }
 
                 $lastElementTableAlias = FilterUtility::handleAlias($lastElementTable);
 
+                // The MM table is joined under its (possibly numbered) alias, so the foreign table has to be
+                // joined from that alias and not from the raw table name.
                 $queryBuilder->join(
-                    $tca['MM'],
+                    $lastElementTableAliasTCAMM,
                     $lastElementTable,
                     $lastElementTableAlias,
-                    $queryBuilder->expr()->eq($lastElementTableAliasTCAMM . ".$mmTableForeignField",
-                        $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')));
+                    $queryBuilder->expr()->eq(
+                        $lastElementTableAliasTCAMM . ".$mmTableForeignField",
+                        $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')
+                    )
+                );
 
                 $_lastElementTableAlias = $lastElementTableAlias;
 
@@ -1025,10 +1045,10 @@ class FilterResolver
     }
 
     /**
-     * @return Generator<array<string,string,array|null>> The table name, the field name and the current tca config
+     * @return \Generator<array<string,string,array|null>> The table name, the field name and the current tca config
      * @throws FieldDoesNotExistException
      */
-    public static function walkTcaRelations(array $filterPathElements, string $tableName): Generator
+    public static function walkTcaRelations(array $filterPathElements, string $tableName): \Generator
     {
         $currentTable = $tableName;
 

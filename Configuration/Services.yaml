@@ -31,3 +31,6 @@ services:
 
     Itx\Typo3GraphQL\Schema\SchemaGenerator:
         public: true
+
+    Itx\Typo3GraphQL\Middleware\ExtbaseBridge:
+        public: true

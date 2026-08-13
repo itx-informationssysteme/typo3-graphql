@@ -9,7 +9,6 @@ use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
 
 class RangeFloatInputType extends InputObjectType implements TypeNameInterface
 {
-
     public function __construct()
     {
         $objectBuilder = InputObjectBuilder::create(self::getTypeName());

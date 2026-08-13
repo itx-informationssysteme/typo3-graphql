@@ -3,7 +3,6 @@
 namespace Itx\Typo3GraphQL\Service;
 
 use Itx\Typo3GraphQL\Domain\Model\Filter;
-use RuntimeException;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Configuration\Loader\YamlFileLoader;
 use TYPO3\CMS\Core\Core\Environment;
@@ -95,7 +94,7 @@ class ConfigurationService
      * @param string $modelClassPath
      * @param string $filterType
      * @return array<Filter>
-     * @throws RuntimeException
+     * @throws \RuntimeException
      */
     public function getFiltersForModel(string $modelClassPath, array $filterPaths, string $filterType): array
     {

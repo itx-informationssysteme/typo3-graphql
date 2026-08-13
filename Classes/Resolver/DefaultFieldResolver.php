@@ -2,8 +2,6 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
-use ArrayAccess;
-use Closure;
 use GraphQL\Type\Definition\ResolveInfo;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -27,7 +25,7 @@ class DefaultFieldResolver
         $fieldName = $info->fieldName;
         $property  = null;
 
-        if (is_array($objectValue) || $objectValue instanceof ArrayAccess) {
+        if (is_array($objectValue) || $objectValue instanceof \ArrayAccess) {
             if (isset($objectValue[$fieldName])) {
                 $property = $objectValue[$fieldName];
             } else {
@@ -53,7 +51,7 @@ class DefaultFieldResolver
             }
         }
 
-        return $property instanceof Closure
+        return $property instanceof \Closure
             ? $property($objectValue, $args, $contextValue, $info)
             : $property;
     }

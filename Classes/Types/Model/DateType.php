@@ -4,10 +4,9 @@ namespace Itx\Typo3GraphQL\Types\Model;
 
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
+use Itx\Typo3GraphQL\Types\TypeRegistry;
 use SimPod\GraphQLUtils\Builder\InputFieldBuilder;
 use SimPod\GraphQLUtils\Builder\InputObjectBuilder;
-use Itx\Typo3GraphQL\Types\DateType as DateTypeScalar;
-use Itx\Typo3GraphQL\Types\TypeRegistry;
 
 class DateType extends ObjectType implements TypeNameInterface
 {

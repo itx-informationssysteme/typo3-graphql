@@ -1,5 +1,6 @@
 <?php
 
+/* @phpstan-ignore-next-line */
 $EM_CONF[$_EXTKEY] = [
     'title' => 'TYPO3 GraphQL API',
     'description' => 'This extension provides a GraphQL API for TYPO3.',
