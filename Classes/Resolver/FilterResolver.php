@@ -964,10 +964,6 @@ class FilterResolver
         string $tableName,
         QueryBuilder $queryBuilder
     ): string {
-        // The base table occupies an alias of its own. Reserve it up front so that a path
-        // pointing back at it (pages -> l10n_parent -> pages) gets a numbered alias instead
-        // of colliding with the FROM clause. It cannot be read back off the QueryBuilder,
-        // because several callers add the FROM only after building the joins.
         FilterUtility::reserveAlias($tableName);
         $currentAlias = $tableName;
 

@@ -6,10 +6,15 @@
 	"homepage": "http://www.itx.de",
 	"authors": [
 		{
-			"name": "Benjamin Jasper",
+			"name": "it.x infomationssysteme gmbh",
 			"role": "Developer"
 		}
 	],
+	"support": {
+		"email": "typo-itx@itx.de",
+		"issues": "https://github.com/itx-informationssysteme/doctrine_migrations/issues",
+		"docs": "https://github.com/itx-informationssysteme/doctrine_migrations"
+	},
 	"require": {
 		"php": ">=8.2",
 		"typo3/cms-core": "^13.4 || ^14.3",
