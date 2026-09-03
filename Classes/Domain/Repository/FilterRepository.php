@@ -43,7 +43,7 @@ class FilterRepository extends \TYPO3\CMS\Extbase\Persistence\Repository
     }
 
     /**
-     * @return Filter[]|QueryResultInterface
+     * @return Filter[]
      * @throws InvalidQueryException
      */
     public function findByModelAndPathsAndType($model, array $paths, string $type): array

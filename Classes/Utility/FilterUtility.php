@@ -11,6 +11,19 @@ class FilterUtility
         $joinedTables = [];
     }
 
+    public static function reserveAlias(string $alias): void
+    {
+        global $joinedTables;
+
+        if (!isset($joinedTables)) {
+            $joinedTables = [];
+        }
+
+        if ($alias !== '' && !in_array($alias, $joinedTables, true)) {
+            $joinedTables[] = $alias;
+        }
+    }
+
     public static function handleAlias($baseAlias): string
     {
         global $joinedTables;

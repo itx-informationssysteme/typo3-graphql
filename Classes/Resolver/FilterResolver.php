@@ -2,8 +2,8 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
-use Doctrine\DBAL\DBALException;
-use Doctrine\DBAL\Driver\Exception;
+use Doctrine\DBAL\Exception as DBALException;
+use Doctrine\DBAL\ParameterType;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Model\Filter;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
@@ -58,7 +58,6 @@ class FilterResolver
      *
      * @return array
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      * @throws InvalidQueryException
      */
@@ -87,7 +86,6 @@ class FilterResolver
      *
      * @return array
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      * @throws InvalidQueryException
      */
@@ -114,7 +112,6 @@ class FilterResolver
     }
 
     /**
-     * @throws Exception
      * @throws DBALException
      * @throws InvalidQueryException
      * @throws FieldDoesNotExistException
@@ -220,6 +217,7 @@ class FilterResolver
                     $mmTable,
                     $localUid
                 );
+                $facet['resultCount'] = $facet['range']->resultCount;
 
                 $facets[] = $facet;
             }
@@ -228,6 +226,8 @@ class FilterResolver
         if (array_key_exists('dateFilters', $args['filters'])) {
             $filters = array_flip($dateFilterPaths);
             $filterResult = $this->filterRepository->findByModelAndPathsAndType($modelClassPath, $dateFilterPaths, 'dateRange');
+            $staticFilters = $this->configurationService->getFiltersForModel($modelClassPath, $dateFilterPaths, 'dateRange');
+            $filterResult = array_merge($filterResult, $staticFilters);
 
             foreach ($filterResult as $filter) {
                 $filters[$filter->getFilterPath()] = $filter;
@@ -256,6 +256,7 @@ class FilterResolver
                     $mmTable,
                     $localUid
                 );
+                $facet['resultCount'] = $facet['range']->resultCount;
 
                 $facets[] = $facet;
             }
@@ -356,7 +357,6 @@ class FilterResolver
      *
      * @return array<DiscreteFilterOption>
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      */
     private function fetchFilterOptions(
@@ -401,7 +401,7 @@ class FilterResolver
                 array_map(
                     static fn($a) => $queryBuilder->createNamedParameter(
                         $a,
-                        \PDO::PARAM_INT
+                        ParameterType::INTEGER
                     ),
                     $storagePids
                 )
@@ -411,7 +411,7 @@ class FilterResolver
         if ($language !== null) {
             $queryBuilder->andWhere($queryBuilder->expr()->eq(
                 $tableName . '.sys_language_uid',
-                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
+                $queryBuilder->createNamedParameter($language, ParameterType::INTEGER)
             ));
         }
 
@@ -463,7 +463,6 @@ class FilterResolver
      *
      * @return array
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      */
     private function fetchAndProcessFilterOptions(
@@ -569,7 +568,6 @@ class FilterResolver
      *
      * @return Range
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      */
     private function fetchRanges(
@@ -613,7 +611,7 @@ class FilterResolver
                 array_map(
                     static fn($a) => $queryBuilder->createNamedParameter(
                         $a,
-                        \PDO::PARAM_INT
+                        ParameterType::INTEGER
                     ),
                     $storagePids
                 )
@@ -623,7 +621,7 @@ class FilterResolver
         if ($language !== null) {
             $queryBuilder->andWhere($queryBuilder->expr()->eq(
                 $tableName . '.sys_language_uid',
-                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
+                $queryBuilder->createNamedParameter($language, ParameterType::INTEGER)
             ));
         }
 
@@ -647,12 +645,18 @@ class FilterResolver
             $fieldPrefix = '';
         }
 
-        $queryBuilder->addSelectLiteral("MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max")
-                     ->from($tableName);
+        $queryBuilder->addSelectLiteral(
+            "MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max, " .
+            "COUNT(DISTINCT $tableName.uid) AS resultCount"
+        )->from($tableName);
 
         $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
-        return new Range($result[0]['min'] ?? 0, $result[0]['max'] ?? 0);
+        return new Range(
+            $result[0]['min'] ?? 0,
+            $result[0]['max'] ?? 0,
+            (int)($result[0]['resultCount'] ?? 0)
+        );
     }
 
     /**
@@ -667,9 +671,8 @@ class FilterResolver
      * @param string|null                        $mmTable
      * @param int|null                           $localUid
      *
-     * @return Range
+     * @return DateRange
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      */
     private function fetchDateRanges(
@@ -713,7 +716,7 @@ class FilterResolver
                 array_map(
                     static fn($a) => $queryBuilder->createNamedParameter(
                         $a,
-                        \PDO::PARAM_INT
+                        ParameterType::INTEGER
                     ),
                     $storagePids
                 )
@@ -723,7 +726,7 @@ class FilterResolver
         if ($language !== null) {
             $queryBuilder->andWhere($queryBuilder->expr()->eq(
                 $tableName . '.sys_language_uid',
-                $queryBuilder->createNamedParameter($language, \PDO::PARAM_INT)
+                $queryBuilder->createNamedParameter($language, ParameterType::INTEGER)
             ));
         }
 
@@ -747,8 +750,10 @@ class FilterResolver
             $fieldPrefix = '';
         }
 
-        $queryBuilder->addSelectLiteral("MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max")
-                     ->from($tableName);
+        $queryBuilder->addSelectLiteral(
+            "MIN($fieldPrefix$lastElement) AS min, MAX($fieldPrefix$lastElement) AS max, " .
+            "COUNT(DISTINCT $tableName.uid) AS resultCount"
+        )->from($tableName);
 
         $result = $queryBuilder->executeQuery()->fetchAllAssociative() ?? [];
 
@@ -763,7 +768,7 @@ class FilterResolver
             $max = new \DateTime();
         }
 
-        return new DateRange($min, $max);
+        return new DateRange($min, $max, (int)($result[0]['resultCount'] ?? 0));
     }
 
     /**
@@ -959,24 +964,16 @@ class FilterResolver
         string $tableName,
         QueryBuilder $queryBuilder
     ): string {
-        if (!empty($queryBuilder->getFrom()) && ($queryBuilder->getFrom()[0]->table  === '' || $queryBuilder->getFrom()[0]->table === null)) {
-            FilterUtility::handleAlias(str_replace('`', '', $queryBuilder->getFrom()[0]->table));
-        }
-
-        $i = 1;
-        $_lastElementTableAlias = $tableName;
+        FilterUtility::reserveAlias($tableName);
+        $currentAlias = $tableName;
 
         // Go through the filter path and join the tables by using the TCA MM relations
         /**
-         * @var string $currentTable
          * @var string $fieldName
          * @var array  $tca
          */
-        foreach (self::walkTcaRelations($filterPathElements, $tableName) as [$currentTable, $fieldName, $tca]) {
-            $lastElementTable = $tca['foreign_table'];
-            $lastElementTableAlias = $lastElementTable;
-
-            $_lastElementTableAlias = $lastElementTableAlias;
+        foreach (self::walkTcaRelations($filterPathElements, $tableName) as [, $fieldName, $tca]) {
+            $foreignTable = $tca['foreign_table'];
 
             if ($tca['MM'] ?? false) {
                 // Figure out from which side of the MM table we need to join TODO: This might not be robust enough
@@ -985,67 +982,65 @@ class FilterResolver
                 $mmTableLocalField = $isLocalTable ? 'uid_foreign' : 'uid_local';
                 $mmTableForeignField = $isLocalTable ? 'uid_local' : 'uid_foreign';
 
-                $lastElementTableAlias = $tca['MM'];
-                $lastElementTableAlias = FilterUtility::handleAlias($lastElementTableAlias);
-                $lastElementTableAliasTCAMM = $lastElementTableAlias;
+                $mmAlias = FilterUtility::handleAlias($tca['MM']);
 
                 // Join with MM and foreign table
                 $queryBuilder->join(
-                    $currentTable,
+                    $currentAlias,
                     $tca['MM'],
-                    $lastElementTableAlias,
+                    $mmAlias,
                     $queryBuilder->expr()->eq(
-                        $lastElementTableAlias . ".$mmTableLocalField",
-                        $queryBuilder->quoteIdentifier($currentTable . '.uid')
+                        $mmAlias . ".$mmTableLocalField",
+                        $queryBuilder->quoteIdentifier($currentAlias . '.uid')
                     )
                 );
                 foreach ($tca['MM_match_fields'] ?? [] as $key => $value) {
                     $queryBuilder->andWhere($queryBuilder->expr()->eq(
-                        $lastElementTableAliasTCAMM . '.' . $key,
+                        $mmAlias . '.' . $key,
                         $queryBuilder->createNamedParameter($value)
                     ));
                 }
 
-                $lastElementTableAlias = FilterUtility::handleAlias($lastElementTable);
+                $foreignAlias = FilterUtility::handleAlias($foreignTable);
 
                 // The MM table is joined under its (possibly numbered) alias, so the foreign table has to be
                 // joined from that alias and not from the raw table name.
                 $queryBuilder->join(
-                    $lastElementTableAliasTCAMM,
-                    $lastElementTable,
-                    $lastElementTableAlias,
+                    $mmAlias,
+                    $foreignTable,
+                    $foreignAlias,
                     $queryBuilder->expr()->eq(
-                        $lastElementTableAliasTCAMM . ".$mmTableForeignField",
-                        $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')
+                        $mmAlias . ".$mmTableForeignField",
+                        $queryBuilder->quoteIdentifier($foreignAlias . '.uid')
                     )
                 );
 
-                $_lastElementTableAlias = $lastElementTableAlias;
+                $currentAlias = $foreignAlias;
 
                 continue;
             }
 
-            $lastElementTableAlias = FilterUtility::handleAlias($lastElementTable);
+            $foreignAlias = FilterUtility::handleAlias($foreignTable);
 
             // Join with foreign table
             $queryBuilder->join(
-                $currentTable,
-                $lastElementTable,
-                $lastElementTableAlias,
+                $currentAlias,
+                $foreignTable,
+                $foreignAlias,
                 $queryBuilder->expr()->eq(
-                    $currentTable . '.' . $fieldName,
-                    $queryBuilder->quoteIdentifier($lastElementTableAlias . '.uid')
+                    $currentAlias . '.' . $fieldName,
+                    $queryBuilder->quoteIdentifier($foreignAlias . '.uid')
                 )
             );
 
-            $_lastElementTableAlias = $lastElementTableAlias;
+            $currentAlias = $foreignAlias;
         }
 
-        return $_lastElementTableAlias;
+        return $currentAlias;
     }
 
     /**
-     * @return \Generator<array<string,string,array|null>> The table name, the field name and the current tca config
+     * @return \Generator<int, array{0: string, 1: string, 2: array<string, mixed>|null}>
      * @throws FieldDoesNotExistException
      */
     public static function walkTcaRelations(array $filterPathElements, string $tableName): \Generator

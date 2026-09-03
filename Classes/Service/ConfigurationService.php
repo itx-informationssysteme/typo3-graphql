@@ -107,7 +107,7 @@ class ConfigurationService
         foreach ($filters as $filter) {
             $filterModel = new Filter();
             $filterModel->setName($filter['name'] ?? '');
-            if ($filter['type'] !== 'discrete' && $filter['type'] !== 'range') {
+            if (!in_array($filter['type'], ['discrete', 'range', 'dateRange'], true)) {
                 throw new \RuntimeException("Filter type '$filterType' not supported");
             }
 
