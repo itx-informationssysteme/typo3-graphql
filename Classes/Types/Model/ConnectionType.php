@@ -19,6 +19,7 @@ class ConnectionType extends ObjectType
      */
     public function __construct(Type $node, EdgeType $edge)
     {
+        // @phpstan-ignore-next-line property.notFound
         $multipleName = NamingUtility::generateName($node->name, true);
         $this->name = $multipleName . 'Connection';
         $objectBuilder = ObjectBuilder::create($this->name);

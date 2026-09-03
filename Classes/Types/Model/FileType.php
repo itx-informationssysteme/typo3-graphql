@@ -162,7 +162,6 @@ class FileType extends \GraphQL\Type\Definition\ObjectType implements TypeNameIn
                                 ->build();
 
         // Add custom fields to model
-        /** @var CustomModelFieldEvent $customEvent */
         $eventDispatcher = GeneralUtility::makeInstance(EventDispatcher::class);
         $customEvent = $eventDispatcher->dispatch(new CustomFileTypeFieldEvent());
 

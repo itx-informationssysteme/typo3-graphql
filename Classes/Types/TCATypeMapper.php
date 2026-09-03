@@ -349,7 +349,6 @@ class TCATypeMapper
                     return;
                 }
 
-                /** @var ObjectStorage $root */
                 $fieldBuilder->setResolver(function ($root, array $args, $context, ResolveInfo $resolveInfo) use (
                     $foreignTable,
                     $schemaContext

@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
+use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Extbase\Persistence\Exception\InvalidQueryException;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 
@@ -52,8 +53,9 @@ class ResolverBuffer
         $query = $this->persistenceManager->createQueryForType($modelClassPath);
         $query->getQuerySettings()
               ->setRespectStoragePage(false)
-              ->setLanguageUid($languageID)
-              ->setLanguageOverlayMode(true);
+              ->setLanguageAspect(
+                  new LanguageAspect($languageID, $languageID, LanguageAspect::OVERLAYS_MIXED)
+              );
 
         $query->matching($query->in('uid', array_keys($this->buffer[$modelClassPath][$languageID])));
         $result = $query->execute(true);

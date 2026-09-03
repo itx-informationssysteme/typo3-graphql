@@ -45,6 +45,7 @@ class LinkType extends \GraphQL\Type\Definition\ScalarType implements TypeNameIn
      */
     public function parseLiteral(Node $valueNode, ?array $variables = null)
     {
+        // @phpstan-ignore-next-line property.notFound (NamedType interface doesn't declare $name, but all concrete implementers do)
         return $valueNode->value;
     }
 

@@ -2,8 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Resolver;
 
-use Doctrine\DBAL\DBALException;
-use Doctrine\DBAL\Driver\Exception;
+use Doctrine\DBAL\Exception as DBALException;
 use GraphQL\Type\Definition\ResolveInfo;
 use Itx\Typo3GraphQL\Domain\Model\Filter;
 use Itx\Typo3GraphQL\Domain\Repository\FilterRepository;
@@ -58,7 +57,6 @@ class FilterResolver
      *
      * @return array
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      * @throws InvalidQueryException
      */
@@ -87,7 +85,6 @@ class FilterResolver
      *
      * @return array
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      * @throws InvalidQueryException
      */
@@ -114,7 +111,6 @@ class FilterResolver
     }
 
     /**
-     * @throws Exception
      * @throws DBALException
      * @throws InvalidQueryException
      * @throws FieldDoesNotExistException
@@ -356,7 +352,6 @@ class FilterResolver
      *
      * @return array<DiscreteFilterOption>
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      */
     private function fetchFilterOptions(
@@ -463,7 +458,6 @@ class FilterResolver
      *
      * @return array
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      */
     private function fetchAndProcessFilterOptions(
@@ -569,7 +563,6 @@ class FilterResolver
      *
      * @return Range
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      */
     private function fetchRanges(
@@ -667,9 +660,8 @@ class FilterResolver
      * @param string|null                        $mmTable
      * @param int|null                           $localUid
      *
-     * @return Range
+     * @return DateRange
      * @throws DBALException
-     * @throws Exception
      * @throws FieldDoesNotExistException
      */
     private function fetchDateRanges(
@@ -1045,7 +1037,7 @@ class FilterResolver
     }
 
     /**
-     * @return \Generator<array<string,string,array|null>> The table name, the field name and the current tca config
+     * @return \Generator<int, array{0: string, 1: string, 2: array<string, mixed>|null}>
      * @throws FieldDoesNotExistException
      */
     public static function walkTcaRelations(array $filterPathElements, string $tableName): \Generator
