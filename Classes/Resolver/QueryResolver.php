@@ -379,8 +379,8 @@ class QueryResolver
             $andExpressions = [];
 
             /** @var ?\DateTimeInterface $rangeMin  */
-            $rangeMin = $dateFilter['range']['min'];
-            if (($rangeMin ?? null) !== null) {
+            $rangeMin = $dateFilter['range']['min'] ?? null;
+            if ($rangeMin !== null) {
                 $andExpressions[] = $qb->expr()->gte(
                     $whereFilterTable . '.' . $whereFilterLastElement,
                     $qb->createNamedParameter($rangeMin->format(\DateTimeInterface::ATOM))
@@ -388,8 +388,8 @@ class QueryResolver
             }
 
             /** @var ?\DateTimeInterface $rangeMax  */
-            $rangeMax = $dateFilter['range']['max'];
-            if (($rangeMax ?? null) !== null) {
+            $rangeMax = $dateFilter['range']['max'] ?? null;
+            if ($rangeMax !== null) {
                 $andExpressions[] = $qb->expr()->lte(
                     $whereFilterTable . '.' . $whereFilterLastElement,
                     $qb->createNamedParameter($rangeMax->format(\DateTimeInterface::ATOM))

@@ -2,6 +2,7 @@
 
 namespace Itx\Typo3GraphQL\Types\Model;
 
+use GraphQL\Type\Definition\NamedType;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use Itx\Typo3GraphQL\Exception\NameNotFoundException;
@@ -19,8 +20,14 @@ class ConnectionType extends ObjectType
      */
     public function __construct(Type $node, EdgeType $edge)
     {
-        // @phpstan-ignore-next-line property.notFound
-        $multipleName = NamingUtility::generateName($node->name, true);
+        if (!$node instanceof NamedType) {
+            throw new NameNotFoundException(
+                'Cannot build a connection for the unnamed type ' . $node->toString(),
+                1654960584
+            );
+        }
+
+        $multipleName = NamingUtility::generateName($node->name(), true);
         $this->name = $multipleName . 'Connection';
         $objectBuilder = ObjectBuilder::create($this->name);
 

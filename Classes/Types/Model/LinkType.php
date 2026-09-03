@@ -2,7 +2,10 @@
 
 namespace Itx\Typo3GraphQL\Types\Model;
 
+use GraphQL\Error\Error;
 use GraphQL\Language\AST\Node;
+use GraphQL\Language\AST\StringValueNode;
+use GraphQL\Language\Printer;
 use Itx\Typo3GraphQL\Exception\NotImplementedException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
@@ -45,8 +48,14 @@ class LinkType extends \GraphQL\Type\Definition\ScalarType implements TypeNameIn
      */
     public function parseLiteral(Node $valueNode, ?array $variables = null)
     {
-        // @phpstan-ignore-next-line property.notFound (NamedType interface doesn't declare $name, but all concrete implementers do)
-        return $valueNode->value;
+        if ($valueNode instanceof StringValueNode) {
+            return $valueNode->value;
+        }
+
+        throw new Error(
+            'Link cannot represent a non string value: ' . Printer::doPrint($valueNode),
+            $valueNode
+        );
     }
 
     public static function getTypeName(): string

@@ -27,7 +27,6 @@ use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
-use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 
 class TCATypeMapper
 {
@@ -101,6 +100,20 @@ class TCATypeMapper
             case 'datetime':
                 $fieldBuilder->setType(TypeRegistry::dateTime());
                 break;
+            case 'file':
+                $this->handleFileType($context, $fieldBuilder);
+                break;
+            case 'email':
+            case 'color':
+            case 'country':
+            case 'slug':
+            case 'uuid':
+            case 'folder':
+                $fieldBuilder->setType(Type::string());
+                break;
+            case 'json':
+                $this->handleJsonType($fieldBuilder);
+                break;
         }
 
         // If the field is a translation parent field, we don't want the relation but only the element id
@@ -112,10 +125,13 @@ class TCATypeMapper
             throw new UnsupportedTypeException('Unsupported type: ' . $columnConfiguration['config']['type'], 1654960583);
         }
 
+        $isFileRelation = ($columnConfiguration['config']['type'] ?? '') === 'file' ||
+            ($columnConfiguration['config']['foreign_table'] ?? '') === 'sys_file_reference';
+
         // If the field has some kind of relation, the type is a list of the related type
-        if (($columnConfiguration['config']['foreign_table'] ?? '') !== 'sys_file_reference' &&
-            (($columnConfiguration['config']['maxitems'] ?? 2) > 1) &&
-            ((!empty($columnConfiguration['config']['MM'])) || (!empty($columnConfiguration['config']['type'] === 'inline')))) {
+        if ((($columnConfiguration['config']['maxitems'] ?? 2) > 1) &&
+            ((!empty($columnConfiguration['config']['MM'])) ||
+             in_array($columnConfiguration['config']['type'] ?? '', ['inline', 'file'], true))) {
             $isLazy = false;
             foreach ($context->getFieldAnnotations() as $annotation) {
                 if ($annotation instanceof Lazy) {
@@ -123,7 +139,7 @@ class TCATypeMapper
                 }
             }
 
-            if ($isLazy) {
+            if ($isLazy && !$isFileRelation) {
                 $paginationConnection = PaginationUtility::generateConnectionTypes(
                     $fieldBuilder->getType(),
                     $context->getTypeRegistry()
@@ -225,6 +241,55 @@ class TCATypeMapper
         }
 
         $fieldBuilder->setType(TypeRegistry::file())->setDescription($description);
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    protected function handleFileType(Context $context, FieldBuilder $fieldBuilder): void
+    {
+        $columnConfiguration = $context->getColumnConfiguration();
+        $config = $columnConfiguration['config'] ?? [];
+
+        $allowed = $config['allowed'] ?? '';
+        $expectedFileTypes = is_array($allowed) ? implode(', ', $allowed) : (string)$allowed;
+
+        // Fetch available crop variants
+        $cropVariants = implode(
+            ', ',
+            array_keys($config['overrideChildTca']['columns']['crop']['config']['cropVariants'] ?? [])
+        );
+
+        $description = $this->languageService->sL($columnConfiguration['label'] ?? '');
+
+        if ($expectedFileTypes !== '') {
+            $description .= "\n - Allowed file types: $expectedFileTypes";
+        }
+
+        if ($cropVariants !== '') {
+            $description .= "\n - Available crop variants: $cropVariants";
+        }
+
+        $fieldBuilder->setType(TypeRegistry::file())->setDescription($description);
+    }
+
+    /**
+     * @throws NameNotFoundException
+     */
+    protected function handleJsonType(FieldBuilder $fieldBuilder): void
+    {
+        $fieldBuilder->setType(Type::string())
+                     ->setResolver(static function ($value, $args, $context, ResolveInfo $info) {
+                         $fieldValue = DefaultFieldResolver::defaultFieldResolver($value, $args, $context, $info);
+
+                         if ($fieldValue === null || is_string($fieldValue)) {
+                             return $fieldValue;
+                         }
+
+                         $encoded = json_encode($fieldValue);
+
+                         return $encoded === false ? null : $encoded;
+                     });
     }
 
     /**

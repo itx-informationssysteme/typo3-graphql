@@ -6,10 +6,13 @@ class DateRange
 {
     public ?\DateTime $min;
     public ?\DateTime $max;
-    public function __construct(?\DateTime $min, ?\DateTime $max)
+    public int $resultCount;
+
+    public function __construct(?\DateTime $min, ?\DateTime $max, int $resultCount = 0)
     {
         $this->min = $min;
         $this->max = $max;
+        $this->resultCount = $resultCount;
     }
 
     public static function fromString(?string $min, ?string $max)
