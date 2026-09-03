@@ -15,7 +15,7 @@
 		"typo3/cms-core": "^13.4 || ^14.3",
 		"typo3/cms-extbase": "^13.4 || ^14.3",
 		"typo3/cms-frontend": "^13.4 || ^14.3",
-		"doctrine/annotations": "*",
+		"doctrine/annotations": "^2.0",
 		"webonyx/graphql-php": "15.*",
 		"simpod/graphql-utils": "^0.7",
 		"aimeos/map": "^3",
