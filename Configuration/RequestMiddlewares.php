@@ -15,7 +15,9 @@ return [
                 'typo3/cms-frontend/site',
             ],
             'before' => [
+                'typo3/cms-frontend/base-redirect-resolver',
                 'typo3/cms-frontend/static-route-resolver',
+                'typo3/cms-redirects/redirecthandler',
             ],
         ],
         'itx/typo3_graphql/graphql-cors' => [
